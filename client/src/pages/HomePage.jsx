@@ -394,7 +394,7 @@ export default function HomePage() {
 
         <div className="footer-bottom">
           <p>
-            &copy; 1999 PROJENIUS — Give a Book, Earn Rewards
+            &copy; 2026 PROJENIUS — Give a Book, Earn Rewards
           </p>
         </div>
 
