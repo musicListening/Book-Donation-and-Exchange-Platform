@@ -1,3 +1,4 @@
+// client/src/App.js
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 
@@ -10,4 +11,5 @@ function App() {
     </BrowserRouter>
   );
 }
+
 export default App;

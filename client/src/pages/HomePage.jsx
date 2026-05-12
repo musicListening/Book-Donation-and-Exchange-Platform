@@ -1,230 +1,403 @@
 // client/src/pages/HomePage.jsx
-import React from "react";
-import "../styles/HomePage.css"; // Import the CSS file
+
+import React, { useState } from "react";
+import "../styles/HomePage.css";
+
+// Import Local Images
+import bookStackImage from "../assets/book-stack.png";
+import bundlesImage from "../assets/bundles-icon.png";
+import craftsImage from "../assets/crafts-icon.png";
+import progressImage from "../assets/progress-icon.png";
+import bookIcon from "../assets/book-icon.png";
+import rewardsIcon from "../assets/rewards-icon.png";
 
 export default function HomePage() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <div className="homepage">
-      {/* Navbar */}
+      
+      {/* Navigation Bar */}
       <nav className="navbar">
         <div className="nav-container">
+
           <div className="logo">
-            <i className="fas fa-book-open"></i>
-            <span>LeafSwap</span>
+            <span className="logo-icon">📚</span>
+            <span className="logo-text">PROJENIUS</span>
           </div>
-          <div className="nav-links">
-            <a href="#home">Home</a>
-            <a href="#categories">Categories</a>
-            <a href="#how-it-works">How It Works</a>
-            <a href="#exchange">Exchange</a>
-            <button className="login-btn">
-              <i className="fas fa-user-circle"></i> Login
+
+          <div className="nav-menu">
+            <a href="#home" className="nav-link active">
+              HOME
+            </a>
+
+            <a href="#marketplace" className="nav-link">
+              MARKETPLACE
+            </a>
+
+            <a href="#donate" className="nav-link">
+              DONATE
+            </a>
+
+            <a href="#about" className="nav-link">
+              ABOUT US
+            </a>
+          </div>
+
+          <div className="nav-search">
+            <input
+              type="text"
+              placeholder="SEARCH"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+
+            <button className="search-btn">
+              <span className="search-icon">🔍</span>
             </button>
           </div>
+
         </div>
       </nav>
 
       {/* Hero Section */}
       <section className="hero" id="home">
-        <div className="container">
-          <div className="hero-grid">
+        <div className="hero-container">
+
+          <div className="hero-split">
+
+            {/* Left Side Image */}
+            <div className="hero-image">
+              <img
+                src={bookStackImage}
+                alt="Stack of books"
+                className="book-stack-img"
+              />
+            </div>
+
+            {/* Right Side Content */}
             <div className="hero-content">
-              <div className="hero-badge">
-                <i className="fas fa-gem"></i> Points-Based Platform
-              </div>
-              <h1>
-                Donate Books, <br />
-                <span className="hero-highlight">Earn Points</span>, Exchange
+
+              <h1 className="hero-title">
+                Give a Book, Earn <span className="highlight">Rewards!</span>
               </h1>
-              <p className="hero-desc">
-                Turn your old books into points and unlock a world of reading.
-                Every donation gives you points to exchange for your next favorite book.
+
+              <p className="hero-description">
+                Join our sustainable ecosystem to reduce book waste and exchange
+                points for curated bundles or handmade crafts.
               </p>
-              <div className="btn-group">
-                <a href="#donate" className="btn-primary">
-                  <i className="fas fa-hand-holding-heart"></i> Donate Books
-                </a>
-                <a href="#exchange" className="btn-outline">
-                  <i className="fas fa-exchange-alt"></i> Start Earning
-                </a>
+
+              {/* Stats */}
+              <div className="hero-stats">
+
+                <div className="stat-item">
+                  <img
+                    src={bundlesImage}
+                    alt="Bundles"
+                    className="stat-image"
+                  />
+                  <span className="stat-label">BUNDLES</span>
+                </div>
+
+                <div className="stat-item">
+                  <img
+                    src={bookIcon}
+                    alt="Book"
+                    className="stat-image"
+                  />
+                  <span className="stat-label">BOOK</span>
+                </div>
+
+                <div className="stat-item">
+                  <img
+                    src={craftsImage}
+                    alt="Crafts"
+                    className="stat-image"
+                  />
+                  <span className="stat-label">
+                    HANDMADE
+                    <br />
+                    CRAFTS
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <img
+                    src={rewardsIcon}
+                    alt="Rewards"
+                    className="stat-image"
+                  />
+                  <span className="stat-label">
+                    REWARDS
+                    <br />
+                    POINTS
+                  </span>
+                </div>
+
               </div>
-            </div>
-            <div className="hero-stats">
-              <div className="stat-card">
-                <i className="fas fa-chart-line"></i>
-                <div className="stat-number">2,450+</div>
-                <div className="stat-label">Books Exchanged</div>
-              </div>
-              <div className="stat-card">
-                <i className="fas fa-users"></i>
-                <div className="stat-number">1,280+</div>
-                <div className="stat-label">Active Members</div>
-              </div>
-              <div className="stat-card">
-                <i className="fas fa-coins"></i>
-                <div className="stat-number">45K+</div>
-                <div className="stat-label">Points Earned</div>
-              </div>
+
+              <button className="donate-now-btn">
+                DONATE NOW →
+              </button>
+
             </div>
           </div>
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="categories" id="categories">
-        <div className="container">
-          <div className="section-header">
-            <h2>Browse by Category</h2>
-            <p>Find your next read from our diverse collection</p>
+      {/* Features Section */}
+      <section className="features">
+        <div className="features-container">
+
+          <div className="feature-card">
+            <div className="feature-number">01</div>
+
+            <div className="feature-icon">
+              <img
+                src={bundlesImage}
+                alt="Curated Bundles"
+                className="feature-img"
+              />
+            </div>
+
+            <h3 className="feature-title">
+              Curated Bundles
+            </h3>
+
+            <p className="feature-description">
+              Genre-specific collections curated by our staff from community
+              donations.
+            </p>
           </div>
-          <div className="categories-grid">
-            <div className="category-card">
-              <i className="fas fa-flask"></i>
-              <h3>Science & Tech</h3>
-              <p>245 books available</p>
-              <span className="points-badge">Starting 50 pts</span>
+
+          <div className="feature-card">
+            <div className="feature-number">02</div>
+
+            <div className="feature-icon">
+              <img
+                src={craftsImage}
+                alt="Handmade Crafts"
+                className="feature-img"
+              />
             </div>
-            <div className="category-card">
-              <i className="fas fa-chalkboard-user"></i>
-              <h3>Academic</h3>
-              <p>189 books available</p>
-              <span className="points-badge">Starting 30 pts</span>
-            </div>
-            <div className="category-card">
-              <i className="fas fa-feather"></i>
-              <h3>Literature</h3>
-              <p>432 books available</p>
-              <span className="points-badge">Starting 40 pts</span>
-            </div>
-            <div className="category-card">
-              <i className="fas fa-brain"></i>
-              <h3>Self-Help</h3>
-              <p>167 books available</p>
-              <span className="points-badge">Starting 35 pts</span>
-            </div>
-            <div className="category-card">
-              <i className="fas fa-child"></i>
-              <h3>Children's</h3>
-              <p>298 books available</p>
-              <span className="points-badge">Starting 25 pts</span>
-            </div>
-            <div className="category-card">
-              <i className="fas fa-chart-simple"></i>
-              <h3>Business & Econ</h3>
-              <p>134 books available</p>
-              <span className="points-badge">Starting 60 pts</span>
-            </div>
+
+            <h3 className="feature-title">
+              Handmade Crafts
+            </h3>
+
+            <p className="feature-description">
+              Direct peer-to-peer sales of unique paper-based artistic creations.
+            </p>
           </div>
+
+          <div className="feature-card">
+            <div className="feature-number">03</div>
+
+            <div className="feature-icon">
+              <img
+                src={progressImage}
+                alt="Your Progress"
+                className="feature-img"
+              />
+            </div>
+
+            <h3 className="feature-title">
+              Your Progress
+            </h3>
+
+            <p className="feature-description">
+              View your total points, current user level, and contributions to
+              literacy.
+            </p>
+          </div>
+
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="how-it-works" id="how-it-works">
+      {/* How It Works */}
+      <section className="how-it-works">
         <div className="container">
-          <div className="section-header">
-            <h2>How It Works</h2>
-            <p>Earn, exchange, and enjoy — in 3 simple steps</p>
-          </div>
+
+          <h2 className="section-title">
+            How It Works
+          </h2>
+
           <div className="steps-container">
-            <div className="step">
-              <div className="step-number">1</div>
-              <div className="step-icon">
-                <i className="fas fa-box-open"></i>
-              </div>
-              <h3>Donate Books</h3>
-              <p>List your books for donation. We verify quality and condition.</p>
-              <div className="step-points">+10 to 200 points per book</div>
-            </div>
-            <div className="step-arrow">
-              <i className="fas fa-arrow-right"></i>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <div className="step-icon">
-                <i className="fas fa-coins"></i>
-              </div>
-              <h3>Earn Points</h3>
-              <p>Get points based on book rarity, condition, and demand.</p>
-              <div className="step-points">Build your balance</div>
-            </div>
-            <div className="step-arrow">
-              <i className="fas fa-arrow-right"></i>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <div className="step-icon">
-                <i className="fas fa-book"></i>
-              </div>
-              <h3>Exchange Books</h3>
-              <p>Redeem points to get any book you want from the platform.</p>
-              <div className="step-points">Start reading today!</div>
-            </div>
-          </div>
 
-          {/* Bonus points info */}
-          <div className="points-info">
-            <div className="info-card">
-              <i className="fas fa-star"></i>
-              <div>
-                <strong>Bonus Points:</strong> First donation gets 50 bonus points!
-              </div>
+            <div className="step-card">
+              <div className="step-circle">1</div>
+              <div className="step-icon">📚</div>
+
+              <h3>Donate Books</h3>
+
+              <p>
+                Share your pre-loved books with our community.
+              </p>
+
+              <span className="step-points">
+                Earn 10-200 points
+              </span>
             </div>
-            <div className="info-card">
-              <i className="fas fa-truck"></i>
-              <div>
-                <strong>Free Delivery:</strong> On exchanges above 200 points
-              </div>
+
+            <div className="step-arrow">→</div>
+
+            <div className="step-card">
+              <div className="step-circle">2</div>
+              <div className="step-icon">⭐</div>
+
+              <h3>Collect Points</h3>
+
+              <p>
+                Accumulate points based on book value & demand.
+              </p>
+
+              <span className="step-points">
+                Build your balance
+              </span>
             </div>
+
+            <div className="step-arrow">→</div>
+
+            <div className="step-card">
+              <div className="step-circle">3</div>
+              <div className="step-icon">🎁</div>
+
+              <h3>Redeem Rewards</h3>
+
+              <p>
+                Exchange points for bundles or handmade crafts.
+              </p>
+
+              <span className="step-points">
+                Start redeeming!
+              </span>
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="cta-section">
+      {/* Categories */}
+      <section className="categories">
         <div className="container">
-          <div className="cta-card">
-            <h2>Ready to transform your bookshelf?</h2>
-            <p>Join thousands of readers who are donating and exchanging books every day.</p>
-            <button className="btn-primary-large">
-              <i className="fas fa-user-plus"></i> Create Free Account
+
+          <h2 className="section-title">
+            Browse Categories
+          </h2>
+
+          <div className="categories-grid">
+
+            <div className="category-card">
+              <div className="category-icon">🔬</div>
+              <h3>Science & Tech</h3>
+              <p>245 books</p>
+            </div>
+
+            <div className="category-card">
+              <div className="category-icon">📚</div>
+              <h3>Academic</h3>
+              <p>189 books</p>
+            </div>
+
+            <div className="category-card">
+              <div className="category-icon">✍️</div>
+              <h3>Literature</h3>
+              <p>432 books</p>
+            </div>
+
+            <div className="category-card">
+              <div className="category-icon">💡</div>
+              <h3>Self-Help</h3>
+              <p>167 books</p>
+            </div>
+
+            <div className="category-card">
+              <div className="category-icon">🧸</div>
+              <h3>Children's</h3>
+              <p>298 books</p>
+            </div>
+
+            <div className="category-card">
+              <div className="category-icon">📈</div>
+              <h3>Business</h3>
+              <p>134 books</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="cta">
+        <div className="cta-container">
+
+          <div className="cta-content">
+
+            <h2>
+              Start Your Journey Today
+            </h2>
+
+            <p>
+              Join thousands of readers making a difference, one book at a time.
+            </p>
+
+            <button className="cta-button">
+              Create Free Account →
             </button>
+
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="footer">
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-logo">
-              <i className="fas fa-book-open"></i>
-              <span>LeafSwap</span>
-              <p>Donate • Earn • Exchange</p>
-            </div>
-            <div className="footer-links">
-              <div className="link-group">
-                <h4>Platform</h4>
-                <a href="#">How it Works</a>
-                <a href="#">Categories</a>
-                <a href="#">Points System</a>
-              </div>
-              <div className="link-group">
-                <h4>Support</h4>
-                <a href="#">FAQs</a>
-                <a href="#">Shipping Info</a>
-                <a href="#">Contact Us</a>
-              </div>
-              <div className="link-group">
-                <h4>Legal</h4>
-                <a href="#">Terms of Service</a>
-                <a href="#">Privacy Policy</a>
-              </div>
-            </div>
+
+        <div className="footer-container">
+
+          <div className="footer-logo">
+            <span className="logo-icon">📚</span>
+            <span>PROJENIUS</span>
+
+            <p>
+              Sustainable reading for everyone
+            </p>
           </div>
-          <div className="footer-bottom">
-            <p>&copy; 2026 LeafSwap — Turn books into opportunities.</p>
+
+          <div className="footer-links">
+
+            <div className="footer-column">
+              <h4>Platform</h4>
+
+              <a href="#">Marketplace</a>
+              <a href="#">Donate</a>
+              <a href="#">How it Works</a>
+            </div>
+
+            <div className="footer-column">
+              <h4>Support</h4>
+
+              <a href="#">FAQs</a>
+              <a href="#">Contact</a>
+              <a href="#">Shipping</a>
+            </div>
+
+            <div className="footer-column">
+              <h4>Legal</h4>
+
+              <a href="#">Terms</a>
+              <a href="#">Privacy</a>
+            </div>
+
           </div>
         </div>
+
+        <div className="footer-bottom">
+          <p>
+            &copy; 2026 PROJENIUS — Give a Book, Earn Rewards
+          </p>
+        </div>
+
       </footer>
     </div>
   );
