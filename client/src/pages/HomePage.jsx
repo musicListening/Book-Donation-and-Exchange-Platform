@@ -23,7 +23,7 @@ export default function HomePage() {
 
           <div className="logo">
             <span className="logo-icon">📚</span>
-            <span className="logo-text">PROJENIUS-BOOK</span>
+            <span className="logo-text">PROJENIUS-BOOKkavindu</span>
           </div>
 
           <div className="nav-menu">
@@ -394,7 +394,7 @@ export default function HomePage() {
 
         <div className="footer-bottom">
           <p>
-            &copy; 1999 PROJENIUS — Give a Book, Earn Rewards
+            &copy; 2026 PROJENIUS — Give a Book, Earn Rewards
           </p>
         </div>
 
