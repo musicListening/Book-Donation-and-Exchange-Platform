@@ -23,7 +23,7 @@ export default function HomePage() {
 
           <div className="logo">
             <span className="logo-icon">📚</span>
-            <span className="logo-text">PROJENIUS</span>
+            <span className="logo-text">PROJENIUS-BOOK</span>
           </div>
 
           <div className="nav-menu">
