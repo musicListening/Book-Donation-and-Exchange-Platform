@@ -5,7 +5,7 @@ function App() {
 
   useEffect(() => {
     // This talks to your local server first
-    fetch('http://localhost:5000/api/health')
+    fetch('https://book-donation-and-exchange-platform.onrender.com/api/health')
       .then((res) => res.json())
       .then((data) => {
         setStatus(data.status);
