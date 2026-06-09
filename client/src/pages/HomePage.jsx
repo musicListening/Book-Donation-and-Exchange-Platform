@@ -23,9 +23,12 @@ export default function HomePage() {
 
           <div className="logo">
             <span className="logo-icon">📚</span>
-            <span className="logo-text">PROJENIUS-BOOKkavindu</span>
+            <span className="logo-text">PROJENIUS-BOOK</span>
           </div>
-
+          
+          <div className="admin-temp-link">
+            <a href="/admin" className="admin-btn">🔒 Admin View</a>
+          </div>
           <div className="nav-menu">
             <a href="#home" className="nav-link active">
               HOME
