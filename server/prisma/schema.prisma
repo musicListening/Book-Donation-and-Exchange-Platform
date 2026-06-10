@@ -1,72 +1,31 @@
+// This is your Prisma schema file.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // Make sure your Neon.tech DB URL is in your .env file
 }
 
-// 1. User Model (Handles the 5 roles from SRS)
+enum UserRole {
+  END_USER
+  OPERATIONS_STAFF
+  PLATFORM_ADMIN
+  DELIVERY_PERSONNEL
+  COMMUNITY_ADMIN
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  password  String   // Will be hashed with bcrypt later
-  role      Role     @default(END_USER)
-  points    Int      @default(0)
-  level     Int      @default(1)
+  password  String   // We will hash this before saving!
+  role      UserRole @default(END_USER)
+  points    Int      @default(0) // For the points dashboard feature
   createdAt DateTime @default(now())
-  
-  donations Donation[]
-  orders    Order[]
-}
+  updatedAt DateTime @updatedAt
 
-enum Role {
-  END_USER
-  OPERATIONS_STAFF
-  PLATFORM_ADMIN
-  DELIVERY_PERSON
-  COMMUNITY_ADMIN
-}
-
-// 2. Donation Model (Handles the 10 points + 10% bonus rule)
-model Donation {
-  id                   String           @id @default(uuid())
-  userId               String
-  user                 User             @relation(fields: [userId], references: [id])
-  collectionName       String           // e.g., "O/L Science Past Papers"
-  bookCount            Int
-  isCompleteCollection Boolean          @default(false)
-  status               DonationStatus   @default(PENDING_DROPOFF)
-  pointsAwarded        Int              @default(0)
-  dropoffDate          DateTime
-  staffNotes           String?          // For audit purposes if staff adjusts points
-  createdAt            DateTime         @default(now())
-}
-
-enum DonationStatus {
-  PENDING_DROPOFF
-  VERIFIED
-  REJECTED
-}
-
-// 3. Order Model (Handles real-time delivery tracking from SRS)
-model Order {
-  id                String          @id @default(uuid())
-  userId            String
-  user              User            @relation(fields: [userId], references: [id])
-  totalPointsUsed   Int             @default(0)
-  totalCashPaid     Float           @default(0.0)
-  deliveryStatus    DeliveryStatus  @default(ORDER_CONFIRMED)
-  createdAt         DateTime        @default(now())
-  
-  // Note: We will add an "OrderItem" model later to link specific books/crafts to this order.
-}
-
-enum DeliveryStatus {
-  ORDER_CONFIRMED
-  PROCESSED
-  AT_AIRPORT
-  ARRIVED_AT_DESTINATION
+  // We will add relations (like donations, orders) here in later steps
 }

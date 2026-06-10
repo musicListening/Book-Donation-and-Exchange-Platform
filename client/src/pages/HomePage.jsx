@@ -20,48 +20,54 @@ export default function HomePage() {
       {/* Navigation Bar */}
       <nav className="navbar">
         <div className="nav-container">
+  <div className="logo">
+    <span className="logo-icon">📚</span>
+    <span className="logo-text">PROJENIUS-BOOK</span>
+  </div>
+  
+  <div className="nav-menu">
+    <a href="#home" className="nav-link active">HOME</a>
+    <a href="#marketplace" className="nav-link">MARKETPLACE</a>
+    <a href="#donate" className="nav-link">DONATE</a>
+    <a href="#about" className="nav-link">ABOUT US</a>
+  </div>
 
-          <div className="logo">
-            <span className="logo-icon">📚</span>
-            <span className="logo-text">PROJENIUS-BOOK</span>
-          </div>
-          
-          <div className="admin-temp-link">
-            <a href="/admin" className="admin-btn">🔒 Admin View</a>
-          </div>
-          <div className="nav-menu">
-            <a href="#home" className="nav-link active">
-              HOME
-            </a>
+  <div className="nav-search">
+    <input
+      type="text"
+      placeholder="SEARCH"
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="search-input"
+    />
+    <button className="search-btn">
+      <span className="search-icon">🔍</span>
+    </button>
+  </div>
 
-            <a href="#marketplace" className="nav-link">
-              MARKETPLACE
-            </a>
+  {/* --- NEW: Login & Sign Up Buttons --- */}
+  <div className="nav-auth-buttons" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+    {/* Login Link */}
+    <a href="/login" className="nav-link" style={{ fontWeight: '600', color: '#1E4D4B' }}>
+      Login
+    </a>
+    
+    {/* Sign Up Button (Using your Primary Color #1E4D4B) */}
+    <a href="/register" className="signup-btn" style={{ 
+      padding: '8px 20px', 
+      backgroundColor: '#1E4D4B', 
+      color: 'white', 
+      borderRadius: '6px', 
+      textDecoration: 'none', 
+      fontWeight: '600',
+      transition: 'background-color 0.3s'
+    }}>
+      Sign Up
+    </a>
+  </div>
+  {/* ------------------------------------ */}
 
-            <a href="#donate" className="nav-link">
-              DONATE
-            </a>
-
-            <a href="#about" className="nav-link">
-              ABOUT US
-            </a>
-          </div>
-
-          <div className="nav-search">
-            <input
-              type="text"
-              placeholder="SEARCH"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-
-            <button className="search-btn">
-              <span className="search-icon">🔍</span>
-            </button>
-          </div>
-
-        </div>
+</div>
       </nav>
 
       {/* Hero Section */}
