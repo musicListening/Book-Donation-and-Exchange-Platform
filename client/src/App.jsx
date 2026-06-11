@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import AdminDashboard from './pages/AdminDashboard';
+import UserManagement from './pages/UserManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import './App.css'; 
@@ -12,9 +13,9 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        
       </Routes>
     </Router>
   );
