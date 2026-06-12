@@ -1,416 +1,571 @@
-// client/src/pages/HomePage.jsx
-import React, { useState } from "react";
+// client/src/pages/home.jsx
+
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import "../styles/HomePage.css";
+import "../styles/home.css";
 
-// Import Local Images
-import bookStackImage from "../assets/book-stack.png";
-import bundlesImage from "../assets/bundles-icon.png";
-import craftsImage from "../assets/crafts-icon.png";
-import progressImage from "../assets/progress-icon.png";
-import bookIcon from "../assets/book-icon.png";
-import rewardsIcon from "../assets/rewards-icon.png";
-
-export default function HomePage() {
+export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAdminConsole, setShowAdminConsole] = useState(false);
+
+  // Stats / Demo Data States
+  const [users, setUsers] = useState([]);
+  const [bundles, setBundles] = useState([]);
+  const [crafts, setCrafts] = useState([]);
+  const [donations, setDonations] = useState([
+    { id: "#TXN-84920", donor: "Sarah Jenkins", quantity: "12 Books", status: "Verified", points: "+240 pts", date: "Jun 12, 2026" },
+    { id: "#TXN-84919", donor: "Marcus Thorne", quantity: "4 Books", status: "Pending", points: "+80 pts", date: "Jun 12, 2026" },
+    { id: "#TXN-84918", donor: "Elena Rodriguez", quantity: "28 Books", status: "Verified", points: "+560 pts", date: "Jun 11, 2026" },
+    { id: "#TXN-84917", donor: "David Kim", quantity: "15 Books", status: "Verified", points: "+300 pts", date: "Jun 10, 2026" },
+  ]);
+
+  // Load from localStorage or initialize
+  useEffect(() => {
+    let storedUsers = localStorage.getItem("ss_users");
+    let storedBundles = localStorage.getItem("ss_bundles");
+    let storedCrafts = localStorage.getItem("ss_crafts");
+
+    if (!storedUsers) {
+      const initialUsers = [
+        { name: 'Arjun Sharma', email: 'user@example.com', password: 'user123', role: 'user', points: 450 },
+        { name: 'Staff Member', email: 'staff@projenius.com', password: 'staff123', role: 'staff', points: 0 },
+        { name: 'Admin User', email: 'admin@projenius.com', password: 'admin123', role: 'admin', points: 0 }
+      ];
+      localStorage.setItem('ss_users', JSON.stringify(initialUsers));
+      storedUsers = JSON.stringify(initialUsers);
+    }
+
+    if (!storedBundles) {
+      const initialBundles = [
+        { id: 1, title: 'Timeless Literature', curator: 'Staff Pick', genre: 'Fiction', price: 250, stock: 12, image: '📚' },
+        { id: 2, title: 'Science for Kids', curator: 'Educator Choice', genre: 'Academic', price: 180, stock: 8, image: '🧪' },
+        { id: 3, title: 'The Mystery Files', curator: 'Detective Club', genre: 'Mystery', price: 320, stock: 5, image: '🕵️' }
+      ];
+      localStorage.setItem('ss_bundles', JSON.stringify(initialBundles));
+      storedBundles = JSON.stringify(initialBundles);
+    }
+
+    if (!storedCrafts) {
+      const initialCrafts = [
+        { id: 1, title: 'Origami Crane Set', curator: 'Akira', genre: 'Crafts', price: 75, stock: 15, image: '🦢' },
+        { id: 2, title: 'Recycled Notebook', curator: 'Eco-Art', genre: 'Crafts', price: 120, stock: 10, image: '📔' }
+      ];
+      localStorage.setItem('ss_crafts', JSON.stringify(initialCrafts));
+      storedCrafts = JSON.stringify(initialCrafts);
+    }
+
+    setUsers(JSON.parse(storedUsers));
+    setBundles(JSON.parse(storedBundles));
+    setCrafts(JSON.parse(storedCrafts));
+  }, []);
+
+  // Admin Actions
+  const handleVerifyDonation = (id) => {
+    setDonations(prev =>
+      prev.map(d => d.id === id ? { ...d, status: "Verified" } : d)
+    );
+  };
+
+  const handleAddDonation = () => {
+    const randomQty = Math.floor(Math.random() * 20) + 1;
+    const newTxn = {
+      id: `#TXN-${Math.floor(10000 + Math.random() * 90000)}`,
+      donor: "Anonymous Book Lover",
+      quantity: `${randomQty} Books`,
+      status: "Pending",
+      points: `+${randomQty * 20} pts`,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    };
+    setDonations([newTxn, ...donations]);
+  };
 
   return (
-    <div className="homepage">
-      {/* Navigation Bar */}
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="logo">
-            <span className="logo-icon">📚</span>
-            <span className="logo-text">PROJENIUS</span>
-          </div>
-          
-          <div className="nav-menu">
-            <Link to="/" className="nav-link active">HOME</Link>
-            <Link to="/#how-it-works" className="nav-link">HOW IT WORKS</Link>
-            <Link to="/marketplace" className="nav-link">MARKETPLACE</Link>
-            <Link to="/#about" className="nav-link">ABOUT</Link>
-            <Link to="/admin" className="nav-link" style={{ color: "#643C29", fontWeight: "bold", borderBottom: "1px dashed #643C29" }}>
-              ⚙️ ADMIN CONSOLE
-            </Link>
-          </div>
-
-          <div className="nav-search">
-            <input
-              type="text"
-              placeholder="SEARCH BOOKS OR CRAFTS"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            <button className="search-btn">
-              <span className="search-icon">🔍</span>
+    <div className="homepage-container">
+      {/* ============ HEADER ============ */}
+      <header className="header">
+        <nav className="navbar">
+          <Link to="/" className="logo">
+            <i className="fa-solid fa-book-open"></i> ShareShelf
+          </Link>
+          <ul className={`nav-links ${mobileMenuOpen ? 'show' : ''}`}>
+            <li><Link to="/" onClick={() => setMobileMenuOpen(false)}>Home</Link></li>
+            <li><a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a></li>
+            <li><a href="#marketplace" onClick={() => setMobileMenuOpen(false)}>Marketplace</a></li>
+            <li>
+              <Link 
+                to="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="btn btn-sm btn-secondary"
+                style={{ border: '1px dashed var(--primary)', fontWeight: 'bold' }}
+              >
+                ⚙️ Admin Console
+              </Link>
+            </li>
+          </ul>
+          <div className="nav-actions">
+            <span className="points-badge">
+              <i className="fa-solid fa-coins"></i> Points System
+            </span>
+            <Link to="/register" className="btn btn-secondary btn-sm">Sign Up</Link>
+            <Link to="/login" className="btn btn-primary btn-sm">Log In</Link>
+            <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              ☰
             </button>
           </div>
+        </nav>
+      </header>
 
-          <div className="nav-auth-buttons" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Link to="/login" className="nav-link" style={{ fontWeight: '600', color: '#1E4D4B' }}>
-              Log In
-            </Link>
-            <Link to="/register" className="signup-btn" style={{ 
-              padding: '8px 20px', 
-              backgroundColor: '#1E4D4B', 
-              color: 'white', 
-              borderRadius: '6px', 
-              textDecoration: 'none', 
-              fontWeight: '600',
-              transition: 'background-color 0.3s'
-            }}>
-              Sign Up
-            </Link>
+      {/* ============ ADMIN CONSOLE INLINE PANEL ============ */}
+      {showAdminConsole && (
+        <section className="admin-console-panel" style={{ marginTop: '100px' }}>
+          <div className="admin-console-header">
+            <h2><i className="fa-solid fa-sliders"></i> Integrated Admin Console</h2>
+            <button className="admin-console-close-btn" onClick={() => setShowAdminConsole(false)}>×</button>
           </div>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="hero" id="home">
-        <div className="hero-container">
-          <div className="hero-split">
-            <div className="hero-image">
-              <img src={bookStackImage} alt="Stack of books" className="book-stack-img" />
+          <div className="admin-stats-grid">
+            <div className="admin-stat-card">
+              <p className="admin-stat-label">Registered Users</p>
+              <h3 className="admin-stat-value">{users.length}</h3>
+              <span className="admin-stat-sub"><i className="fa-solid fa-circle-user"></i> Active Members</span>
+            </div>
+            <div className="admin-stat-card" style={{ borderColor: 'var(--accent)' }}>
+              <p className="admin-stat-label">Book Bundles</p>
+              <h3 className="admin-stat-value">{bundles.length}</h3>
+              <span className="admin-stat-sub" style={{ color: 'var(--accent)' }}><i className="fa-solid fa-box-archive"></i> Staff Curated</span>
+            </div>
+            <div className="admin-stat-card" style={{ borderColor: 'var(--success)' }}>
+              <p className="admin-stat-label">Handmade Crafts</p>
+              <h3 className="admin-stat-value">{crafts.length}</h3>
+              <span className="admin-stat-sub" style={{ color: 'var(--success)' }}><i className="fa-solid fa-palette"></i> P2P Created</span>
+            </div>
+            <div className="admin-stat-card" style={{ borderColor: 'var(--warning)' }}>
+              <p className="admin-stat-label">Pending Donations</p>
+              <h3 className="admin-stat-value">{donations.filter(d => d.status === "Pending").length}</h3>
+              <span className="admin-stat-sub" style={{ color: 'var(--warning)' }}><i className="fa-solid fa-clock"></i> Requires Approval</span>
+            </div>
+          </div>
+
+          <div className="admin-actions-section">
+            <div className="admin-table-container">
+              <h3>
+                Recent Donations Activity
+                <button className="btn btn-secondary btn-sm" onClick={handleAddDonation}>
+                  + Simulate Donation
+                </button>
+              </h3>
+              <table className="admin-mini-table">
+                <thead>
+                  <tr>
+                    <th>TXN ID</th>
+                    <th>Donor Name</th>
+                    <th>Books</th>
+                    <th>Reward Points</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {donations.map((row) => (
+                    <tr key={row.id}>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{row.id}</td>
+                      <td>{row.donor}</td>
+                      <td>{row.quantity}</td>
+                      <td style={{ color: 'var(--success)', fontWeight: 'bold' }}>{row.points}</td>
+                      <td>
+                        <span className={`admin-badge admin-badge-${row.status.toLowerCase()}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td>
+                        {row.status === "Pending" ? (
+                          <button 
+                            className="btn btn-primary btn-sm" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={() => handleVerifyDonation(row.id)}
+                          >
+                            Approve
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--grey)', fontSize: '12px' }}><i className="fa-solid fa-circle-check"></i> Processed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div className="hero-content">
-              <h1 className="hero-title">
-                Turn Your Shelves Into Points. <span className="highlight">Turn Points Into Treasures.</span>
-              </h1>
-
-              <p className="hero-description">
-                Donate any genre of books, earn points instantly, and browse thousands of curated book bundles or handmade paper crafts. Join our sustainable reading revolution.
-              </p>
-
-              <div className="hero-stats">
-                <div className="stat-item">
-                  <span className="stat-label" style={{ fontWeight: 'bold' }}>Free to join</span>
-                </div>
-                <div className="stat-item">
-                  <img src={bookIcon} alt="Book" className="stat-image" />
-                  <span className="stat-label">12,450+ Books Donated</span>
-                </div>
-                <div className="stat-item">
-                  <img src={rewardsIcon} alt="Rewards" className="stat-image" />
-                  <span className="stat-label">Instant Points</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">+50 pts Bonus</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">🎨 Handmade Crafts</span>
-                </div>
+            <div className="admin-controls-card">
+              <h3>Admin Actions</h3>
+              <div className="admin-action-btn-list">
+                <Link to="/admin"><i className="fa-solid fa-gauge"></i> Full Admin Dashboard</Link>
+                <Link to="/admin/users"><i className="fa-solid fa-users-gear"></i> Manage Users List</Link>
+                <button onClick={() => alert("CSV Export Triggered!")}>
+                  <i className="fa-solid fa-file-arrow-down"></i> Export Report (CSV)
+                </button>
+                <button onClick={() => alert("Demo data reset complete!")}>
+                  <i className="fa-solid fa-rotate-left"></i> Reset System Cache
+                </button>
               </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '24px', flexWrap: 'wrap' }}>
-                <Link to="/donate" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center' }}>
-                  START DONATING →
-                </Link>
-                <Link to="/marketplace" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center', backgroundColor: 'transparent', color: '#1E4D4B', border: '2px solid #1E4D4B' }}>
-                  EXPLORE MARKETPLACE
-                </Link>
-              </div>
+      {/* ============ HERO SECTION ============ */}
+      <section className="hero" style={{ paddingTop: showAdminConsole ? '40px' : '120px' }}>
+        <div className="hero-content">
+          <div className="hero-badge">
+            <i className="fa-solid fa-book"></i> Projenius Book Exchange
+          </div>
+          <h1 className="hero-title">
+            Turn Your Shelves Into Points.<br /><span>Turn Points Into Treasures.</span>
+          </h1>
+          <p className="hero-description">
+            Donate any genre of books, earn points instantly, and browse thousands 
+            of curated book bundles or handmade paper crafts. Join our sustainable 
+            reading revolution.
+          </p>
+          <div className="hero-buttons">
+            <Link to="/donate" className="btn btn-primary btn-lg">
+              <i className="fa-solid fa-hand-holding-heart"></i> Start Donating
+            </Link>
+            <a href="#marketplace" className="btn btn-gold btn-lg">
+              <i className="fa-solid fa-store"></i> Explore Marketplace
+            </a>
+          </div>
+          <div className="hero-trust">
+            <span><i className="fa-solid fa-circle-check"></i> Free to join</span>
+            <span><i className="fa-solid fa-circle-check"></i> 12,450+ books donated</span>
+            <span><i className="fa-solid fa-circle-check"></i> Instant points</span>
+          </div>
+        </div>
+        <div className="hero-visual">
+          <div className="hero-illustration">
+            <div className="blob-bg"></div>
+            <div className="book-stack">
+              <div className="book"><i className="fa-solid fa-book" style={{ marginRight: '8px' }}></i> Fiction</div>
+              <div className="book"><i className="fa-solid fa-graduation-cap" style={{ marginRight: '8px' }}></i> Academic</div>
+              <div className="book"><i className="fa-solid fa-child" style={{ marginRight: '8px' }}></i> Children's</div>
+              <div className="book"><i className="fa-solid fa-mask" style={{ marginRight: '8px' }}></i> Comics</div>
+              <div className="book"><i className="fa-solid fa-gem" style={{ marginRight: '8px' }}></i> Rare Finds</div>
+            </div>
+            <div className="floating-points">
+              <i className="fa-solid fa-coins"></i> +50 pts
+            </div>
+            <div className="floating-craft">
+              🎨 Handmade Crafts
             </div>
           </div>
         </div>
       </section>
 
-      {/* Global Stats Bar */}
-      <section className="features" style={{ backgroundColor: '#f4f1ea', padding: '40px 0' }}>
-        <div className="features-container" style={{ justifyContent: 'center', gap: '60px', flexWrap: 'wrap' }}>
-          <div className="feature-card" style={{ textAlign: 'center', border: 'none', background: 'transparent', boxShadow: 'none' }}>
-            <h3 className="feature-title" style={{ fontSize: '2rem', color: '#1E4D4B', marginBottom: '8px' }}>📦 12,450+</h3>
-            <p className="feature-description" style={{ fontSize: '1.1rem' }}>Books Donated</p>
-          </div>
-          <div className="feature-card" style={{ textAlign: 'center', border: 'none', background: 'transparent', boxShadow: 'none' }}>
-            <h3 className="feature-title" style={{ fontSize: '2rem', color: '#1E4D4B', marginBottom: '8px' }}>👥 3,800+</h3>
-            <p className="feature-description" style={{ fontSize: '1.1rem' }}>Active Members</p>
-          </div>
-          <div className="feature-card" style={{ textAlign: 'center', border: 'none', background: 'transparent', boxShadow: 'none' }}>
-            <h3 className="feature-title" style={{ fontSize: '2rem', color: '#1E4D4B', marginBottom: '8px' }}>🪙 1.2M+</h3>
-            <p className="feature-description" style={{ fontSize: '1.1rem' }}>Points Earned</p>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
+      {/* ============ HOW IT WORKS ============ */}
       <section className="how-it-works" id="how-it-works">
-        <div className="container">
-          <h2 className="section-title">How Projenius Works</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Four simple steps to turn your books into new adventures.</p>
-
-          <div className="steps-container">
-            <div className="step-card">
-              <div className="step-circle">1</div>
-              <div className="step-icon">📅</div>
-              <h3>Schedule Donation</h3>
-              <p>Tell us what books you want to give and pick a drop-off date that works for you.</p>
+        <h2 className="section-title">How Projenius Works</h2>
+        <p className="section-subtitle" style={{ margin: "0 auto" }}>Four simple steps to turn your books into new adventures.</p>
+        <div className="steps-grid">
+          <div className="step-card">
+            <div className="step-icon">
+              <i className="fa-solid fa-calendar-plus"></i>
+              <span className="step-number">1</span>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step-card">
-              <div className="step-circle">2</div>
-              <div className="step-icon">⭐</div>
-              <h3>Get Points</h3>
-              <p>Staff verifies your books and credits points to your account instantly.</p>
+            <h3>Schedule Donation</h3>
+            <p>Tell us what books you want to give and pick a drop-off date that works for you.</p>
+          </div>
+          <div className="step-card">
+            <div className="step-icon">
+              <i className="fa-solid fa-coins"></i>
+              <span className="step-number">2</span>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step-card">
-              <div className="step-circle">3</div>
-              <div className="step-icon">🛒</div>
-              <h3>Browse & Shop</h3>
-              <p>Use points to grab curated book bundles or unique paper crafts.</p>
+            <h3>Get Points</h3>
+            <p>Staff verifies your books and credits points to your account instantly.</p>
+          </div>
+          <div className="step-card">
+            <div className="step-icon">
+              <i className="fa-solid fa-basket-shopping"></i>
+              <span className="step-number">3</span>
             </div>
-            <div className="step-arrow">→</div>
-            <div className="step-card">
-              <div className="step-circle">4</div>
-              <div className="step-icon">📦</div>
-              <h3>Receive & Enjoy</h3>
-              <p>We deliver right to your doorstep. Happy reading and crafting!</p>
+            <h3>Browse & Shop</h3>
+            <p>Use points to grab curated book bundles or unique paper crafts.</p>
+          </div>
+          <div className="step-card">
+            <div className="step-icon">
+              <i className="fa-solid fa-box"></i>
+              <span className="step-number">4</span>
             </div>
+            <h3>Receive & Enjoy</h3>
+            <p>We deliver right to your doorstep. Happy reading and crafting!</p>
           </div>
         </div>
       </section>
 
-      {/* Find Your Genre */}
+      {/* ============ STATS BAR ============ */}
+      <section className="stats-bar">
+        <div className="stats-grid">
+          <div className="stat-item">
+            <span className="stat-number">📦 12,450+</span>
+            <span className="stat-label">Books Donated</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">👥 3,800+</span>
+            <span className="stat-label">Active Members</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">🪙 1.2M+</span>
+            <span className="stat-label">Points Earned</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CATEGORIES ============ */}
       <section className="categories" id="marketplace">
-        <div className="container">
+        <div className="categories-header">
           <h2 className="section-title">Find Your Genre</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Browse thousands of books across every category imaginable.</p>
-
-          <div className="categories-grid">
-            <div className="category-card">
-              <div className="category-icon">📖</div>
-              <h3>Fiction</h3>
-              <p>Novels, Fantasy & more</p>
+          <p className="section-subtitle" style={{ margin: "0 auto" }}>Browse thousands of books across every category imaginable.</p>
+        </div>
+        <div className="category-grid">
+          <div className="category-card">
+            <div className="category-icon cat-fiction"><i className="fa-solid fa-dragon"></i></div>
+            <div className="category-info">
+              <h4>Fiction</h4>
+              <span>Novels, Fantasy & more</span>
             </div>
-            <div className="category-card">
-              <div className="category-icon">📚</div>
-              <h3>Non-Fiction</h3>
-              <p>Biographies, History & Essays</p>
+          </div>
+          <div className="category-card">
+            <div className="category-icon cat-nonfiction"><i className="fa-solid fa-globe"></i></div>
+            <div className="category-info">
+              <h4>Non-Fiction</h4>
+              <span>Biographies, History & Essays</span>
             </div>
-            <div className="category-card">
-              <div className="category-icon">🎓</div>
-              <h3>Academic</h3>
-              <p>Textbooks & Reference</p>
+          </div>
+          <div className="category-card">
+            <div className="category-icon cat-academic"><i className="fa-solid fa-graduation-cap"></i></div>
+            <div className="category-info">
+              <h4>Academic</h4>
+              <span>Textbooks & Reference</span>
             </div>
-            <div className="category-card">
-              <div className="category-icon">🧸</div>
-              <h3>Children's</h3>
-              <p>Picture books & YA</p>
+          </div>
+          <div className="category-card">
+            <div className="category-icon cat-children"><i className="fa-solid fa-crayon"></i></div>
+            <div className="category-info">
+              <h4>Children's</h4>
+              <span>Picture books & YA</span>
             </div>
-            <div className="category-card">
-              <div className="category-icon">🦸</div>
-              <h3>Comics</h3>
-              <p>Manga & Graphic Novels</p>
+          </div>
+          <div className="category-card">
+            <div className="category-icon cat-comics"><i className="fa-solid fa-mask"></i></div>
+            <div className="category-info">
+              <h4>Comics</h4>
+              <span>Manga & Graphic Novels</span>
             </div>
-            <div className="category-card">
-              <div className="category-icon">💎</div>
-              <h3>Rare Finds</h3>
-              <p>Collectibles & Special Editions</p>
+          </div>
+          <div className="category-card">
+            <div className="category-icon cat-rare"><i className="fa-solid fa-gem"></i></div>
+            <div className="category-info">
+              <h4>Rare Finds</h4>
+              <span>Collectibles & Special Editions</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Staff-Curated Bundles */}
-      <section className="features" style={{ backgroundColor: '#f9f9f9' }}>
-        <div className="container">
-          <h2 className="section-title">🔥 Staff-Curated Bundles</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Handpicked collections by our expert staff.</p>
-          
-          <div className="categories-grid">
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📚</div>
-              <h3>Romance</h3>
-              <p style={{ color: '#E9C46A', fontWeight: 'bold' }}>Only 3 left</p>
-              <h4 style={{ margin: '10px 0' }}>Cozy Winter Reads</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Anika</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>250 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🖋️</div>
-              <h3>Self-Help</h3>
-              <h4 style={{ margin: '10px 0' }}>Mindfulness Collection</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Raj</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>180 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🔬</div>
-              <h3>Educational</h3>
-              <h4 style={{ margin: '10px 0' }}>Science Explorers Pack</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Priya</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>320 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🎭</div>
-              <h3>Classics</h3>
-              <h4 style={{ margin: '10px 0' }}>Timeless Literature</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: David</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>400 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
+      {/* ============ TRENDING BUNDLES ============ */}
+      <section className="trending">
+        <div className="trending-header">
+          <div>
+            <h2 className="section-title">🔥 Staff-Curated Bundles</h2>
+            <p className="section-subtitle">Handpicked collections by our expert staff.</p>
           </div>
+          <a href="#" className="view-all" onClick={(e) => e.preventDefault()}>View All <i className="fa-solid fa-arrow-right"></i></a>
+        </div>
+        <div className="bundles-scroll">
+          {bundles.map((bundle) => (
+            <div className="bundle-card" key={bundle.id}>
+              <div className="bundle-image">
+                {bundle.image}
+                <span className="bundle-genre-badge">{bundle.genre}</span>
+                {bundle.stock && <span className="bundle-stock">Only {bundle.stock} left</span>}
+              </div>
+              <div className="bundle-details">
+                <h4>{bundle.title}</h4>
+                <p className="bundle-curator">Curated by: {bundle.curator}</p>
+                <div className="bundle-price-row">
+                  <span className="bundle-price"><i className="fa-solid fa-coins"></i> {bundle.price}</span>
+                  <a href="#" className="btn btn-primary btn-sm" onClick={(e) => e.preventDefault()}>Add to Cart</a>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Handmade Paper Creations */}
-      <section className="how-it-works" style={{ backgroundColor: '#fff' }}>
-        <div className="container">
+      {/* ============ HANDMADE CRAFTS ============ */}
+      <section className="crafts">
+        <div style={{ textAlign: "center", marginBottom: "var(--space-sm)" }}>
           <h2 className="section-title">🎨 Handmade Paper Creations</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Unique crafts made by talented community members.</p>
-
-          <div className="categories-grid">
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📖</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Priya S.</p>
-              <h4 style={{ margin: '10px 0' }}>Hand-Painted Bookmarks (Set of 5)</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>75 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
+          <p className="section-subtitle" style={{ margin: "0 auto" }}>Unique crafts made by talented community members.</p>
+        </div>
+        <div className="crafts-grid">
+          {crafts.map((craft) => (
+            <div className="craft-card" key={craft.id}>
+              <div className="craft-image">{craft.image}</div>
+              <div className="craft-details">
+                <p className="craft-seller">by {craft.curator}</p>
+                <h4>{craft.title}</h4>
+                <div className="craft-price-row">
+                  <span className="bundle-price"><i className="fa-solid fa-coins"></i> {craft.price}</span>
+                  <button className="wishlist-btn"><i className="fa-regular fa-heart"></i></button>
+                </div>
+              </div>
             </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🎴</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Arjun K.</p>
-              <h4 style={{ margin: '10px 0' }}>Origami Wall Art Set</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>120 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📓</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Meera L.</p>
-              <h4 style={{ margin: '10px 0' }}>Recycled Paper Journal</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>90 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="how-it-works" style={{ backgroundColor: '#f4f1ea' }}>
-        <div className="container">
+      {/* ============ TESTIMONIALS ============ */}
+      <section className="testimonials">
+        <div className="testimonials-header">
           <h2 className="section-title">What Our Readers Say</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Join thousands of happy book lovers and crafters.</p>
-
-          <div className="steps-container" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-            <div className="step-card" style={{ maxWidth: '350px' }}>
-              <div className="step-icon" style={{ fontSize: '2rem' }}>👩</div>
-              <h3>Ananya S.</h3>
-              <p style={{ fontStyle: 'italic', color: '#555' }}>"I decluttered my shelf and got enough points to buy a rare poetry bundle. This is genius!"</p>
-              <span className="step-points">Donated 45 books ★★★★★</span>
-            </div>
-            <div className="step-card" style={{ maxWidth: '350px' }}>
-              <div className="step-icon" style={{ fontSize: '2rem' }}>👨</div>
-              <h3>Vikram R.</h3>
-              <p style={{ fontStyle: 'italic', color: '#555' }}>"Selling my paper crafts here connected me with readers who truly appreciate handmade art."</p>
-              <span className="step-points">Craft Seller ★★★★★</span>
-            </div>
-            <div className="step-card" style={{ maxWidth: '350px' }}>
-              <div className="step-icon" style={{ fontSize: '2rem' }}>👩‍🎓</div>
-              <h3>Fatima K.</h3>
-              <p style={{ fontStyle: 'italic', color: '#555' }}>"As a student, being able to exchange textbooks for points is a lifesaver. Highly recommend!"</p>
-              <span className="step-points">Student ★★★★★</span>
-            </div>
+          <p className="section-subtitle" style={{ margin: "0 auto" }}>Join thousands of happy book lovers and crafters.</p>
+        </div>
+        <div className="testimonial-grid">
+          <div className="testimonial-card">
+            <div className="testimonial-avatar">👩</div>
+            <div className="stars">★★★★★</div>
+            <p className="testimonial-quote">"I decluttered my shelf and got enough points to buy a rare poetry bundle. This is genius!"</p>
+            <p className="testimonial-name">Ananya S.</p>
+            <p className="testimonial-role">Donated 45 books</p>
+          </div>
+          <div className="testimonial-card">
+            <div className="testimonial-avatar">👨</div>
+            <div className="stars">★★★★★</div>
+            <p className="testimonial-quote">"Selling my paper crafts here connected me with readers who truly appreciate handmade art."</p>
+            <p className="testimonial-name">Vikram R.</p>
+            <p className="testimonial-role">Craft Seller</p>
+          </div>
+          <div className="testimonial-card">
+            <div className="testimonial-avatar">👩‍🎓</div>
+            <div className="stars">★★★★★</div>
+            <p className="testimonial-quote">"As a student, being able to exchange textbooks for points is a lifesaver. Highly recommend!"</p>
+            <p className="testimonial-name">Fatima K.</p>
+            <p className="testimonial-role">Student</p>
           </div>
         </div>
       </section>
 
-      {/* Level Up Tiers Detail */}
-      <section className="categories" id="points">
-        <div className="container">
-          <h2 className="section-title">Level Up Your Reading</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Earn more benefits as you donate and engage.</p>
-          <div className="categories-grid">
-            <div className="category-card">
-              <div className="category-icon">📚</div>
-              <h3>Book Lover</h3>
-              <p style={{ fontWeight: 'bold', color: '#1E4D4B' }}>0 — 250 Points</p>
-              <ul style={{ textAlign: 'left', paddingLeft: '20px', fontSize: '0.9rem', color: '#555', lineHeight: '1.6' }}>
-                <li>Early bundle access</li>
-                <li>Profile badge</li>
-                <li>Standard delivery</li>
-              </ul>
-            </div>
-            <div className="category-card">
-              <div className="category-icon">🥇</div>
-              <h3>Bibliophile</h3>
-              <p style={{ fontWeight: 'bold', color: '#1E4D4B' }}>251 — 750 Points</p>
-              <ul style={{ textAlign: 'left', paddingLeft: '20px', fontSize: '0.9rem', color: '#555', lineHeight: '1.6' }}>
-                <li>+10% bonus points on donations</li>
-                <li>Priority support</li>
-                <li>Exclusive bundles</li>
-                <li>Free shipping on orders over 200 pts</li>
-              </ul>
-            </div>
-            <div className="category-card">
-              <div className="category-icon">💎</div>
-              <h3>Grand Librarian</h3>
-              <p style={{ fontWeight: 'bold', color: '#1E4D4B' }}>751+ Points</p>
-              <ul style={{ textAlign: 'left', paddingLeft: '20px', fontSize: '0.9rem', color: '#555', lineHeight: '1.6' }}>
-                <li>+20% bonus points on donations</li>
-                <li>Free delivery always</li>
-                <li>Custom profile frame</li>
-                <li>Early access to all new arrivals</li>
-                <li>VIP support line</li>
-              </ul>
-            </div>
+      {/* ============ LEVELS ============ */}
+      <section className="levels">
+        <h2 className="section-title">Level Up Your Reading</h2>
+        <p className="section-subtitle" style={{ margin: "0 auto" }}>Earn more benefits as you donate and engage.</p>
+        <div className="levels-grid">
+          <div className="level-card">
+            <div className="level-badge badge-silver">📚</div>
+            <h3>Book Lover</h3>
+            <p className="level-points">0 — 250 Points</p>
+            <ul className="level-benefits">
+              <li><i className="fa-solid fa-check"></i> Early bundle access</li>
+              <li><i className="fa-solid fa-check"></i> Profile badge</li>
+              <li><i className="fa-solid fa-check"></i> Standard delivery</li>
+            </ul>
+          </div>
+          <div className="level-card featured">
+            <div className="level-badge badge-gold">🥇</div>
+            <h3>Bibliophile</h3>
+            <p className="level-points">251 — 750 Points</p>
+            <ul className="level-benefits">
+              <li><i className="fa-solid fa-check"></i> +10% bonus points on donations</li>
+              <li><i className="fa-solid fa-check"></i> Priority support</li>
+              <li><i className="fa-solid fa-check"></i> Exclusive bundles</li>
+              <li><i className="fa-solid fa-check"></i> Free shipping on orders over 200 pts</li>
+            </ul>
+          </div>
+          <div className="level-card">
+            <div className="level-badge badge-diamond">💎</div>
+            <h3>Grand Librarian</h3>
+            <p className="level-points">751+ Points</p>
+            <ul className="level-benefits">
+              <li><i className="fa-solid fa-check"></i> +20% bonus points on donations</li>
+              <li><i className="fa-solid fa-check"></i> Free delivery always</li>
+              <li><i className="fa-solid fa-check"></i> Custom profile frame</li>
+              <li><i className="fa-solid fa-check"></i> Early access to all new arrivals</li>
+              <li><i className="fa-solid fa-check"></i> VIP support line</li>
+            </ul>
+          </div>
+        </div>
+        <div style={{ marginTop: "var(--space-xl)", textAlign: "center" }}>
+          <p style={{ color: "var(--grey)", marginBottom: "var(--space-xs)", fontSize: "14px" }}>
+            📊 300 pts to Bibliophile
+          </p>
+          <div style={{ background: "var(--light-grey)", height: "8px", borderRadius: "4px", maxWidth: "300px", margin: "0 auto", overflow: "hidden" }}>
+            <div style={{ background: "var(--secondary)", height: "100%", width: "40%", borderRadius: "4px" }}></div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="cta" id="about">
-        <div className="cta-container">
-          <div className="cta-content">
-            <h2>Ready to Give Your Books a New Story?</h2>
-            <p>Join thousands of readers and crafters building a library without walls.</p>
-            <Link to="/register" className="cta-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
-              Sign Up Free — Earn 50 Bonus Points →
-            </Link>
-            <p style={{ marginTop: '16px', fontSize: '0.9rem', opacity: 0.8 }}>No credit card. Just books and good vibes.</p>
-          </div>
-        </div>
+      {/* ============ CTA BANNER ============ */}
+      <section className="cta-banner">
+        <h2>Ready to Give Your Books a New Story?</h2>
+        <p>Join thousands of readers and crafters building a library without walls.</p>
+        <Link to="/register" className="btn btn-lg">
+          <i className="fa-solid fa-gift"></i> Sign Up Free — Earn 50 Bonus Points
+        </Link>
+        <p className="cta-note">No credit card. Just books and good vibes.</p>
       </section>
 
-      {/* Footer */}
+      {/* ============ FOOTER ============ */}
       <footer className="footer">
-        <div className="footer-container">
-          <div className="footer-logo">
-            <span className="logo-icon">📚</span>
-            <span>PROJENIUS</span>
-            <p style={{ marginTop: '12px', maxWidth: '300px' }}>Building a sustainable ecosystem to reduce book waste, promote literacy, and create a circular economy for books through donations and point-based exchanges.</p>
+        <div className="footer-grid">
+          <div>
+            <div className="footer-logo">📚 Projenius</div>
+            <p className="footer-about">
+              Building a sustainable ecosystem to reduce book waste, promote literacy, 
+              and create a circular economy for books through donations and point-based exchanges.
+            </p>
+            <div className="social-links">
+              <a href="#" onClick={(e) => e.preventDefault()}><i className="fa-brands fa-facebook-f"></i></a>
+              <a href="#" onClick={(e) => e.preventDefault()}><i className="fa-brands fa-twitter"></i></a>
+              <a href="#" onClick={(e) => e.preventDefault()}><i className="fa-brands fa-instagram"></i></a>
+              <a href="#" onClick={(e) => e.preventDefault()}><i className="fa-brands fa-linkedin-in"></i></a>
+            </div>
           </div>
-
-          <div className="footer-links">
-            <div className="footer-column">
-              <h4>Quick Links</h4>
-              <Link to="/donate">Donate Books</Link>
-              <Link to="/marketplace">Marketplace</Link>
-              <a href="#how-it-works">How It Works</a>
-              <a href="#faqs">FAQs</a>
-            </div>
-
-            <div className="footer-column">
-              <h4>Staff & Admin</h4>
-              <Link to="/staff-login">Staff Portal</Link>
-              <Link to="/admin">Admin Dashboard</Link>
-              <a href="#docs">Documentation</a>
-            </div>
-
-            <div className="footer-column">
-              <h4>Contact</h4>
-              <a href="mailto:hello@projenius.com">hello@projenius.com</a>
-              <a href="tel:+919876543210">+91 98765 43210</a>
-              <span style={{ color: '#666', fontSize: '0.9rem' }}>Bangalore, India</span>
-            </div>
+          <div>
+            <h4>Quick Links</h4>
+            <ul className="footer-links">
+              <li><Link to="/donate">Donate Books</Link></li>
+              <li><a href="#marketplace">Marketplace</a></li>
+              <li><a href="#how-it-works">How It Works</a></li>
+              <li><a href="#" onClick={(e) => e.preventDefault()}>FAQs</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Staff & Admin</h4>
+            <ul className="footer-links">
+              <li><Link to="/login">Staff Portal</Link></li>
+              <li>
+                <Link 
+                  to="/admin"
+                  style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', font: 'inherit' }}
+                >
+                  Admin Console
+                </Link>
+              </li>
+              <li><a href="#" onClick={(e) => e.preventDefault()}>Documentation</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Contact</h4>
+            <ul className="footer-links">
+              <li><i className="fa-solid fa-envelope"></i> hello@projenius.com</li>
+              <li><i className="fa-solid fa-phone"></i> +91 98765 43210</li>
+              <li><i className="fa-solid fa-location-dot"></i> Bangalore, India</li>
+            </ul>
           </div>
         </div>
-
         <div className="footer-bottom">
-          <p>© 2026 Projenius. Built with ❤️ for book lovers everywhere.</p>
+          <p>&copy; 2026 Projenius. Built with ❤️ for book lovers everywhere.</p>
         </div>
       </footer>
     </div>
