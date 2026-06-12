@@ -6,6 +6,7 @@ import UserManagement from './pages/UserManagement';
 import CustomReportGeneration from './pages/CustomReportGeneration';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import SystemConfig from './pages/SystemConfig';
 import './App.css'; 
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/dev/report" element={<CustomReportGeneration />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+       <Route path="/admin/config" element={<SystemConfig />} />  
       </Routes>
     </Router>
   );
