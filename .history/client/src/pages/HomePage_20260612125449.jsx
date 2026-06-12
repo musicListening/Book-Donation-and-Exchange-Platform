@@ -1,6 +1,5 @@
 // client/src/pages/HomePage.jsx
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
 import "../styles/HomePage.css";
 
 // Import Local Images
@@ -25,13 +24,23 @@ export default function HomePage() {
           </div>
           
           <div className="nav-menu">
-            <Link to="/" className="nav-link active">HOME</Link>
-            <Link to="/#how-it-works" className="nav-link">HOW IT WORKS</Link>
-            <Link to="/marketplace" className="nav-link">MARKETPLACE</Link>
-            <Link to="/#about" className="nav-link">ABOUT</Link>
-            <Link to="/admin" className="nav-link" style={{ color: "#643C29", fontWeight: "bold", borderBottom: "1px dashed #643C29" }}>
+            <a href="/" className="nav-link active">HOME</a>
+            <a href="/marketplace" className="nav-link">MARKETPLACE</a>
+            <a href="/donate" className="nav-link">DONATE</a>
+            <a href="#about" className="nav-link">ABOUT US</a>
+            
+            {/* Admin Dashboard Shortcut Link */}
+            <a 
+              href="/admin" 
+              className="nav-link" 
+              style={{ 
+                color: "#643C29", 
+                fontWeight: "bold",
+                borderBottom: "1px dashed #643C29" 
+              }}
+            >
               ⚙️ ADMIN CONSOLE
-            </Link>
+            </a>
           </div>
 
           <div className="nav-search">
@@ -47,11 +56,12 @@ export default function HomePage() {
             </button>
           </div>
 
+          {/* Login & Sign Up Buttons */}
           <div className="nav-auth-buttons" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Link to="/login" className="nav-link" style={{ fontWeight: '600', color: '#1E4D4B' }}>
+            <a href="/login" className="nav-link" style={{ fontWeight: '600', color: '#1E4D4B' }}>
               Log In
-            </Link>
-            <Link to="/register" className="signup-btn" style={{ 
+            </a>
+            <a href="/register" className="signup-btn" style={{ 
               padding: '8px 20px', 
               backgroundColor: '#1E4D4B', 
               color: 'white', 
@@ -61,7 +71,7 @@ export default function HomePage() {
               transition: 'background-color 0.3s'
             }}>
               Sign Up
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -70,10 +80,16 @@ export default function HomePage() {
       <section className="hero" id="home">
         <div className="hero-container">
           <div className="hero-split">
+            {/* Left Side Image */}
             <div className="hero-image">
-              <img src={bookStackImage} alt="Stack of books" className="book-stack-img" />
+              <img
+                src={bookStackImage}
+                alt="Stack of books"
+                className="book-stack-img"
+              />
             </div>
 
+            {/* Right Side Content */}
             <div className="hero-content">
               <h1 className="hero-title">
                 Turn Your Shelves Into Points. <span className="highlight">Turn Points Into Treasures.</span>
@@ -83,6 +99,7 @@ export default function HomePage() {
                 Donate any genre of books, earn points instantly, and browse thousands of curated book bundles or handmade paper crafts. Join our sustainable reading revolution.
               </p>
 
+              {/* Stats */}
               <div className="hero-stats">
                 <div className="stat-item">
                   <span className="stat-label" style={{ fontWeight: 'bold' }}>Free to join</span>
@@ -95,21 +112,15 @@ export default function HomePage() {
                   <img src={rewardsIcon} alt="Rewards" className="stat-image" />
                   <span className="stat-label">Instant Points</span>
                 </div>
-                <div className="stat-item">
-                  <span className="stat-label">+50 pts Bonus</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">🎨 Handmade Crafts</span>
-                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '16px', marginTop: '24px', flexWrap: 'wrap' }}>
-                <Link to="/donate" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center' }}>
+                <a href="/donate" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center' }}>
                   START DONATING →
-                </Link>
-                <Link to="/marketplace" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center', backgroundColor: 'transparent', color: '#1E4D4B', border: '2px solid #1E4D4B' }}>
+                </a>
+                <a href="/marketplace" className="donate-now-btn" style={{ textDecoration: 'none', display: 'inline-block', textAlign: 'center', backgroundColor: 'transparent', color: '#1E4D4B', border: '2px solid #1E4D4B' }}>
                   EXPLORE MARKETPLACE
-                </Link>
+                </a>
               </div>
             </div>
           </div>
@@ -213,84 +224,40 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Staff-Curated Bundles */}
+      {/* Marketplace Preview: Bundles & Crafts */}
       <section className="features" style={{ backgroundColor: '#f9f9f9' }}>
-        <div className="container">
-          <h2 className="section-title">🔥 Staff-Curated Bundles</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Handpicked collections by our expert staff.</p>
-          
-          <div className="categories-grid">
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📚</div>
-              <h3>Romance</h3>
-              <p style={{ color: '#E9C46A', fontWeight: 'bold' }}>Only 3 left</p>
-              <h4 style={{ margin: '10px 0' }}>Cozy Winter Reads</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Anika</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>250 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
+        <div className="features-container">
+          <div className="feature-card">
+            <div className="feature-number">🔥</div>
+            <div className="feature-icon">
+              <img src={bundlesImage} alt="Curated Bundles" className="feature-img" />
             </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🖋️</div>
-              <h3>Self-Help</h3>
-              <h4 style={{ margin: '10px 0' }}>Mindfulness Collection</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Raj</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>180 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🔬</div>
-              <h3>Educational</h3>
-              <h4 style={{ margin: '10px 0' }}>Science Explorers Pack</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: Priya</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>320 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🎭</div>
-              <h3>Classics</h3>
-              <h4 style={{ margin: '10px 0' }}>Timeless Literature</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>Curated by: David</p>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>400 pts</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
+            <h3 className="feature-title">Staff-Curated Bundles</h3>
+            <p className="feature-description">Handpicked collections by our expert staff. From Cozy Winter Reads to Science Explorers Packs, starting at just 180 points.</p>
           </div>
-        </div>
-      </section>
 
-      {/* Handmade Paper Creations */}
-      <section className="how-it-works" style={{ backgroundColor: '#fff' }}>
-        <div className="container">
-          <h2 className="section-title">🎨 Handmade Paper Creations</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Unique crafts made by talented community members.</p>
+          <div className="feature-card">
+            <div className="feature-number">🎨</div>
+            <div className="feature-icon">
+              <img src={craftsImage} alt="Handmade Crafts" className="feature-img" />
+            </div>
+            <h3 className="feature-title">Handmade Paper Creations</h3>
+            <p className="feature-description">Unique crafts made by talented community members. Discover hand-painted bookmarks, origami wall art, and recycled journals.</p>
+          </div>
 
-          <div className="categories-grid">
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📖</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Priya S.</p>
-              <h4 style={{ margin: '10px 0' }}>Hand-Painted Bookmarks (Set of 5)</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>75 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
+          <div className="feature-card">
+            <div className="feature-number">📈</div>
+            <div className="feature-icon">
+              <img src={progressImage} alt="Your Progress" className="feature-img" />
             </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">🎴</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Arjun K.</p>
-              <h4 style={{ margin: '10px 0' }}>Origami Wall Art Set</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>120 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
-            <div className="category-card" style={{ textAlign: 'left' }}>
-              <div className="category-icon">📓</div>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>by Meera L.</p>
-              <h4 style={{ margin: '10px 0' }}>Recycled Paper Journal</h4>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1E4D4B' }}>90 🎴</p>
-              <Link to="/marketplace" className="donate-now-btn" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', padding: '8px' }}>Add to Cart</Link>
-            </div>
+            <h3 className="feature-title">Level Up Your Reading</h3>
+            <p className="feature-description">Earn more benefits as you donate. Reach Grand Librarian status for VIP perks, +20% bonus points, and free delivery always!</p>
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="how-it-works" style={{ backgroundColor: '#f4f1ea' }}>
+      <section className="how-it-works" style={{ backgroundColor: '#fff' }}>
         <div className="container">
           <h2 className="section-title">What Our Readers Say</h2>
           <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Join thousands of happy book lovers and crafters.</p>
@@ -319,10 +286,9 @@ export default function HomePage() {
       </section>
 
       {/* Level Up Tiers Detail */}
-      <section className="categories" id="points">
+      <section className="categories" style={{ backgroundColor: '#f4f1ea' }}>
         <div className="container">
-          <h2 className="section-title">Level Up Your Reading</h2>
-          <p style={{ textAlign: 'center', marginBottom: '40px', color: '#666', fontSize: '1.1rem' }}>Earn more benefits as you donate and engage.</p>
+          <h2 className="section-title">Membership Tiers</h2>
           <div className="categories-grid">
             <div className="category-card">
               <div className="category-icon">📚</div>
@@ -367,9 +333,9 @@ export default function HomePage() {
           <div className="cta-content">
             <h2>Ready to Give Your Books a New Story?</h2>
             <p>Join thousands of readers and crafters building a library without walls.</p>
-            <Link to="/register" className="cta-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+            <a href="/register" className="cta-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
               Sign Up Free — Earn 50 Bonus Points →
-            </Link>
+            </a>
             <p style={{ marginTop: '16px', fontSize: '0.9rem', opacity: 0.8 }}>No credit card. Just books and good vibes.</p>
           </div>
         </div>
@@ -387,16 +353,16 @@ export default function HomePage() {
           <div className="footer-links">
             <div className="footer-column">
               <h4>Quick Links</h4>
-              <Link to="/donate">Donate Books</Link>
-              <Link to="/marketplace">Marketplace</Link>
+              <a href="/donate">Donate Books</a>
+              <a href="/marketplace">Marketplace</a>
               <a href="#how-it-works">How It Works</a>
               <a href="#faqs">FAQs</a>
             </div>
 
             <div className="footer-column">
               <h4>Staff & Admin</h4>
-              <Link to="/staff-login">Staff Portal</Link>
-              <Link to="/admin">Admin Dashboard</Link>
+              <a href="/staff-login">Staff Portal</a>
+              <a href="/admin">Admin Dashboard</a>
               <a href="#docs">Documentation</a>
             </div>
 

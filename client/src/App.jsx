@@ -16,6 +16,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/reports" element={<CustomReportGeneration />} />
+        <Route path="/dev/report" element={<CustomReportGeneration />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
       </Routes>
