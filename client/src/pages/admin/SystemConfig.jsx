@@ -1,238 +1,199 @@
-
 import React, { useState } from "react";
 import AdminLayout from "../../components/AdminLayout";
-import "../../styles/AdminDashboard.css"; // Reuses standard dashboard spacing & card aesthetics
+import "../../styles/systemconfig.css";
 
-export default function CommunityModeration() {
-  // Moderation items initialized into local state for reactivity
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      user: "Julianne Devis",
-      content: `"This book donation drive is a joke. I've been waiting for three weeks and nobody has picked up my box. Extremely frustrated with the service here! #BadService"`,
-      posted: "Oct 15, 2026, 10:32 AM",
-      status: "Flagged: Profanity",
-      statusClass: "flagged",
-    },
-    {
-      id: 2,
-      user: "Marcus Rivera",
-      content: `"Does anyone have a copy of 'The Shadow of the Wind'? I'm looking to complete my collection and would love to trade some of my historical fiction pieces for it."`,
-      posted: "Oct 15, 2026, 10:20 AM",
-      status: "Regular Post",
-      statusClass: "regular",
-    },
-    {
-      id: 3,
-      user: "Unknown Account #552",
-      content: `"CLICK HERE FOR FREE BOOK VOUCHERS AND AMAZON GIFTCARDS!!! http://bit.ly/fake-link-moderation-needed-fast-now"`,
-      posted: "Oct 15, 2026, 9:15 AM",
-      status: "Spam Detected",
-      statusClass: "spam",
-    },
-    {
-      id: 4,
-      user: "Sarah Higgins",
-      content: `"I just finished reading 'The Great Gatsby' for the tenth time. Every time I find something new. Is there a book club meeting this Friday to discuss classic literature?"`,
-      posted: "Oct 15, 2026, 7:45 AM",
-      status: "Regular Post",
-      statusClass: "regular",
-    },
-    {
-      id: 5,
-      user: "Elena Wong",
-      content: `"The children's reading hour was magical yesterday! Thank you to all volunteers. 📚✨"`,
-      posted: "Oct 14, 2026, 6:12 PM",
-      status: "Regular Post",
-      statusClass: "regular",
-    },
-    {
-      id: 6,
-      user: "Daniel Park",
-      content: `"Is the library open during the holiday break? I need to return some rare manuscripts."`,
-      posted: "Oct 14, 2026, 2:05 PM",
-      status: "Regular Post",
-      statusClass: "regular",
-    },
+export default function SystemConfig() {
+  // State for Point & Economics
+  const [basePointRate, setBasePointRate] = useState("10");
+  const [collectionBonus, setCollectionBonus] = useState("10%");
+  const [conversionRate, setConversionRate] = useState("100:1");
+
+  // State for Levels
+  const [levels, setLevels] = useState([
+    { id: 1, name: "Novice Donor", threshold: "100", reward: "Basic Mystery Box (3 Books)" },
+    { id: 2, name: "Avid Reader", threshold: "500", reward: "Rare Collection Unlock (Victorian Set)" },
+    { id: 3, name: "Bookworm", threshold: "1500", reward: "Premium Mystery Box + 5% Discount" },
+    { id: 4, name: "Literary Elite", threshold: "5000", reward: "Exclusive Editions + Direct Support" },
   ]);
 
-  // Tracks IDs currently playing out their fade/slide transition before being spliced from data state
-  const [removingIds, setRemovingIds] = useState([]);
+  // State for Mystery Collections
+  const [mysteryBoxBooks, setMysteryBoxBooks] = useState("5");
+  const [mysteryBoxPointsCost, setMysteryBoxPointsCost] = useState("200");
+  const [rareCollectionMinLevel, setRareCollectionMinLevel] = useState("2"); // Stores ID
 
-  // Approve Handler
-  const handleApprove = (id) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === id
-          ? { ...msg, status: "Approved ✓", statusClass: "verified" }
-          : msg
-      )
-    );
-    alert("✅ Message approved (status updated).");
+  const handleAddTier = () => {
+    const newId = levels.length > 0 ? Math.max(...levels.map(l => l.id)) + 1 : 1;
+    setLevels([...levels, { id: newId, name: "New Level", threshold: "0", reward: "TBD" }]);
   };
 
-  // Delete Handler with animated delayed structural removal
-  const handleDelete = (id, user) => {
-    if (window.confirm(`⚠️ Permanently delete message from ${user}? This action cannot be undone.`)) {
-      setRemovingIds((prev) => [...prev, id]);
-      
-      setTimeout(() => {
-        setMessages((prev) => prev.filter((msg) => msg.id !== id));
-        setRemovingIds((prev) => prev.filter((rid) => rid !== id));
-      }, 280);
-    }
-  };
-
-  // Reply Handler (Simulated view trigger)
-  const handleReply = (user) => {
-    alert(`📝 Compose reply to ${user} (simulated). In a full implementation, an operational modal overlay opens.`);
+  const handleLevelChange = (id, field, value) => {
+    setLevels(levels.map(l => l.id === id ? { ...l, [field]: value } : l));
   };
 
   return (
-    <AdminLayout>
-      {/* Sub-Header Unit containing dynamic dynamic metrics row components */}
-      <div 
-        style={{ 
-          display: "flex", 
-          justifyContent: "between", 
-          alignItems: "center", 
-          flexWrap: "wrap", 
-          gap: "12px", 
-          marginBottom: "20px" 
-        }}
-      >
-        <div>
-          <p style={{ fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-tertiary)" }}>
-            Moderation Queue
-          </p>
-          <h2 style={{ fontFamily: "var(--font-headline)", fontSize: "1.75rem", color: "var(--color-primary)", fontWeight: "bold" }}>
-            Community Messages
-          </h2>
-        </div>
-        
-        <div style={{ backgroundColor: "var(--color-surface)", padding: "8px 16px", borderRadius: "20px", fontSize: "0.85rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid var(--color-border)" }}>
-          <span style={{ fontWeight: "600", color: "var(--color-primary)" }}>{messages.length}</span>{" "}
-          <span style={{ color: "var(--color-neutral)" }}>pending items</span>
-        </div>
-      </div>
-
-      {/* Main Table Interface Element Container */}
-      <section className="table-card">
-        <div className="card-header">
-          <h3>Active Review Stream</h3>
-          <span style={{ fontSize: "0.8rem", color: "var(--color-neutral)" }}>Real-time execution panel</span>
+    <AdminLayout title="System Configuration">
+      <div className="system-config-container">
+        {/* Page Header */}
+        <div style={{ marginBottom: "32px" }}>
+          <h2 className="page-header-title">System Configuration & Platform Rules</h2>
+          <p className="page-header-subtitle">Configure the core economic models, gamification tiers, and collection logic for the entire platform.</p>
         </div>
 
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: "15%" }}>User</th>
-                <th style={{ width: "45%" }}>Message Content</th>
-                <th style={{ width: "15%" }}>Posted</th>
-                <th style={{ width: "10%" }}>Status</th>
-                <th style={{ width: "15%", textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {messages.map((row) => {
-                const isRemoving = removingIds.includes(row.id);
-                return (
-                  <tr 
-                    key={row.id}
-                    style={{
-                      opacity: isRemoving ? 0 : 1,
-                      transform: isRemoving ? "translateX(20px)" : "none",
-                      transition: "all 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
-                      backgroundColor: row.statusClass === "spam" ? "rgba(186, 26, 26, 0.03)" : "transparent"
-                    }}
-                  >
-                    {/* User Column */}
-                    <td style={{ fontWeight: "600", color: "var(--color-primary)", verticalAlign: "top" }}>
-                      {row.user}
-                    </td>
+        {/* Section 1: Point & Economics Settings */}
+        <section className="config-section-card">
+          <div className="section-header">
+            <h3 className="section-title">Point & Economics Settings</h3>
+          </div>
+          <div className="config-grid-3">
+            <div className="config-input-group">
+              <label className="config-label">Base Point Rate (Per Book)</label>
+              <input 
+                className="config-input" 
+                type="text" 
+                value={basePointRate}
+                onChange={(e) => setBasePointRate(e.target.value)}
+              />
+              <p className="config-hint">Minimum points awarded for every single verified book donation.</p>
+            </div>
+            <div className="config-input-group">
+              <label className="config-label">Collection Bonus %</label>
+              <input 
+                className="config-input" 
+                type="text" 
+                value={collectionBonus}
+                onChange={(e) => setCollectionBonus(e.target.value)}
+              />
+              <p className="config-hint">Extra percentage awarded when a user donates a verified complete collection.</p>
+            </div>
+            <div className="config-input-group">
+              <label className="config-label">Point-to-Cash Conversion</label>
+              <input 
+                className="config-input" 
+                type="text" 
+                value={conversionRate}
+                onChange={(e) => setConversionRate(e.target.value)}
+              />
+              <p className="config-hint">Ratio of points to currency (e.g., 100 points = Rs. 100 discount).</p>
+            </div>
+          </div>
+        </section>
 
-                    {/* Content Column */}
-                    <td 
-                      style={{ 
-                        whiteSpace: "normal", 
-                        wordBreak: "break-word", 
-                        lineHeight: "1.45", 
-                        color: "var(--color-text-dark)",
-                        paddingRight: "20px"
-                      }}
-                    >
-                      <div style={{ color: row.statusClass === "spam" ? "var(--color-tertiary)" : "inherit" }}>
-                        {row.content}
-                      </div>
-                    </td>
-
-                    {/* Date Column */}
-                    <td style={{ fontSize: "0.8rem", color: "var(--color-neutral)", whiteSpace: "nowrap" }}>
-                      {row.posted}
-                    </td>
-
-                    {/* Dynamic Badges Column mapping your local color standards */}
+        {/* Section 2: Gamification & Levels */}
+        <section className="config-section-card">
+          <div className="section-header">
+            <h3 className="section-title">Gamification & Levels</h3>
+          </div>
+          <div className="tier-table-wrapper">
+            <table className="tier-table">
+              <thead>
+                <tr>
+                  <th>Level Name</th>
+                  <th>Points Threshold</th>
+                  <th>Reward Unlock</th>
+                  <th style={{ width: "50px" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {levels.map((level) => (
+                  <tr key={level.id}>
                     <td>
-                      <span 
-                        className={`status-badge ${
-                          row.statusClass === "spam" || row.statusClass === "flagged" ? "pending" : row.statusClass
-                        }`}
-                        style={{
-                          fontSize: "0.75rem",
-                          fontWeight: "600",
-                          backgroundColor: row.statusClass === "spam" ? "#FFE9E9" : undefined,
-                          color: row.statusClass === "spam" ? "#B91C1C" : undefined
-                        }}
-                      >
-                        {row.status}
-                      </span>
+                      <input 
+                        className="tier-input name-input" 
+                        type="text" 
+                        value={level.name}
+                        onChange={(e) => handleLevelChange(level.id, 'name', e.target.value)}
+                      />
                     </td>
-
-                    {/* Actions Context Control Cluster */}
                     <td>
-                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
-                        {/* Reply Button */}
-                        <button 
-                          onClick={() => handleReply(row.user)}
-                          style={{ border: "1px solid var(--color-border)", background: "#EEF2FF", color: "var(--color-primary)", padding: "5px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "2px" }}
-                          title="Reply to user"
-                        >
-                          ↩ Reply
-                        </button>
-
-                        {/* Approve Button */}
-                        {row.status !== "Approved ✓" && (
-                          <button 
-                            onClick={() => handleApprove(row.id)}
-                            style={{ border: "1px solid var(--color-border)", background: "#E0F2E9", color: "var(--color-primary)", padding: "5px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "500", cursor: "pointer" }}
-                            title="Approve message"
-                          >
-                            ✓ Approve
-                          </button>
-                        )}
-
-                        {/* Delete Button */}
-                        <button 
-                          onClick={() => handleDelete(row.id, row.user)}
-                          style={{ border: "1px solid #FFD6D6", background: "#FFE9E9", color: "#B91C1C", padding: "5px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "500", cursor: "pointer" }}
-                          title="Delete message"
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
+                      <input 
+                        className="tier-input threshold-input" 
+                        type="text" 
+                        value={level.threshold}
+                        onChange={(e) => handleLevelChange(level.id, 'threshold', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <span className="reward-pill">{level.reward}</span>
+                    </td>
+                    <td style={{ textAlign: "right", color: "#767777", cursor: "pointer" }}>
+                      ✏️
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        <div style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--color-neutral)", padding: "12px", borderTop: "1px solid var(--color-border)", backgroundColor: "var(--color-bg-light)" }}>
-          All messages are displayed on this single page — easy moderation, no pagination loop.
-        </div>
-      </section>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={handleAddTier} className="add-tier-btn">
+              ➕ Add New Tier
+            </button>
+          </div>
+        </section>
+
+        {/* Section 3: Mystery & Rare Collections Configuration */}
+        <section className="config-section-card">
+          <div className="section-header">
+            <h3 className="section-title">Mystery & Rare Collections</h3>
+          </div>
+          <div className="config-grid-2">
+            {/* Mystery Box Config */}
+            <div className="mystery-sub-card">
+              <h4 className="mystery-sub-title">Mystery Box Configuration</h4>
+              <div className="config-input-group" style={{ marginBottom: "20px" }}>
+                <label className="config-label">Books per Mystery Box</label>
+                <input 
+                  className="config-input" 
+                  type="text" 
+                  value={mysteryBoxBooks}
+                  onChange={(e) => setMysteryBoxBooks(e.target.value)}
+                />
+                <p className="config-hint">Number of random books included in a standard mystery box.</p>
+              </div>
+              <div className="config-input-group">
+                <label className="config-label">Points Cost to Redeem</label>
+                <input 
+                  className="config-input" 
+                  type="text" 
+                  value={mysteryBoxPointsCost}
+                  onChange={(e) => setMysteryBoxPointsCost(e.target.value)}
+                />
+                <p className="config-hint">Points required for a user to unlock/redeem a mystery box.</p>
+              </div>
+            </div>
+
+            {/* Rare Collection Rules */}
+            <div className="mystery-sub-card">
+              <h4 className="mystery-sub-title">Rare Collection Rules</h4>
+              <div className="config-input-group" style={{ marginBottom: "20px" }}>
+                <label className="config-label">Minimum Level to Unlock</label>
+                <select 
+                  className="config-select"
+                  value={rareCollectionMinLevel}
+                  onChange={(e) => setRareCollectionMinLevel(e.target.value)}
+                >
+                  {levels.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} ({l.threshold} pts)</option>
+                  ))}
+                </select>
+                <p className="config-hint">Users must reach this level to browse rare curated collections.</p>
+              </div>
+              <div className="config-input-group">
+                <label className="config-label">Auto-Curation Threshold</label>
+                <input 
+                  className="config-input" 
+                  type="text" 
+                  defaultValue="5 Books / Genre"
+                />
+                <p className="config-hint">Minimum donated books of the same genre to auto-suggest a new collection.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sticky Footer */}
+        <footer className="config-sticky-footer">
+          <button className="btn-cancel-config">Cancel Changes</button>
+          <button className="btn-save-config">Save System Rules</button>
+        </footer>
+      </div>
     </AdminLayout>
   );
 }
