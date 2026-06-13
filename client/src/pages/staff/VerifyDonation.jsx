@@ -1,11 +1,24 @@
 // pages/staff/VerifyDonation.jsx
-import React, { useState } from 'react';
-import StaffLayout from '../../components/StaffLayout';  // Fixed import path (two levels up)
+import React, { useState, useEffect } from 'react';
+import StaffLayout from '../../components/StaffLayout';
 
 function VerifyDonation() {
-  const [isbn, setIsbn] = useState('978-0062315007');
+  const [currentUser, setCurrentUser] = useState({ name: '', role: '' });
+  const [isbn, setIsbn] = useState('978-955-0020-14-8');
   const [condition, setCondition] = useState('Pristine');
-  const [basePoints] = useState(35.00);
+  const [basePoints] = useState(3500.00);
+
+  useEffect(() => {
+    // Get logged-in user data from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setCurrentUser({
+        name: user.name || user.email || 'Staff User',
+        role: user.role || 'VERIFICATION STAFF'
+      });
+    }
+  }, []);
   
   const getMultiplier = () => {
     switch(condition) {
@@ -19,25 +32,40 @@ function VerifyDonation() {
   
   const getFinalPoints = () => {
     switch(condition) {
-      case 'Pristine': return 42;
-      case 'Very Good': return 38.5;
-      case 'Good': return 31.5;
-      case 'Damaged': return 17.5;
-      default: return 35;
+      case 'Pristine': return 4200;
+      case 'Very Good': return 3850;
+      case 'Good': return 3150;
+      case 'Damaged': return 1750;
+      default: return 3500;
     }
   };
 
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (currentUser.name) {
+      const names = currentUser.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return currentUser.name[0].toUpperCase();
+    }
+    return 'VD';
+  };
+
   return (
-    <StaffLayout>  {/* Wrap content with StaffLayout instead of rendering separately */}
+    <StaffLayout>
       {/* Header with verification lead info */}
       <div className="verification-header">
         <div className="lead-info">
-          <span className="lead-name">Alex Rivera</span>
-          <span className="lead-role">VERIFICATION LEAD</span>
+          <span className="lead-name">{currentUser.name || 'Verification Staff'}</span>
+          <span className="lead-role">{currentUser.role || 'VERIFICATION LEAD'}</span>
+          <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>
+            {getUserInitials()}
+          </div>
         </div>
       </div>
 
-      <h1 className="page-title">Donation Verification</h1>
+      <h1 className="page-title">Donation Verification - Sri Lanka</h1>
 
       {/* Two column layout for Donor Info and Manifested Items */}
       <div className="verification-two-column">
@@ -46,25 +74,29 @@ function VerifyDonation() {
           <h3>DONOR INFORMATION</h3>
           <div className="donor-field">
             <label>Full Name</label>
-            <p className="field-value">Eleanor Vance</p>
+            <p className="field-value">Malini Perera</p>
           </div>
           <div className="donor-field">
             <label>Email Address</label>
-            <p className="field-value">e.vance@example.com</p>
+            <p className="field-value">malini.perera@example.com</p>
+          </div>
+          <div className="donor-field">
+            <label>Location</label>
+            <p className="field-value">Colombo, Sri Lanka</p>
           </div>
           <div className="donor-row">
             <div className="donor-field half">
               <label>Total Contributions</label>
-              <p className="field-value large">142 Books</p>
+              <p className="field-value large">248 Books</p>
             </div>
             <div className="donor-field half">
               <label>Status</label>
-              <p className="status-gold">Verified Gold</p>
+              <p className="status-gold">Platinum Donor</p>
             </div>
           </div>
           <div className="recurring-badge">
             <span className="recurring-icon">⟳</span>
-            <span>RECURRING DONOR</span>
+            <span>RECURRING DONOR SINCE 2022</span>
           </div>
         </div>
 
@@ -72,31 +104,33 @@ function VerifyDonation() {
         <div className="manifested-card">
           <div className="manifest-header">
             <h3>MANIFESTED ITEMS (4)</h3>
-            <span className="batch-id">Batch ID: #B-2024-001</span>
+            <span className="batch-id">Batch ID: #SL-B-2024-001</span>
           </div>
 
           <div className="manifest-item">
             <div className="item-header">
-              <h4>Principles of Modern UI</h4>
-              <span className="item-points">42 pts</span>
+              <h4>Madol Doowa - Martin Wickramasinghe</h4>
+              <span className="item-points">4200 pts</span>
             </div>
-            <p className="item-meta">Author: Dieter Rams</p>
-            <p className="item-meta">ISBN: 978-3161484100</p>
+            <p className="item-meta">Author: Martin Wickramasinghe</p>
+            <p className="item-meta">ISBN: 978-955-551-123-4</p>
             <div className="item-tags">
+              <span className="tag">First Edition</span>
               <span className="tag">Hardcover</span>
-              <span className="tag">2021</span>
+              <span className="tag">Sinhala Literature</span>
             </div>
           </div>
 
           <div className="manifest-item flagged">
             <div className="item-header">
-              <h4>The Alchemist (Collector's Edition)</h4>
+              <h4>The History of Ceylon (Collector's Edition)</h4>
               <span className="item-points muted">-- pts</span>
             </div>
-            <p className="item-meta">Author: Paulo Coelho</p>
-            <p className="item-meta">ISBN: 978-0062315007</p>
+            <p className="item-meta">Author: Various Authors</p>
+            <p className="item-meta">ISBN: 978-955-0020-14-8</p>
             <div className="item-tags">
               <span className="tag">Leatherbound</span>
+              <span className="tag">Rare Edition</span>
               <span className="tag flagged-tag">Flagged Condition</span>
             </div>
           </div>
@@ -107,7 +141,7 @@ function VerifyDonation() {
       <div className="verification-protocol">
         <h3>VERIFICATION PROTOCOL</h3>
         <div className="isbn-verification">
-          <div className="isbn-label">Scan or Verify ISBN</div>
+          <div className="isbn-label">Scan or Verify ISBN (Sri Lanka Standard)</div>
           <div className="isbn-input-group">
             <input 
               type="text" 
@@ -120,7 +154,7 @@ function VerifyDonation() {
           </div>
           <div className="isbn-match">
             <span className="match-icon">✓</span>
-            <span>Matched: The Alchemist (Collector's Edition)</span>
+            <span>Matched: The History of Ceylon (Collector's Edition)</span>
           </div>
         </div>
       </div>
@@ -142,10 +176,10 @@ function VerifyDonation() {
               <div className="condition-content">
                 <span className="condition-name">{c}</span>
                 <span className="condition-desc">
-                  {c === 'Pristine' && 'Like New / Unread'}
-                  {c === 'Very Good' && 'Minimal wear'}
-                  {c === 'Good' && 'Readable / Aged'}
-                  {c === 'Damaged' && 'Unsellable / Scrap'}
+                  {c === 'Pristine' && 'Like New / Unread / Collector Quality'}
+                  {c === 'Very Good' && 'Minimal wear / Well maintained'}
+                  {c === 'Good' && 'Readable / Aged but intact'}
+                  {c === 'Damaged' && 'Unsellable / Needs restoration'}
                 </span>
               </div>
             </label>
@@ -160,7 +194,7 @@ function VerifyDonation() {
             <input type="checkbox" /> No internal highlighting or notes
           </label>
           <label className="check-label">
-            <input type="checkbox" /> Contains water damage or mold
+            <input type="checkbox" /> No water damage or mold (tropical climate)
           </label>
         </div>
       </div>
@@ -169,7 +203,7 @@ function VerifyDonation() {
       <div className="points-calculation">
         <div className="points-row">
           <span className="points-label">Base Value Points</span>
-          <span className="points-value">${basePoints.toFixed(2)}</span>
+          <span className="points-value">Rs. {basePoints.toFixed(2)}</span>
         </div>
 
         <div className="points-row">
@@ -179,7 +213,7 @@ function VerifyDonation() {
 
         <div className="points-row total">
           <span className="points-label">Final Calculation</span>
-          <span className="points-total">{getFinalPoints()} pts</span>
+          <span className="points-total">Rs. {getFinalPoints()} pts</span>
         </div>
       </div>
 
@@ -193,7 +227,7 @@ function VerifyDonation() {
       <div className="system-advisory">
         <span className="advisory-icon">ℹ️</span>
         <p>
-          System Advisory: Collector's editions require manual ISBN confirmation if the barcode is not recognized.
+          System Advisory: Rare Sri Lankan collector's editions require manual ISBN confirmation and expert condition assessment.
         </p>
       </div>
     </StaffLayout>

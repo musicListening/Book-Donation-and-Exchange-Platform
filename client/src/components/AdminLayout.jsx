@@ -17,7 +17,7 @@ export default function AdminLayout({ children, title }) {
       <aside className="sidebar">
         <div className="sidebar-header">
           <span className="logo-icon">📚</span>
-          <h2>PROJENIUS</h2>
+          <h2>ShareShelf</h2>
           <p className="subtitle">Admin Portal</p>
         </div>
 

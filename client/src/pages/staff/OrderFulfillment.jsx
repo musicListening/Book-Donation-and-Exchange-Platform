@@ -1,40 +1,75 @@
-// pages/staff/OrderFulfillment.jsx (note the .jsx extension and correct path)
-import React from 'react';
-import StaffLayout from '../../components/StaffLayout';  // Fixed import path
+// pages/staff/OrderFulfillment.jsx
+import React, { useState, useEffect } from 'react';
+import StaffLayout from '../../components/StaffLayout';
 
 function OrderFulfillment() {
+  const [currentUser, setCurrentUser] = useState({ name: '', role: '' });
+
+  useEffect(() => {
+    // Get logged-in user data from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setCurrentUser({
+        name: user.name || user.email || 'Staff User',
+        role: user.role || 'LOGISTICS STAFF'
+      });
+    }
+  }, []);
+
   const shipments = [
-    { id: '#RB-92410', recipient: 'Sarah Jenkins', items: '12 Books', status: 'In Transit', lastUpdate: '2 hours ago' },
-    { id: '#RB-92408', recipient: 'Austin Community Library', items: '45 Books', status: 'Delayed', lastUpdate: '5 mins ago' },
-    { id: '#RB-92405', recipient: 'Brooklyn School District', items: '120 Books', status: 'On Time', lastUpdate: '1 hour ago' },
-    { id: '#RB-92400', recipient: 'Harlem Literacy Center', items: '28 Books', status: 'On Time', lastUpdate: '3 hours ago' },
+    { id: '#SL-92410', recipient: 'Colombo Public Library', location: 'Colombo 01', items: '45 Books', status: 'In Transit', lastUpdate: '2 hours ago', driver: 'Priyantha Silva' },
+    { id: '#SL-92408', recipient: 'University of Peradeniya', location: 'Kandy', items: '120 Books', status: 'Delayed', lastUpdate: '5 mins ago', driver: 'Kamal Perera' },
+    { id: '#SL-92405', recipient: 'Galle Heritage Foundation', location: 'Galle', items: '28 Books', status: 'On Time', lastUpdate: '1 hour ago', driver: 'Sunil Jayasinghe' },
+    { id: '#SL-92400', recipient: 'Jaffna Public Library', location: 'Jaffna', items: '32 Books', status: 'On Time', lastUpdate: '3 hours ago', driver: 'Ramesh Kumar' },
+    { id: '#SL-92395', recipient: 'Kandy Municipal Council', location: 'Kandy', items: '85 Books', status: 'In Transit', lastUpdate: '30 mins ago', driver: 'Nimal Weerasinghe' },
+    { id: '#SL-92390', recipient: 'Negombo Community Center', location: 'Negombo', items: '22 Books', status: 'Delivered', lastUpdate: '6 hours ago', driver: 'Chaminda Rathnayake' },
   ];
 
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (currentUser.name) {
+      const names = currentUser.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return currentUser.name[0].toUpperCase();
+    }
+    return 'LM';
+  };
+
   return (
-    <StaffLayout>  {/* Wrap with StaffLayout instead of using Sidebar directly */}
+    <StaffLayout>
       <div className="content-header">
-        <h1>Order Fulfillment</h1>
+        <h1>Order Fulfillment - Sri Lanka Logistics</h1>
         <div className="user-info">
-          <span className="user-role">LOGISTICS MANAGER</span>
+          <span className="user-role">{currentUser.name}</span>
+          <span className="user-title">{currentUser.role}</span>
+          <div className="user-avatar">{getUserInitials()}</div>
         </div>
       </div>
-      <p style={{ marginBottom: '16px', color: '#64748b' }}>Real-time logistics and shipment management</p>
+      <p style={{ marginBottom: '16px', color: '#64748b' }}>Real-time logistics and shipment management across Sri Lanka</p>
 
       <div className="cards-grid">
         <div className="stat-card">
           <h3>Active Shipments</h3>
-          <div className="stat-value">248</div>
+          <div className="stat-value">342</div>
           <div className="stat-sub">View All Active Shipments →</div>
         </div>
         <div className="stat-card">
-          <h3>On Time</h3>
-          <div className="stat-value">94%</div>
-          <div className="stat-trend">▲ +5%</div>
+          <h3>On Time Delivery</h3>
+          <div className="stat-value">96%</div>
+          <div className="stat-trend">▲ +8% from last month</div>
         </div>
         <div className="stat-card">
           <h3>Delivered Today</h3>
-          <div className="stat-value">85</div>
+          <div className="stat-value">124</div>
           <div className="stat-trend">Target Reached ✓</div>
+        </div>
+        <div className="stat-card">
+          <h3>Active Drivers</h3>
+          <div className="stat-value">28</div>
+          <div className="stat-sub">Across 9 provinces</div>
         </div>
       </div>
 
@@ -53,7 +88,9 @@ function OrderFulfillment() {
               <tr>
                 <th>ORDER ID</th>
                 <th>RECIPIENT</th>
+                <th>LOCATION</th>
                 <th>ITEMS</th>
+                <th>DRIVER</th>
                 <th>STATUS</th>
                 <th>LAST UPDATE</th>
                 <th>ACTIONS</th>
@@ -64,7 +101,9 @@ function OrderFulfillment() {
                 <tr key={s.id}>
                   <td><strong>{s.id}</strong></td>
                   <td>{s.recipient}</td>
+                  <td>{s.location}</td>
                   <td>{s.items}</td>
+                  <td>{s.driver}</td>
                   <td>
                     <span className={`status-badge ${s.status.toLowerCase().replace(' ', '-')}`}>
                       {s.status}
@@ -77,18 +116,23 @@ function OrderFulfillment() {
             </tbody>
           </table>
         </div>
+        <div className="table-footer">
+          <span>Showing 1-6 of 342 active shipments</span>
+          <button className="new-donation-btn">+ New Shipment</button>
+        </div>
       </div>
 
       <div className="two-column">
         <div className="card-panel">
           <h3>Carrier Integration</h3>
-          <p>Logistics partners currently operational. API latency is within normal range (42ms).</p>
-          <div className="stat-trend" style={{ marginTop: '12px' }}>✓ UPS • FedEx • DHL Connected</div>
+          <p>Logistics partners currently operational across Sri Lanka. API latency is within normal range (38ms).</p>
+          <div className="stat-trend" style={{ marginTop: '12px' }}>✓ Sri Lanka Post • Private Couriers • Regional Hubs Connected</div>
         </div>
         <div className="card-panel">
           <h3>Warehouse Status</h3>
-          <p>Packing station 4 is currently idle. Volume predicted to increase by 20% in next cycle.</p>
-          <div className="stat-trend negative" style={{ marginTop: '12px' }}>⚠️ Staff needed at Station 2</div>
+          <p>Colombo main hub at 78% capacity. Kandy regional hub processing high volume.</p>
+          <div className="stat-trend" style={{ marginTop: '12px' }}>📦 1,284 books ready for dispatch</div>
+          <div className="stat-trend negative" style={{ marginTop: '8px' }}>⚠️ Additional driver needed for Galle route</div>
         </div>
       </div>
     </StaffLayout>

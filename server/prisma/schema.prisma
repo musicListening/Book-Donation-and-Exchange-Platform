@@ -16,12 +16,15 @@ enum UserRole {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole @default(END_USER)
-  points    Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String            @id @default(uuid())
+  name        String
+  email       String            @unique
+  password    String
+  role        UserRole          @default(END_USER)
+  points      Int               @default(0)
+  level       Int               @default(1)         // NEW: For gamification
+  phoneNumber String?                               // NEW: For delivery contact
+  address     String?                               // NEW: For delivery destination
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }

@@ -3,93 +3,86 @@ import AdminLayout from "../../components/AdminLayout";
 import "../../styles/CustomReportGeneration.css";
 
 const reportDataTemplates = {
-  "System Performance Audit": {
-    title: "System Performance Audit Report",
-    subtitle: "Enterprise Auditing & Latency Metrics",
-    headers: ["Metric", "Value", "Status", "Last Checked"],
+  "Total Points Provided": {
+    title: "Points Distribution & Redemption Report",
+    subtitle: "Summary of points issued, redeemed, and remaining platform balances",
+    headers: ["Category", "Points Issued", "Points Redeemed", "Net Balance"],
     rows: [
-      { col1: "CPU Utilization", col2: "42.8%", col3: "Optimal", col4: "10 mins ago" },
-      { col1: "Memory Usage", col2: "64.2 GB / 128 GB", col3: "Optimal", col4: "5 mins ago" },
-      { col1: "API Response Latency", col2: "142 ms", col3: "Warning", col4: "1 min ago" },
-      { col1: "Disk I/O Write Rate", col2: "98.4 MB/s", col3: "Optimal", col4: "15 mins ago" },
-      { col1: "Network In/Out Traffic", col2: "1.2 Gbps / 840 Mbps", col3: "Optimal", col4: "2 mins ago" },
+      { col1: "Single Book Donations", col2: "12,500", col3: "0", col4: "+12,500" },
+      { col1: "Collection Donations (w/ Bonus)", col2: "45,200", col3: "0", col4: "+45,200" },
+      { col1: "Book Marketplace Purchases", col2: "0", col3: "18,400", col4: "-18,400" },
+      { col1: "Craft Marketplace Purchases", col2: "0", col3: "8,500", col4: "-8,500" },
+      { col1: "Total Platform Points", col2: "57,700", col3: "26,900", col4: "30,800" },
     ],
     chartData: [
-      { label: "00:00", val: 30, color: "#1E4D4B" },
-      { label: "04:00", val: 45, color: "#1E4D4B" },
-      { label: "08:00", val: 80, color: "#E9C46A" },
-      { label: "12:00", val: 95, color: "#643C29" },
-      { label: "16:00", val: 75, color: "#1E4D4B" },
-      { label: "20:00", val: 50, color: "#1E4D4B" },
+      { label: "Issued", val: 85, color: "#1E4D4B" },
+      { label: "Redeemed", val: 45, color: "#E9C46A" },
+      { label: "Pending", val: 40, color: "#643C29" },
     ]
   },
-  "User Access & Permissions": {
-    title: "Access Control & Security Logs",
-    subtitle: "User Permissions Audit & Modifications",
-    headers: ["User Identity", "Role", "Action Performed", "Access Status"],
+  "Total Deliveries": {
+    title: "Delivery & Fulfillment Status Report",
+    subtitle: "Real-time tracking of book and craft shipments across all stages",
+    headers: ["Status Stage", "Book Orders", "Craft Orders", "Total"],
     rows: [
-      { col1: "sarah.jenkins@ethos.com", col2: "Community Admin", col3: "Modified Role #USR-104", col4: "Approved" },
-      { col1: "marcus.thorne@ethos.com", col2: "Staff", col3: "Exported Books List", col4: "Approved" },
-      { col1: "elena.rodriguez@ethos.com", col2: "End User", col3: "Requested Book Exchange", col4: "Approved" },
-      { col1: "david.kim@ethos.com", col2: "Staff", col3: "Access Security Config", col4: "Denied" },
-      { col1: "amasha.fernando@ethos.com", col2: "End User", col3: "Updated Profile Info", col4: "Approved" },
+      { col1: "Order Confirmed", col2: "45", col3: "12", col4: "57" },
+      { col1: "Processed & Packed", col2: "38", col3: "10", col4: "48" },
+      { col1: "At Airport / Courier", col2: "22", col3: "5", col4: "27" },
+      { col1: "Arrived at Destination", col2: "115", col3: "28", col4: "143" },
+      { col1: "Total Deliveries", col2: "220", col3: "55", col4: "275" },
     ],
     chartData: [
-      { label: "Mon", val: 60, color: "#1E4D4B" },
-      { label: "Tue", val: 75, color: "#1E4D4B" },
-      { label: "Wed", val: 95, color: "#E9C46A" },
-      { label: "Thu", val: 85, color: "#1E4D4B" },
-      { label: "Fri", val: 90, color: "#1E4D4B" },
-      { label: "Sat", val: 40, color: "#643C29" },
+      { label: "Confirmed", val: 20, color: "#767777" },
+      { label: "Processed", val: 35, color: "#E9C46A" },
+      { label: "In Transit", val: 50, color: "#643C29" },
+      { label: "Delivered", val: 85, color: "#1E4D4B" },
     ]
   },
-  "Resource Utilization": {
-    title: "Storage & Bandwidth Utilization",
-    subtitle: "Cloud Compute and Database Stats",
-    headers: ["Component", "Allocated", "Used", "Efficiency"],
+  "Most Popular Collections": {
+    title: "Top Performing Book Collections",
+    subtitle: "Most requested and curated book bundles by genre",
+    headers: ["Collection Name", "Category", "Units Sold", "Demand Trend"],
     rows: [
-      { col1: "Amazon S3 Book Assets", col2: "50 TB", col3: "38.2 TB", col4: "76.4%" },
-      { col1: "PostgreSQL Database", col2: "500 GB", col3: "342.5 GB", col4: "68.5%" },
-      { col1: "CDN Cache Hit Rate", col2: "100%", col3: "92.4%", col4: "Optimal" },
-      { col1: "Redis Cache Clusters", col2: "32 GB", col3: "24.8 GB", col4: "77.5%" },
-      { col1: "Vite Client Hosting Node", col2: "2 Core", col3: "1.2 Core", col4: "70.0%" },
+      { col1: "O/L Science Past Papers 2018-2024", col2: "Education", col3: "142", col4: "High" },
+      { col1: "Harry Potter Full Series", col2: "Fiction", col3: "98", col4: "High" },
+      { col1: "Classic Victorian Novels Set", col2: "Literature", col3: "76", col4: "Medium" },
+      { col1: "A/L Mathematics Revision", col2: "Education", col3: "65", col4: "Medium" },
+      { col1: "Children's Storybook Bundle", col2: "Kids", col3: "54", col4: "Low" },
     ],
     chartData: [
-      { label: "S3", val: 76, color: "#1E4D4B" },
-      { label: "DB", val: 68, color: "#1E4D4B" },
-      { label: "CDN", val: 92, color: "#E9C46A" },
-      { label: "Redis", val: 77, color: "#1E4D4B" },
-      { label: "Host", val: 70, color: "#1E4D4B" },
+      { label: "Education", val: 90, color: "#1E4D4B" },
+      { label: "Fiction", val: 75, color: "#E9C46A" },
+      { label: "Literature", val: 60, color: "#643C29" },
+      { label: "Kids", val: 40, color: "#767777" },
     ]
   },
-  "Security Incident Log": {
-    title: "Security Threat & Policy Audits",
-    subtitle: "Active System Attacks & Intrusion Prev.",
-    headers: ["Incident ID", "Severity", "Description", "Timestamp"],
+  "Top Users Who Level Up": {
+    title: "Top Users & Level Progression Report",
+    subtitle: "Leaderboard of most active donors and their unlocked tier benefits",
+    headers: ["User Identity", "Total Donated", "Current Level", "Next Unlock"],
     rows: [
-      { col1: "SEC-8492", col2: "Low", col3: "Failed login threshold exceeded", col4: "Today, 18:24" },
-      { col1: "SEC-8491", col2: "Medium", col3: "Suspected automated port scan", col4: "Today, 14:15" },
-      { col1: "SEC-8490", col2: "High", col3: "SQL Injection attack blocked", col4: "Yesterday, 09:30" },
-      { col1: "SEC-8489", col2: "Low", col3: "Session hijack prevention active", col4: "Yesterday, 08:12" },
-      { col1: "SEC-8488", col2: "Low", col3: "Brute-force lockout for IP 192.168.1.1", col4: "June 9, 21:05" },
+      { col1: "sarah.jenkins@ethos.com", col2: "342 Books", col3: "Level 5 (Expert)", col4: "Mystery Box" },
+      { col1: "marcus.thorne@ethos.com", col2: "215 Books", col3: "Level 4 (Advocate)", col4: "Rare Collection" },
+      { col1: "elena.rodriguez@ethos.com", col2: "180 Books", col3: "Level 4 (Advocate)", col4: "Rare Collection" },
+      { col1: "david.kim@ethos.com", col2: "120 Books", col3: "Level 3 (Supporter)", col4: "Level 4 Badge" },
+      { col1: "amasha.fernando@ethos.com", col2: "95 Books", col3: "Level 3 (Supporter)", col4: "Level 4 Badge" },
     ],
     chartData: [
-      { label: "Low", val: 75, color: "#1E4D4B" },
-      { label: "Med", val: 45, color: "#E9C46A" },
-      { label: "High", val: 15, color: "#643C29" },
-      { label: "Crit", val: 5, color: "#767777" },
+      { label: "Lvl 5", val: 15, color: "#1E4D4B" },
+      { label: "Lvl 4", val: 35, color: "#E9C46A" },
+      { label: "Lvl 3", val: 50, color: "#643C29" },
+      { label: "Lvl 1-2", val: 80, color: "#767777" },
     ]
   }
 };
 
 export default function CustomReportGeneration() {
-  const [reportType, setReportType] = useState("System Performance Audit");
+  const [reportType, setReportType] = useState("Total Points Provided");
   const [startDate, setStartDate] = useState("2026-06-01");
   const [endDate, setEndDate] = useState("2026-06-11");
   const [exportFormat, setExportFormat] = useState("PDF");
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [anonymizeUsers, setAnonymizeUsers] = useState(false);
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentReport, setCurrentReport] = useState(null);
   const [notification, setNotification] = useState("");
@@ -117,14 +110,14 @@ export default function CustomReportGeneration() {
       return `${name.substring(0, 2)}***@${domain}`;
     }
     // Handle standard user IDs or incident/txn codes
-    if (text.startsWith("SEC-")) return "SEC-****";
+    if (text.startsWith("SEC-")) return "SEC-***";
     if (text.startsWith("sarah") || text.startsWith("marcus") || text.startsWith("elena") || text.startsWith("david") || text.startsWith("amasha")) {
-      return text.substring(0, 2) + "****";
+      return text.substring(0, 2) + "***";
     }
     return text;
   };
 
-  const report = currentReport || reportDataTemplates["System Performance Audit"];
+  const report = currentReport || reportDataTemplates["Total Points Provided"];
 
   return (
     <AdminLayout title="Custom Reports">
@@ -135,17 +128,16 @@ export default function CustomReportGeneration() {
             <span className="toast-message">{notification}</span>
           </div>
         )}
-
         <header className="report-header">
           <h2 className="report-title">Custom Report Generation</h2>
-          <p className="report-subtitle">Configure and visualize data exports for enterprise auditing.</p>
+          <p className="report-subtitle">Configure and visualize data exports for platform analytics and auditing.</p>
         </header>
 
         <div className="report-layout-grid">
           {/* Left Panel: Configuration Form */}
           <section className="control-panel-card">
             <h3 className="panel-title-label">Configuration</h3>
-            
+           
             <div className="form-stack">
               {/* Report Type Select */}
               <div className="form-group">
@@ -156,10 +148,10 @@ export default function CustomReportGeneration() {
                     onChange={(e) => setReportType(e.target.value)}
                     className="styled-select"
                   >
-                    <option>System Performance Audit</option>
-                    <option>User Access & Permissions</option>
-                    <option>Resource Utilization</option>
-                    <option>Security Incident Log</option>
+                    <option>Total Points Provided</option>
+                    <option>Total Deliveries</option>
+                    <option>Most Popular Collections</option>
+                    <option>Top Users Who Level Up</option>
                   </select>
                   <span className="select-arrow">▼</span>
                 </div>
@@ -233,6 +225,11 @@ export default function CustomReportGeneration() {
                   </span>
                   <span className="checkbox-text">Anonymize user IDs</span>
                 </label>
+                {reportType === "Top Users Who Level Up" && (
+                  <p className="checkbox-hint" style={{ fontSize: "0.8rem", color: "#767777", marginTop: "-8px" }}>
+                    *Recommended for privacy compliance when exporting user leaderboards.
+                  </p>
+                )}
               </div>
 
               {/* Primary CTA */}
@@ -285,12 +282,10 @@ export default function CustomReportGeneration() {
                         <td className="font-mono">{maskUserIdentity(row.col1)}</td>
                         <td>{maskUserIdentity(row.col2)}</td>
                         <td>
-                          {row.col3 === "Optimal" || row.col3 === "Approved" ? (
+                          {row.col3 === "High" || row.col3.includes("Level 5") || row.col3.includes("Expert") ? (
                             <span className="pill-status success">{row.col3}</span>
-                          ) : row.col3 === "Warning" || row.col3 === "Denied" || row.col3 === "Medium" ? (
+                          ) : row.col3 === "Medium" || row.col3.includes("Level 4") || row.col3.includes("Level 3") ? (
                             <span className="pill-status warning">{row.col3}</span>
-                          ) : row.col3 === "High" ? (
-                            <span className="pill-status danger">{row.col3}</span>
                           ) : (
                             row.col3
                           )}
