@@ -1,12 +1,10 @@
-// This is your Prisma schema file.
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // Make sure your Neon.tech DB URL is in your .env file
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -21,11 +19,9 @@ model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  password  String   // We will hash this before saving!
+  password  String
   role      UserRole @default(END_USER)
-  points    Int      @default(0) // For the points dashboard feature
+  points    Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // We will add relations (like donations, orders) here in later steps
 }

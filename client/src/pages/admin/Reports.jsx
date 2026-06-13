@@ -1,8 +1,8 @@
 // client/src/pages/Reports.jsx
 
 import React, { useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import "../styles/Reports.css";
+import AdminLayout from "../../components/AdminLayout";
+import "../../styles/Reports.css";
 
 export default function Reports() {
   const [reportType, setReportType] = useState("Donations Summary");

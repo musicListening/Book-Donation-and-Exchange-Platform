@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import "../styles/UserManagement.css";
+import AdminLayout from "../../components/AdminLayout";
+import "../../styles/UserManagement.css";
 
 const mockUsers = [
   { id: "#USR-842", name: "Roshean Perera", role: "Community Admin", level: 42, points: "12,450", status: "Active" },

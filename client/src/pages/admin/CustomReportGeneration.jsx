@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import AdminLayout from "../components/AdminLayout";
-import "../styles/CustomReportGeneration.css";
+import AdminLayout from "../../components/AdminLayout";
+import "../../styles/CustomReportGeneration.css";
 
 const reportDataTemplates = {
   "System Performance Audit": {

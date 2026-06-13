@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import "../styles/AdminDashboard.css"; // Reuses standard dashboard spacing & card aesthetics
+import AdminLayout from "../../components/AdminLayout";
+import "../../styles/AdminDashboard.css"; // Reuses standard dashboard spacing & card aesthetics
 
 export default function CommunityModeration() {
   // Moderation items initialized into local state for reactivity

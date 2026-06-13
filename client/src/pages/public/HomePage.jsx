@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import '../styles/HomePage.css';
+import '../../styles/HomePage.css';
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

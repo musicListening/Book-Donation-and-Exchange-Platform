@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import "../styles/AdminDashboard.css";
-import "../styles/Reports.css";
+import AdminLayout from "../../components/AdminLayout";
+import "../../styles/AdminDashboard.css";
+
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("Monthly");

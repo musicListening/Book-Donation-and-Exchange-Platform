@@ -14,6 +14,7 @@
   --font-body: 'Inter', sans-serif;
 }
 
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -29,19 +30,21 @@ body {
 
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  width: 100vw;       /* Full viewport width */
+  min-height: 100vh;  /* Full viewport height */
+  margin: 0;
+  padding: 0;
+  background-color: #f4f6f8;
 }
 
 .sidebar {
   width: 260px;
-  background-color: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  min-height: 100vh;
+  background-color: #ffffff; 
+  color: white;
   display: flex;
   flex-direction: column;
-  padding: 2rem 1.5rem;
-  justify-content: space-between;
-  position: fixed;
-  height: 100vh;
+  flex-shrink: 0; 
 }
 
 .sidebar-header h2 {
@@ -94,17 +97,23 @@ body {
 }
 
 .main-content {
-  flex-grow: 1;
-  margin-left: 260px;
-  padding: 2.5rem;
-  overflow-y: auto;
+  flex: 1;         
+  width: 100%;     
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;       
+
 }
 
 .top-header {
+ width: 100%;
+  padding: 20px 30px;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
 }
 
 .top-header h1 {

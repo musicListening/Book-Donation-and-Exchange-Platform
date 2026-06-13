@@ -3,9 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import "../styles/AdminLayout.css";
 
 const navItems = [
-  { path: "/admin", label: "Analytics", icon: "📊" },
+  { path: "/admin/AdminDashboard", label: "Analytics", icon: "📊" },
   { path: "/admin/users", label: "User Management", icon: "👥" },
-  { path: "/admin/reports", label: "Reports", icon: "📄" },
+  { path: "/admin/reports/custom", label: "Reports", icon: "📄" },
   { path: "/admin/config", label: "System Config", icon: "⚙️" },
 ];
 
