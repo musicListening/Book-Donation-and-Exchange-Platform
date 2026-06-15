@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; // Make sure Navigate is imported
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -22,14 +22,17 @@ import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
 import VerifyDonation from './pages/staff/VerifyDonation';
 
-import './App.css';
+// NEW: Delivery & Logistics Pages (your 3 HTML files converted to React)
+import CreateDeliveryPage from './pages/delivery/CreateDeliveryPage';       // Customer checkout
+import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
+import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // Order history table
 
+import './App.css';
 
 function App() {
   return (
     <Router>
       <Routes>
-
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
 
@@ -44,7 +47,7 @@ function App() {
         <Route path="/admin/config" element={<SystemConfig />} />
 
         {/* Staff Routes */}
-        <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} /> {/* THIS LINE IS KEY */}
+        <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/bundle-management" element={<BundleManagement />} />
         <Route path="/staff/donation-schedule" element={<DonationSchedule />} />
@@ -52,6 +55,10 @@ function App() {
         <Route path="/staff/order-fulfillment" element={<OrderFulfillment />} />
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
+        {/* NEW: Delivery & Logistics Routes */}
+        <Route path="/create-delivery" element={<CreateDeliveryPage />} />
+        <Route path="/delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />   {/* ← changed from /delivery-person */}
+        <Route path="/order-history" element={<OrderHistoryPage />} />
       </Routes>
     </Router>
   );
