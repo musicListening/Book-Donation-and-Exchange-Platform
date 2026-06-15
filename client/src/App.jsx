@@ -22,8 +22,7 @@ import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
 import VerifyDonation from './pages/staff/VerifyDonation';
 
-// NEW: Delivery & Logistics Pages (your 3 HTML files converted to React)
-import CreateDeliveryPage from './pages/delivery/CreateDeliveryPage';       // Customer checkout
+
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
 import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // Order history table
 
@@ -56,9 +55,9 @@ function App() {
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
         {/* NEW: Delivery & Logistics Routes */}
-        <Route path="/create-delivery" element={<CreateDeliveryPage />} />
-        <Route path="/delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />   {/* ← changed from /delivery-person */}
-        <Route path="/order-history" element={<OrderHistoryPage />} />
+         
+        <Route path="delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />   
+        <Route path="delivery/order-history" element={<OrderHistoryPage />} />
       </Routes>
     </Router>
   );

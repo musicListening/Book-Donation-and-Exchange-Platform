@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../../styles/delivery.css';
+import "../../styles/Delivery.css";
 
 const DeliveryPersonPage = () => {
   const isOnline = true;
