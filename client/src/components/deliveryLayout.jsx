@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import '../styles/delivery.css';
 
 const DeliveryLayout = () => {
   const isOnline = true;
