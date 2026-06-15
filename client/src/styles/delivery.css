@@ -17,8 +17,7 @@ html, body {
   scroll-behavior: smooth;
 }
 
-/* ========== TYPOGRAPHY (Material Design 3 spec) ========== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Caslon+Text:wght@400;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
 
 .font-headline-lg {
   font-family: 'Libre Caslon Text', serif;
