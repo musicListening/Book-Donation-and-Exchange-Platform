@@ -114,13 +114,6 @@ function DonationSchedule() {
         </div>
       </div>
 
-      <div className="route-map">
-        <h4>Route Map Overview - Western & Central Provinces</h4>
-        <div className="map-placeholder">
-          🗺️ 6 active vehicles operating in Colombo, Kandy, Galle, and Negombo regions
-        </div>
-      </div>
-
       <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
         <button className="btn-primary">Manage Full Schedule</button>
         <button className="btn-secondary">Export Route Plan</button>

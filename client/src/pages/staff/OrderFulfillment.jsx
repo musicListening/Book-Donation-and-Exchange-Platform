@@ -41,7 +41,7 @@ function OrderFulfillment() {
   return (
     <StaffLayout>
       <div className="content-header">
-        <h1>Order Fulfillment - Sri Lanka Logistics</h1>
+        <h1>Order Fulfillment </h1>
         <div className="user-info">
           <span className="user-role">{currentUser.name}</span>
           <span className="user-title">{currentUser.role}</span>
