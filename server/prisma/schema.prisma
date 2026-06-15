@@ -8,26 +8,43 @@ datasource db {
 }
 
 model User {
-  id              String            @id @default(uuid())
-  name            String
-  email           String            @unique
-  password        String
-  role            UserRole          @default(END_USER)
-  points          Int               @default(0)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  address         String?
-  level           Int               @default(1)
-  phoneNumber     String?
-  CraftListing    CraftListing[]
-  DonationRequest DonationRequest[]
-  EventComment    EventComment[]
-  EventLike       EventLike[]
-  Order           Order[]
+  id            String            @id @default(uuid())
+  name          String
+  email         String            @unique
+  password      String
+  role          UserRole          @default(END_USER)
+  points        Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  address       String?
+  level         Int               @default(1)
+  phoneNumber   String?
+  craftListings CraftListing[]
+  donations     DonationRequest[]
+  comments      EventComment[]
+  likes         EventLike[]
+  orders        Order[]
+}
+
+model DonationRequest {
+  id             String       @id @default(uuid())
+  userId         String
+  type           DonationType
+  requestedCount Int
+  verifiedCount  Int
+  dropOffDate    DateTime?
+  verifiedDate   DateTime?
+  verifiedBy     String?
+  pointsAwarded  Int          @default(0)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  books          BookItem[]
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model BookCollection {
-  id               String         @id
+  id               String         @id @default(uuid())
   title            String
   slug             String         @unique
   description      String?
@@ -39,13 +56,13 @@ model BookCollection {
   minLevelRequired Int            @default(1)
   imageUrl         String?
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime
-  BookItem         BookItem[]
-  OrderItem        OrderItem[]
+  updatedAt        DateTime       @updatedAt
+  books            BookItem[]
+  orderItems       OrderItem[]
 }
 
 model BookItem {
-  id                   String           @id
+  id                   String           @id @default(uuid())
   title                String
   author               String?
   isbn                 String?
@@ -59,14 +76,14 @@ model BookItem {
   isAvailable          Boolean          @default(true)
   addedToMarketplaceAt DateTime?
   createdAt            DateTime         @default(now())
-  updatedAt            DateTime
-  BookCollection       BookCollection?  @relation(fields: [collectionId], references: [id])
-  DonationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
-  OrderItem            OrderItem[]
+  updatedAt            DateTime         @updatedAt
+  collection           BookCollection?  @relation(fields: [collectionId], references: [id])
+  donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
+  orderItems           OrderItem[]
 }
 
 model CraftListing {
-  id               String      @id
+  id               String      @id @default(uuid())
   userId           String
   title            String
   description      String
@@ -77,77 +94,13 @@ model CraftListing {
   views            Int         @default(0)
   favorites        Int         @default(0)
   createdAt        DateTime    @default(now())
-  updatedAt        DateTime
-  User             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  OrderItem        OrderItem[]
-}
-
-model DeliveryUpdate {
-  id        String      @id
-  orderId   String
-  status    OrderStatus
-  note      String?
-  updatedBy String?
-  location  String?
-  createdAt DateTime    @default(now())
-  Order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-}
-
-model DonationRequest {
-  id             String       @id
-  userId         String
-  type           DonationType
-  requestedCount Int
-  verifiedCount  Int
-  dropOffDate    DateTime?
-  verifiedDate   DateTime?
-  verifiedBy     String?
-  pointsAwarded  Int          @default(0)
-  notes          String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime
-  BookItem       BookItem[]
-  User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model EventComment {
-  id        String    @id
-  postId    String
-  userId    String
-  content   String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime
-  EventPost EventPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model EventLike {
-  id        String    @id
-  postId    String
-  userId    String
-  createdAt DateTime  @default(now())
-  EventPost EventPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
-}
-
-model EventPost {
-  id           String         @id
-  title        String
-  description  String
-  imageUrl     String?
-  eventDate    DateTime
-  venue        String?
-  createdBy    String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime
-  EventComment EventComment[]
-  EventLike    EventLike[]
+  updatedAt        DateTime    @updatedAt
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems       OrderItem[]
 }
 
 model Order {
-  id              String           @id
+  id              String           @id @default(uuid())
   userId          String
   totalPoints     Int
   cashAmount      Float?
@@ -159,14 +112,14 @@ model Order {
   shippingAddress String?
   phoneNumber     String?
   createdAt       DateTime         @default(now())
-  updatedAt       DateTime
-  DeliveryUpdate  DeliveryUpdate[]
-  User            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  OrderItem       OrderItem[]
+  updatedAt       DateTime         @updatedAt
+  deliveryUpdates DeliveryUpdate[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
 }
 
 model OrderItem {
-  id             String          @id
+  id             String          @id @default(uuid())
   orderId        String
   collectionId   String?
   bookItemId     String?
@@ -175,10 +128,57 @@ model OrderItem {
   pointsAtTime   Int
   cashAtTime     Float?
   createdAt      DateTime        @default(now())
-  BookItem       BookItem?       @relation(fields: [bookItemId], references: [id])
-  BookCollection BookCollection? @relation(fields: [collectionId], references: [id])
-  CraftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
-  Order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bookItem       BookItem?       @relation(fields: [bookItemId], references: [id])
+  collection     BookCollection? @relation(fields: [collectionId], references: [id])
+  craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryUpdate {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  note      String?
+  updatedBy String?
+  location  String?
+  createdAt DateTime    @default(now())
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model EventPost {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  imageUrl    String?
+  eventDate   DateTime
+  venue       String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  comments    EventComment[]
+  likes       EventLike[]
+}
+
+model EventComment {
+  id        String    @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  post      EventPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EventLike {
+  id        String    @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime  @default(now())
+  post      EventPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
 }
 
 enum UserRole {
@@ -187,6 +187,11 @@ enum UserRole {
   PLATFORM_ADMIN
   DELIVERY_PERSONNEL
   COMMUNITY_ADMIN
+}
+
+enum DonationType {
+  SINGLE_BOOK
+  COLLECTION
 }
 
 enum BookCondition {
@@ -208,11 +213,6 @@ enum CraftStatus {
   LISTED
   SOLD
   ARCHIVED
-}
-
-enum DonationType {
-  SINGLE_BOOK
-  COLLECTION
 }
 
 enum OrderStatus {
