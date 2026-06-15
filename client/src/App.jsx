@@ -22,10 +22,14 @@ import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
 import VerifyDonation from './pages/staff/VerifyDonation';
 
-// NEW: Delivery & Logistics Pages (your 3 HTML files converted to React)
-import CreateDeliveryPage from './pages/delivery/CreateDeliveryPage';       // Customer checkout
-import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
-import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // Order history table
+// Delivery & Logistics Pages
+import CreateDeliveryPage from './pages/delivery/CreateDeliveryPage';
+import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';
+import OrderHistoryPage from './pages/delivery/OrderHistoryPage';
+
+// Community Admin Pages
+import CommunityDashboard from './pages/community/community_admin_dashboard';
+import MessageModeration from './pages/community/community_admin_community_management';
 
 import './App.css';
 
@@ -55,10 +59,15 @@ function App() {
         <Route path="/staff/order-fulfillment" element={<OrderFulfillment />} />
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
-        {/* NEW: Delivery & Logistics Routes */}
+        {/* Delivery & Logistics Routes */}
         <Route path="/create-delivery" element={<CreateDeliveryPage />} />
-        <Route path="/delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />   {/* ← changed from /delivery-person */}
+        <Route path="/delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />
         <Route path="/order-history" element={<OrderHistoryPage />} />
+
+        {/* Community Admin Routes */}
+        <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />
+        <Route path="/community-admin/dashboard" element={<CommunityDashboard />} />
+        <Route path="/community-admin/messages" element={<MessageModeration />} />
       </Routes>
     </Router>
   );
