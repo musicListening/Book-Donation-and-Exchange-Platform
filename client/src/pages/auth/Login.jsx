@@ -38,7 +38,7 @@ const Login = () => {
       } else if (userRole === 'OPERATIONS_STAFF') {
         navigate('/staff'); 
       } else if (userRole === 'DELIVERY_PERSONNEL') {
-        navigate('/delivery/DeliveryPersonPage'); 
+        navigate('/delivery'); 
       } else if (userRole === 'COMMUNITY_ADMIN') {
         navigate('/community'); 
       } else {

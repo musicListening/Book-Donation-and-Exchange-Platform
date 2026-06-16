@@ -25,6 +25,8 @@ import VerifyDonation from './pages/staff/VerifyDonation';
 
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
 import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // Order history table
+import DriverProfile from './pages/delivery/DriverProfile';
+import DeliveryLayout from './components/deliveryLayout';
 
 import './App.css';
 
@@ -55,9 +57,13 @@ function App() {
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
         {/* NEW: Delivery & Logistics Routes */}
-         
-        <Route path="delivery/DeliveryPersonPage" element={<DeliveryPersonPage />} />   
-        <Route path="delivery/order-history" element={<OrderHistoryPage />} />
+        <Route path="/delivery" element={<DeliveryLayout />}>
+          <Route index element={<DeliveryPersonPage />} />
+          <Route path="DeliveryPersonPage" element={<DeliveryPersonPage />} />
+          <Route path="history" element={<OrderHistoryPage />} />
+          <Route path="order-history" element={<OrderHistoryPage />} />
+          <Route path="profile" element={<DriverProfile />} />
+        </Route>
       </Routes>
     </Router>
   );
