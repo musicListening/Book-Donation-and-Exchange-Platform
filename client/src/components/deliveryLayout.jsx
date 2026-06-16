@@ -4,6 +4,42 @@ import '../styles/Delivery.css';   // ← relative path from components to style
 
 function DeliveryLayout() {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState({ name: '', role: '' });
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setCurrentUser({
+        name: user.name || user.email || 'Delivery Driver',
+        role: user.role || 'DELIVERY STAFF'
+      });
+    }
+  }, []);
+
+  const navItems = [
+    { path: '/delivery', label: 'Active Deliveries' },
+    { path: '/delivery/order-history', label: 'Order History' },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userRole');
+    navigate('/');
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (currentUser.name) {
+      const names = currentUser.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return currentUser.name[0].toUpperCase();
+    }
+    return 'DD';
+  };
 
   const navItems = [
     { path: '/delivery', label: 'Delivery Page', icon: 'grid_view' },
