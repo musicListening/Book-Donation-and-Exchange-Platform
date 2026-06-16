@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // 2. Initialize navigate
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,11 +26,9 @@ const Login = () => {
         throw new Error(data.message || 'Login failed');
       }
 
-      // 3. Save token and user data (including role!)
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // 4. Role-based Redirection Logic
       const userRole = data.user.role;
       
       if (userRole === 'PLATFORM_ADMIN') {
@@ -38,7 +36,7 @@ const Login = () => {
       } else if (userRole === 'OPERATIONS_STAFF') {
         navigate('/staff'); 
       } else if (userRole === 'DELIVERY_PERSONNEL') {
-        navigate('/delivery'); 
+        navigate('/delivery/DeliveryPersonPage');  // ← FIXED HERE
       } else if (userRole === 'COMMUNITY_ADMIN') {
         navigate('/community'); 
       } else {

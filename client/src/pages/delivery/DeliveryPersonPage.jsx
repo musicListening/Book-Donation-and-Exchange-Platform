@@ -164,7 +164,7 @@ const DeliveryPersonPage = () => {
         </section>
       </div>
     </>
-  );
+  );    
 };
 
 export default DeliveryPersonPage;

@@ -54,10 +54,19 @@ export default function HomePage() {
             <li><Link to="/marketplace">Marketplace</Link></li>
             <li><a href="#about">About</a></li>
           </ul>
+          {isMenuOpen && (
+            <div className="mobile-nav-actions">
+              <button type="button" className="btn btn-gold btn-sm points-badge">
+                <i className="fa-solid fa-coins"></i> Points System
+              </button>
+              <Link to="/register" className="btn btn-secondary btn-sm">Sign Up</Link>
+              <Link to="/login" className="btn btn-primary btn-sm">Log In</Link>
+            </div>
+          )}
           <div className="nav-actions">
-            <span className="points-badge">
+            <button type="button" className="btn btn-gold btn-sm points-badge">
               <i className="fa-solid fa-coins"></i> Points System
-            </span>
+            </button>
             <Link to="/register" className="btn btn-secondary btn-sm">Sign Up</Link>
             <Link to="/login" className="btn btn-primary btn-sm">Log In</Link>
             <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
