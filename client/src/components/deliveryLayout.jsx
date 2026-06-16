@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import '../styles/delivery.css';
+import React from 'react';
+import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import '../styles/Delivery.css';   // ← relative path from components to styles
 
 function DeliveryLayout() {
   const navigate = useNavigate();
@@ -41,59 +41,57 @@ function DeliveryLayout() {
     return 'DD';
   };
 
+  const navItems = [
+    { path: '/delivery', label: 'Delivery Page', icon: 'grid_view' },
+    { path: '/delivery/history', label: 'Order History', icon: 'history' },
+    { path: '/delivery/profile', label: 'Profile', icon: 'person' },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userRole');
+    navigate('/');
+  };
+
   return (
-    <div className="delivery-app-container">
-      
-      {/* SIDEBAR - EXACTLY LIKE STAFF */}
-      <div className="delivery-sidebar">
-        <div className="delivery-sidebar-header">
+    <div className="delivery-layout app-container">
+      {/* Sidebar – identical structure to StaffLayout */}
+      <div className="sidebar">
+        <div className="sidebar-header">
           <h2>ShareShelf</h2>
-          <p>Delivery Portal</p>
+          <p>LOGISTICS DELIVERY</p>
         </div>
 
-        <div className="delivery-sidebar-nav">
+        <div className="sidebar-nav">
           {navItems.map(item => (
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.path === '/delivery'}
               className={({ isActive }) =>
-                'delivery-nav-item' + (isActive ? ' active' : '')
+                'nav-item' + (isActive ? ' active' : '')
               }
             >
+              <span className="material-symbols-outlined">{item.icon}</span>
               <span>{item.label}</span>
             </NavLink>
           ))}
         </div>
 
-        <div className="delivery-sidebar-footer">
-          <button onClick={handleLogout} className="delivery-logout-btn">
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="logout-btn">
+            <span className="material-symbols-outlined">logout</span>
             <span>Logout</span>
           </button>
         </div>
       </div>
 
-      {/* MAIN CONTENT - EXACTLY LIKE STAFF */}
-      <div className="delivery-main-content">
-        {/* Header with User Info - EXACTLY LIKE STAFF */}
-        <div className="delivery-content-header">
-          <h1>Delivery Dashboard</h1>
-          <div className="delivery-user-info">
-            <span className="delivery-user-role">{currentUser.name}</span>
-            <span className="delivery-user-title">{currentUser.role}</span>
-            <div className="delivery-user-avatar">{getUserInitials()}</div>
-          </div>
+      {/* Main content */}
+      <div className="main-content">
+        <div className="main-content-inner">
+          <Outlet />
         </div>
-
-        {/* Online Status Bar */}
-        <div className="delivery-status-bar">
-          <div className="delivery-status-indicator online">
-            <span className="status-dot"></span>
-            <span>Online</span>
-          </div>
-        </div>
-
-        {/* Page Content */}
-        <Outlet />
       </div>
     </div>
   );
