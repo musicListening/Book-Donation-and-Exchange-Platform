@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 
 const Marketplace = () => {
   const [currentTab, setCurrentTab] = useState('bundles');
@@ -45,18 +47,8 @@ const Marketplace = () => {
   };
 
   const styles = {
-    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 72, margin: 0 },
-    header: { position: 'fixed', top: 0, left: 0, width: '100%', height: 72, background: 'white', borderBottom: '1px solid #DEE2E6', zIndex: 1000, padding: '0 40px' },
-    navbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', maxWidth: 1440, margin: '0 auto' },
-    logo: { fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 800, color: '#1E4D4B', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 },
-    navLinks: { display: 'flex', gap: 32, listStyle: 'none' },
-    navLink: { textDecoration: 'none', color: '#343A40', fontWeight: 500 },
-    navLinkActive: { color: '#1E4D4B' },
-    navActions: { display: 'flex', alignItems: 'center', gap: 20 },
-    pointsBadge: { background: '#E9C46A', padding: '6px 14px', borderRadius: 50, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 },
-    cartIcon: { position: 'relative', fontSize: 20, color: '#1E4D4B', cursor: 'pointer' },
-    cartBadge: { position: 'absolute', top: -8, right: -8, background: '#E76F51', color: 'white', width: 18, height: 18, borderRadius: '50%', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    mainContent: { marginTop: 72, padding: 40, maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' },
+    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 0, margin: 0 },
+    mainContent: { padding: 40, maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' },
     pageHeader: { marginBottom: 32, textAlign: 'center' },
     pageHeaderH1: { fontFamily: 'Playfair Display, serif', fontSize: 36, marginBottom: 8 },
     tabs: { display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 40 },
@@ -85,21 +77,7 @@ const Marketplace = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-          <ul style={styles.navLinks}>
-            <li><a href="/user-dashboard" style={styles.navLink}>Dashboard</a></li>
-            <li><a href="/marketplace" style={{ ...styles.navLink, ...styles.navLinkActive }}>Marketplace</a></li>
-            <li><a href="/orders" style={styles.navLink}>My Orders</a></li>
-            <li><a href="/donate" style={styles.navLink}>Donate</a></li>
-          </ul>
-          <div style={styles.navActions}>
-            <div style={styles.pointsBadge}><i className="fa-solid fa-coins"></i> <span>{user.points}</span> pts</div>
-            <a href="/cart" style={styles.cartIcon}><i className="fa-solid fa-basket-shopping"></i><span id="cartCount" style={styles.cartBadge}>{cart.length}</span></a>
-          </div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cart.length} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Redeem your hard-earned points for curated treasures.</p></div>

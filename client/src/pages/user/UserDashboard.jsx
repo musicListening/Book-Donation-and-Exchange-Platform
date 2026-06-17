@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
@@ -16,17 +17,21 @@ const UserDashboard = () => {
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('ss_current_user');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
-  const levels = { 
-    'Book Lover': { min: 0, next: 250, nextName: 'Bibliophile' }, 
-    'Bibliophile': { min: 251, next: 750, nextName: 'Grand Librarian' }, 
-    'Grand Librarian': { min: 751, next: 10000, nextName: 'Legendary Reader' } 
-  };
-  
-  const currentLevelInfo = levels[user?.level || 'Book Lover'];
-  const progress = user ? ((user.points - currentLevelInfo.min) / (currentLevelInfo.next - currentLevelInfo.min)) * 100 : 0;
+  // Level is stored as an integer (1, 2, 3) in the DB
+  const levels = [
+    { name: 'Book Lover',     min: 0,   next: 250,   nextName: 'Bibliophile' },
+    { name: 'Bibliophile',    min: 251, next: 750,   nextName: 'Grand Librarian' },
+    { name: 'Grand Librarian',min: 751, next: 10000, nextName: 'Legendary Reader' },
+  ];
+
+  const levelIndex = Math.max(0, Math.min((user?.level ?? 1) - 1, levels.length - 1));
+  const currentLevelInfo = levels[levelIndex];
+  const progress = user ? Math.min(100, Math.max(5, ((user.points - currentLevelInfo.min) / (currentLevelInfo.next - currentLevelInfo.min)) * 100)) : 0;
 
   const activities = [
     { type: 'donation', title: 'Points Credited', desc: 'Verified 5 Fiction books', points: '+50', time: '2 hours ago' },
@@ -36,17 +41,7 @@ const UserDashboard = () => {
 
   const styles = {
     body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', margin: 0 },
-    header: { position: 'fixed', top: 0, left: 0, width: '100%', height: 72, background: 'white', borderBottom: '1px solid #DEE2E6', zIndex: 1000, padding: '0 40px' },
-    navbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', maxWidth: 1440, margin: '0 auto' },
-    logo: { fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 800, color: '#1E4D4B', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 },
-    navLinks: { display: 'flex', gap: 32, listStyle: 'none' },
-    navLink: { textDecoration: 'none', color: '#343A40', fontWeight: 500 },
-    navLinkActive: { color: '#1E4D4B' },
-    navActions: { display: 'flex', alignItems: 'center', gap: 20 },
-    pointsDisplay: { background: '#E9C46A', padding: '6px 12px', borderRadius: 50, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 },
-    userProfile: { display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' },
-    userAvatar: { width: 40, height: 40, background: '#1E4D4B', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 },
-    mainContent: { marginTop: 72, padding: 40, maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' },
+    mainContent: { padding: 40, maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' },
     welcomeHeader: { marginBottom: 32 },
     dashboardGrid: { display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 32 },
     pointsCard: { background: '#1E4D4B', color: 'white', padding: 24, borderRadius: 16, marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
@@ -54,7 +49,7 @@ const UserDashboard = () => {
     levelBadge: { background: '#E9C46A', color: '#343A40', padding: '4px 12px', borderRadius: 50, fontSize: 12, marginLeft: 8 },
     progressContainer: { marginTop: 20, width: '100%' },
     progressBar: { height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },
-    progressFill: { height: '100%', background: '#E9C46A', width: `${Math.min(100, Math.max(5, progress))}%` },
+    progressFill: { height: '100%', background: '#E9C46A', width: `${progress}%` },
     actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 },
     actionBtn: { background: 'white', border: '1px solid #DEE2E6', borderRadius: 12, padding: 24, textAlign: 'center', textDecoration: 'none', color: '#343A40', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
     actionIcon: { fontSize: 32, color: '#1E4D4B' },
@@ -70,24 +65,7 @@ const UserDashboard = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <Link to="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</Link>
-          <ul style={styles.navLinks}>
-            <li><Link to="/user-dashboard" style={{ ...styles.navLink, ...styles.navLinkActive }}>Dashboard</Link></li>
-            <li><Link to="/marketplace" style={styles.navLink}>Marketplace</Link></li>
-            <li><Link to="/orders" style={styles.navLink}>My Orders</Link></li>
-            <li><Link to="/donate" style={styles.navLink}>Donate</Link></li>
-          </ul>
-          <div style={styles.navActions}>
-            <div style={styles.pointsDisplay}><i className="fa-solid fa-coins"></i> <span>{user.points}</span> pts</div>
-            <div style={styles.userProfile} onClick={logout}>
-              <div style={styles.userAvatar}>{user.name?.[0]}</div>
-              <i className="fa-solid fa-sign-out-alt" style={{ color: '#6C757D', fontSize: 18 }}></i>
-            </div>
-          </div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} />
 
       <main style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
@@ -101,7 +79,7 @@ const UserDashboard = () => {
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8 }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
-                <div>Current Level: <span style={styles.levelBadge}>{user.level || 'Book Lover'}</span></div>
+                <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>
               <div style={{ width: '40%' }}>
                 <div style={styles.progressContainer}>
@@ -109,7 +87,7 @@ const UserDashboard = () => {
                     <div style={styles.progressFill}></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 8, opacity: 0.8 }}>
-                    <span>{currentLevelInfo.next - user.points} pts to next level</span>
+                    <span>{Math.max(0, currentLevelInfo.next - user.points)} pts to next level</span>
                     <span>{currentLevelInfo.nextName}</span>
                   </div>
                 </div>

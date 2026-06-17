@@ -53,19 +53,7 @@ function VerifyDonation() {
   };
 
   return (
-    <StaffLayout>
-      {/* Header with verification lead info */}
-      <div className="verification-header">
-        <div className="lead-info">
-          <span className="lead-name">{currentUser.name || 'Verification Staff'}</span>
-          <span className="lead-role">{currentUser.role || 'VERIFICATION LEAD'}</span>
-          <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>
-            {getUserInitials()}
-          </div>
-        </div>
-      </div>
-
-      <h1 className="page-title">Donation Verification - Sri Lanka</h1>
+    <StaffLayout title="Donation Verification - Sri Lanka">
 
       {/* Two column layout for Donor Info and Manifested Items */}
       <div className="verification-two-column">

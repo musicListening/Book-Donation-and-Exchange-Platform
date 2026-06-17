@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
 
 const Profile = () => {
   const [user, setUser] = useState({ name: '', email: '', points: 0 });
   const [activeTab, setActiveTab] = useState('donations');
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'Arjun Sharma', email: 'arjun@example.com', points: 450 };
     setUser(storedUser);
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
   }, []);
 
   const styles = {
@@ -84,15 +88,7 @@ const Profile = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-          <div style={styles.navLinks}>
-            <a href="/user-dashboard" style={styles.navLink}>Dashboard</a>
-            <a href="/marketplace" style={styles.navLink}>Marketplace</a>
-          </div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.profileSide}>
