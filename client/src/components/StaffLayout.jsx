@@ -33,7 +33,7 @@ function StaffLayout({ children }) {
       {/* SIDEBAR */}
       <div className="sidebar">
         <div className="sidebar-header">
-          <h2>LiberArchiv</h2>
+          <h2>ShareShelf</h2>
           <p>Staff Portal</p>
         </div>
 
