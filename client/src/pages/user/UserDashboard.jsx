@@ -6,7 +6,7 @@ const UserDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user'));
+    const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser) {
       navigate('/login');
       return;
