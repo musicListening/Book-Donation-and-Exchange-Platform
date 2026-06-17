@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([
@@ -7,6 +8,16 @@ const Notifications = () => {
     { id: 3, title: 'Bonus Points Alert', message: 'You\'ve earned a 5-point daily login bonus. Keep up the streak!', time: 'Yesterday', icon: 'fa-gift', iconBg: '#1E4D4B', unread: false },
     { id: 4, title: 'Donation Scheduled', message: 'Your drop-off for May 12th at 02:00 PM is confirmed. See you there!', time: '3 days ago', icon: 'fa-calendar-check', iconBg: '#1E4D4B', unread: false }
   ]);
+
+  const [user, setUser] = useState({ name: 'User', points: 0 });
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0 };
+    setUser(storedUser);
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
+  }, []);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
@@ -36,15 +47,7 @@ const Notifications = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-          <div style={styles.navLinks}>
-            <a href="/user-dashboard" style={styles.navLink}>Dashboard</a>
-            <a href="/marketplace" style={styles.navLink}>Marketplace</a>
-          </div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.card}>

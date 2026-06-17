@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
 
 const Donate = () => {
   const [step, setStep] = useState(1);
@@ -56,14 +57,8 @@ const Donate = () => {
   };
 
   const styles = {
-    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 72 },
-    header: { position: 'fixed', top: 0, left: 0, width: '100%', height: 72, background: 'white', borderBottom: '1px solid #DEE2E6', zIndex: 1000, padding: '0 40px' },
-    navbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', maxWidth: 1440, margin: '0 auto' },
-    logo: { fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 800, color: '#1E4D4B', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 },
-    navLinks: { display: 'flex', gap: 32, listStyle: 'none' },
-    navLink: { textDecoration: 'none', color: '#343A40', fontWeight: 500 },
-    pointsBadge: { background: '#E9C46A', padding: '6px 14px', borderRadius: 50, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 },
-    mainContent: { maxWidth: 800, margin: '60px auto', padding: '0 20px' },
+    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 0 },
+    mainContent: { maxWidth: 800, margin: '40px auto', padding: '0 20px' },
     pageHeader: { marginBottom: 40, textAlign: 'center' },
     pageHeaderH1: { fontFamily: 'Playfair Display, serif', fontSize: 32, marginBottom: 10 },
     formCard: { background: 'white', padding: 40, borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
@@ -92,18 +87,7 @@ const Donate = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-          <ul style={styles.navLinks}>
-            <li><a href="/user-dashboard" style={styles.navLink}>Dashboard</a></li>
-            <li><a href="/marketplace" style={styles.navLink}>Marketplace</a></li>
-            <li><a href="/orders" style={styles.navLink}>My Orders</a></li>
-            <li><a href="/donate" style={{ ...styles.navLink, color: '#1E4D4B', fontWeight: 700 }}>Donate</a></li>
-          </ul>
-          <div><div style={styles.pointsBadge}><i className="fa-solid fa-coins"></i> <span>{user.points}</span> pts</div></div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}>

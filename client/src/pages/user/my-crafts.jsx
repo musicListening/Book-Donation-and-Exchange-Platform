@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 
 const MyCrafts = () => {
   const [user, setUser] = useState({ name: 'User' });
   const [myCrafts, setMyCrafts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newCraft, setNewCraft] = useState({ title: '', category: 'Bookmarks', price: 50, description: '' });
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User' };
     setUser(storedUser);
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
     let storedCrafts = JSON.parse(localStorage.getItem('ss_user_crafts') || '[]');
     if (storedCrafts.length === 0) {
       storedCrafts = [
@@ -72,17 +76,7 @@ const MyCrafts = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <Link to="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</Link>
-          <ul style={styles.navLinks}>
-            <li><Link to="/user-dashboard" style={styles.navLink}>Dashboard</Link></li>
-            <li><Link to="/marketplace" style={styles.navLink}>Marketplace</Link></li>
-            <li><Link to="/my-crafts" style={{ ...styles.navLink, ...styles.navLinkActive }}>My Crafts</Link></li>
-            <li><Link to="/orders" style={styles.navLink}>My Orders</Link></li>
-          </ul>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}><div><h1 style={styles.pageHeaderH1}>My Paper Crafts</h1><p style={{ color: '#6C757D' }}>Manage your listings and track your sales.</p></div><button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={() => setShowModal(true)}><i className="fa-solid fa-plus"></i> Add New Craft</button></div>

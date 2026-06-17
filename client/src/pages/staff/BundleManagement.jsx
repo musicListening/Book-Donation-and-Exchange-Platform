@@ -87,18 +87,8 @@ function BundleManagement() {
   };
 
   return (
-    <StaffLayout>
-      <div className="content-header">
-        <div>
-          <h1>Bundle Management</h1>
-          <p className="page-subtitle">Curate, monitor, and publish book collections for the marketplace.</p>
-        </div>
-        <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
-          <div className="user-avatar">{getUserInitials()}</div>
-        </div>
-      </div>
+    <StaffLayout title="Bundle Management">
+      <p className="page-subtitle" style={{ marginBottom: '24px', color: '#64748b' }}>Curate, monitor, and publish book collections for the marketplace.</p>
 
       <div className="stats-grid">
         <div className="stat-card">

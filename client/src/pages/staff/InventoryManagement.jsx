@@ -41,15 +41,7 @@ function InventoryManagement() {
   };
 
   return (
-    <StaffLayout>
-      <div className="content-header">
-        <h1>Inventory Management</h1>
-        <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
-          <div className="user-avatar">{getUserInitials()}</div>
-        </div>
-      </div>
+    <StaffLayout title="Inventory Management">
 
       <div className="cards-grid">
         <div className="stat-card">

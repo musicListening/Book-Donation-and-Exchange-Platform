@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 
 const Home = () => {
   useEffect(() => {
@@ -25,43 +26,6 @@ const Home = () => {
       localStorage.setItem('ss_crafts', JSON.stringify(initialCrafts));
     }
 
-    // Mobile menu toggle
-    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-    const navLinks = document.querySelector('.nav-links');
-    
-    if (mobileMenuBtn && navLinks) {
-      // Remove any existing listeners to avoid duplicates
-      mobileMenuBtn.replaceWith(mobileMenuBtn.cloneNode(true));
-      const newMobileMenuBtn = document.querySelector('.mobile-menu-btn');
-      
-      newMobileMenuBtn.addEventListener('click', () => {
-        navLinks.classList.toggle('show');
-        if (navLinks.classList.contains('show')) {
-          navLinks.style.display = 'flex';
-          navLinks.style.flexDirection = 'column';
-          navLinks.style.position = 'absolute';
-          navLinks.style.top = '72px';
-          navLinks.style.left = '0';
-          navLinks.style.width = '100%';
-          navLinks.style.background = 'white';
-          navLinks.style.padding = '24px';
-          navLinks.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-          navLinks.style.zIndex = '999';
-        } else {
-          navLinks.style.display = '';
-          navLinks.style.flexDirection = '';
-          navLinks.style.position = '';
-          navLinks.style.top = '';
-          navLinks.style.left = '';
-          navLinks.style.width = '';
-          navLinks.style.background = '';
-          navLinks.style.padding = '';
-          navLinks.style.boxShadow = '';
-          navLinks.style.zIndex = '';
-        }
-      });
-    }
-
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
@@ -71,38 +35,6 @@ const Home = () => {
           target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
-    });
-
-    // Navbar scroll effect
-    window.addEventListener('scroll', () => {
-      const header = document.querySelector('.header');
-      if (header) {
-        if (window.scrollY > 50) {
-          header.style.boxShadow = '0 2px 20px rgba(0,0,0,0.1)';
-        } else {
-          header.style.boxShadow = 'none';
-        }
-      }
-    });
-
-    // Handle window resize - reset mobile menu
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 768) {
-        const navLinks = document.querySelector('.nav-links');
-        if (navLinks) {
-          navLinks.classList.remove('show');
-          navLinks.style.display = '';
-          navLinks.style.flexDirection = '';
-          navLinks.style.position = '';
-          navLinks.style.top = '';
-          navLinks.style.left = '';
-          navLinks.style.width = '';
-          navLinks.style.background = '';
-          navLinks.style.padding = '';
-          navLinks.style.boxShadow = '';
-          navLinks.style.zIndex = '';
-        }
-      }
     });
   }, []);
 
@@ -278,27 +210,7 @@ const Home = () => {
   return (
     <div style={styles.body}>
       {/* ============ HEADER ============ */}
-      <header className="header" style={styles.header}>
-        <nav style={styles.navbar}>
-          <Link to="/" style={styles.logo}>
-            <i className="fa-solid fa-book-open"></i> ShareShelf
-          </Link>
-          <ul className="nav-links" style={styles.navLinks}>
-            <li><Link to="/" style={styles.navLink}>Home</Link></li>
-            <li><a href="#how-it-works" style={styles.navLink}>How It Works</a></li>
-            <li><Link to="/marketplace" style={styles.navLink}>Marketplace</Link></li>
-            <li><a href="#about" style={styles.navLink}>About</a></li>
-          </ul>
-          <div style={styles.navActions}>
-            <span style={styles.pointsBadge}>
-              <i className="fa-solid fa-coins"></i> Points
-            </span>
-            <Link to="/signup" style={{ ...styles.btn, ...styles.btnSecondary, ...styles.btnSm }}>Sign Up</Link>
-            <Link to="/login" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Log In</Link>
-            <button className="mobile-menu-btn" style={styles.mobileMenuBtn}>☰</button>
-          </div>
-        </nav>
-      </header>
+      <Navbar variant="public" />
 
       {/* Rest of your sections remain exactly the same */}
       {/* ... (keep all the other sections unchanged) ... */}
@@ -645,7 +557,7 @@ const Home = () => {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer style={styles.footer}>
+      <footer id="about" style={styles.footer}>
         <div style={styles.footerGrid}>
           <div>
             <div style={styles.footerLogo}>📚 Projenius</div>
@@ -691,32 +603,6 @@ const Home = () => {
         </div>
       </footer>
 
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
-        }
-
-        @media (max-width: 768px) {
-          .mobile-menu-btn {
-            display: block !important;
-          }
-          
-          .nav-links {
-            display: none;
-          }
-          
-          .nav-links.show {
-            display: flex !important;
-          }
-        }
-
-        @media (min-width: 769px) {
-          .nav-links {
-            display: flex !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
