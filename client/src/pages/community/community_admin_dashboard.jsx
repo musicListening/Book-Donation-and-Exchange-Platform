@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ── Token system (mirrors the original Tailwind config) ──────────────────────
+// ── Token system with MORE GREEN & WHITE SIDEBAR TEXT ─────────────────────────
 const colors = {
   primary: "#003634",
   primaryContainer: "#1e4d4b",
@@ -26,42 +26,37 @@ const colors = {
   onPrimary: "#ffffff",
 };
 
-// ── Static data ───────────────────────────────────────────────────────────────
-const metrics = [
-  {
-    icon: "person",
-    label: "Total Users",
-    value: "2,847",
-    sub: "+12% vs last month",
-    subIcon: "trending_up",
-    bg: colors.primaryFixed,
-    fg: colors.primary,
-  },
-  {
-    icon: "event_available",
-    label: "Events This Month",
-    value: "14",
-    sub: "3 upcoming this week",
-    subIcon: "calendar_month",
-    bg: colors.tertiaryFixed,
-    fg: colors.tertiary,
-  },
-  {
-    icon: "groups",
-    label: "Active Hubs",
-    value: "42",
-    sub: "4 new this phase",
-    subIcon: "rocket_launch",
-    bg: colors.secondaryContainer,
-    fg: colors.onSecondaryContainer,
-  },
-];
+// ✅ ADD THIS - Sidebar Colors (FIXED)
+const sidebarColors = {
+  background: "#0A3B32",
+  text: "#FFFFFF",
+  textHover: "#E8F5F2",
+  border: "rgba(255, 255, 255, 0.15)",
+  activeBackground: "rgba(255, 255, 255, 0.12)",
+  hoverBackground: "rgba(255, 255, 255, 0.08)",
+  icon: "#FFFFFF",
+  iconHover: "#C8F0EA",
+};
 
-const events = [
+// ── MOCK DATA (Replace with your API calls) ───────────────────────────────────
+const fetchDashboardStats = () => {
+  return {
+    totalUsers: 2847,
+    totalEventsThisMonth: 14,
+    totalMessagesToday: 8,
+    usersTrend: "+12% vs last month",
+    eventsTrend: "3 upcoming this week",
+    messagesTrend: "Mostly event inquiries",
+  };
+};
+
+// Sample events data (sorted by date - latest first)
+const getAllEvents = () => [
   {
     id: 1,
     category: "Workshop",
-    date: "Oct 24, 2023",
+    date: "2024-03-25",
+    formattedDate: "Mar 25, 2024",
     title: "Community Storytelling Night",
     description: "An evening dedicated to sharing personal narratives from local community members.",
     headerBg: colors.primaryContainer,
@@ -71,7 +66,8 @@ const events = [
   {
     id: 2,
     category: "Fundraiser",
-    date: "Nov 02, 2023",
+    date: "2024-03-20",
+    formattedDate: "Mar 20, 2024",
     title: "Winter Book Fair Drive",
     description: "Annual collection of children's literature for local primary school libraries.",
     headerBg: colors.tertiaryContainer,
@@ -81,19 +77,42 @@ const events = [
   {
     id: 3,
     category: "Social",
-    date: "Nov 15, 2023",
+    date: "2024-03-28",
+    formattedDate: "Mar 28, 2024",
     title: "Librarian Coffee Chat",
     description: "Networking morning for local archivists and library volunteers.",
     headerBg: colors.secondaryContainer,
     headerFg: colors.onSecondaryContainer,
     icon: "group",
   },
+  {
+    id: 4,
+    category: "Workshop",
+    date: "2024-04-01",
+    formattedDate: "Apr 1, 2024",
+    title: "Digital Literacy Workshop",
+    description: "Teaching essential digital skills to community members of all ages.",
+    headerBg: colors.primaryContainer,
+    headerFg: colors.onPrimaryContainer,
+    icon: "computer",
+  },
+  {
+    id: 5,
+    category: "Volunteer",
+    date: "2024-03-18",
+    formattedDate: "Mar 18, 2024",
+    title: "Park Cleanup Day",
+    description: "Join us for a community-wide park restoration and cleanup event.",
+    headerBg: colors.tertiaryContainer,
+    headerFg: colors.onTertiaryContainer,
+    icon: "cleaning_services",
+  },
 ];
 
 const navLinks = [
   { icon: "dashboard", label: "Dashboard", active: true, path: "/community-admin/dashboard" },
   { icon: "calendar_today", label: "Events", active: false, path: "/community-admin/events" },
-  { icon: "groups", label: "Community", active: false, path: "/community-admin/messages" },
+  { icon: "forum", label: "Messages", active: false, path: "/community-admin/messages" },
 ];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -108,7 +127,8 @@ function Icon({ name, size = 24, style = {} }) {
   );
 }
 
-function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
+// Metric Card with dynamic values
+function MetricCard({ icon, label, value, sub, subIcon, bg, fg, trend }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -116,8 +136,8 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: colors.surfaceContainerLowest,
-        border: `1px solid #E5E5E5`,
-        borderRadius: 8,
+        border: `1px solid ${colors.outlineVariant}`,
+        borderRadius: 12,
         padding: 20,
         display: "flex",
         alignItems: "center",
@@ -141,7 +161,7 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
       >
         <Icon name={icon} size={24} />
       </div>
-      <div>
+      <div style={{ flex: 1 }}>
         <p
           style={{
             fontSize: 12,
@@ -162,7 +182,7 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
             fontFamily: "'Playfair Display', serif",
           }}
         >
-          {value}
+          {value.toLocaleString()}
         </p>
         <span
           style={{
@@ -175,14 +195,15 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
           }}
         >
           <Icon name={subIcon} size={14} />
-          {sub}
+          {trend || sub}
         </span>
       </div>
     </div>
   );
 }
 
-function EventCard({ event, onEdit, onDelete }) {
+// SIMPLIFIED Event Card - NO EDIT/DELETE buttons
+function EventCard({ event, isLatest = false }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -190,8 +211,8 @@ function EventCard({ event, onEdit, onDelete }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: colors.surfaceContainerLowest,
-        border: "1px solid #E5E5E5",
-        borderRadius: 8,
+        border: isLatest ? `2px solid ${colors.primary}` : `1px solid ${colors.outlineVariant}`,
+        borderRadius: 12,
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -200,9 +221,30 @@ function EventCard({ event, onEdit, onDelete }) {
         boxShadow: hovered
           ? "0 10px 25px -5px rgba(0,0,0,0.05)"
           : "none",
+        position: "relative",
       }}
     >
-      {/* Card header */}
+      {isLatest && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            background: colors.primary,
+            color: colors.onPrimary,
+            padding: "4px 10px",
+            borderRadius: 20,
+            fontSize: 10,
+            fontWeight: 600,
+            zIndex: 2,
+            letterSpacing: "0.5px",
+          }}
+        >
+          LATEST
+        </div>
+      )}
+      
+      {/* Card header - NO buttons */}
       <div
         style={{
           height: 128,
@@ -214,40 +256,6 @@ function EventCard({ event, onEdit, onDelete }) {
         }}
       >
         <Icon name={event.icon} size={48} style={{ color: event.headerFg, opacity: 0.5 }} />
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            display: "flex",
-            gap: 4,
-          }}
-        >
-          <button
-            onClick={() => onEdit(event)}
-            style={{
-              width: 32, height: 32, borderRadius: 4,
-              background: "rgba(255,255,255,0.9)",
-              border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: colors.primary,
-            }}
-          >
-            <Icon name="edit" size={16} />
-          </button>
-          <button
-            onClick={() => onDelete(event.id)}
-            style={{
-              width: 32, height: 32, borderRadius: 4,
-              background: "rgba(255,255,255,0.9)",
-              border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: colors.error,
-            }}
-          >
-            <Icon name="delete" size={16} />
-          </button>
-        </div>
       </div>
 
       {/* Card body */}
@@ -265,16 +273,16 @@ function EventCard({ event, onEdit, onDelete }) {
             {event.category}
           </span>
           <span style={{ fontSize: 12, color: colors.onSurfaceVariant, fontWeight: 500 }}>
-            {event.date}
+            {event.formattedDate}
           </span>
         </div>
         <h4
           style={{
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: 600,
             color: colors.onSurface,
             marginBottom: 8,
-            lineHeight: "20px",
+            lineHeight: "22px",
           }}
         >
           {event.title}
@@ -293,18 +301,12 @@ function EventCard({ event, onEdit, onDelete }) {
         >
           {event.description}
         </p>
-        <div
-          style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: `1px solid ${colors.outlineVariant}`,
-          }}
-        />
       </div>
     </div>
   );
 }
 
+// Sidebar with WHITE TEXT and GREEN BACKGROUND
 function Sidebar({ open, onClose, navigate }) {
   return (
     <>
@@ -325,31 +327,33 @@ function Sidebar({ open, onClose, navigate }) {
           position: "fixed",
           left: 0, top: 0,
           height: "100%",
-          width: 260,
-          background: colors.surfaceContainerLow,
-          borderRight: `1px solid ${colors.outlineVariant}`,
+          width: 280,
+          background: sidebarColors.background,
+          borderRight: `1px solid ${sidebarColors.border}`,
           zIndex: 50,
           transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           transform: open ? "translateX(0)" : "translateX(-100%)",
           display: "flex",
           flexDirection: "column",
-          padding: "24px 16px",
+          padding: "28px 20px",
         }}
       >
-        <h1
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 24,
-            fontWeight: 600,
-            color: colors.primary,
-            marginBottom: 40,
-            paddingLeft: 16,
-          }}
-        >
-          Community Admin
-        </h1>
+        <div style={{ marginBottom: 48, paddingLeft: 12 }}>
+          <h1
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 26,
+              fontWeight: 700,
+              color: sidebarColors.text,
+              marginBottom: 8,
+              letterSpacing: "-0.5px",
+            }}
+          >
+            Community Admin
+          </h1>
+        </div>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -361,37 +365,105 @@ function Sidebar({ open, onClose, navigate }) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
+                gap: 14,
                 padding: "12px 16px",
                 textDecoration: "none",
-                borderRadius: 4,
-                fontWeight: link.active ? 700 : 400,
-                color: link.active ? colors.primary : colors.onSurfaceVariant,
-                background: link.active ? colors.surfaceContainer : "transparent",
-                borderRight: link.active ? `4px solid ${colors.primary}` : "4px solid transparent",
-                opacity: link.active ? 1 : 0.7,
+                borderRadius: 10,
+                fontWeight: link.active ? 600 : 400,
+                color: link.active ? sidebarColors.text : "rgba(255, 255, 255, 0.7)",
+                background: link.active ? sidebarColors.activeBackground : "transparent",
+                borderLeft: link.active ? `3px solid ${colors.primaryFixed}` : "3px solid transparent",
                 fontSize: 14,
-                lineHeight: "16px",
-                transition: "background 0.15s",
+                lineHeight: "20px",
+                transition: "all 0.2s ease",
                 cursor: "pointer",
               }}
+              onMouseEnter={(e) => {
+                if (!link.active) {
+                  e.currentTarget.style.background = sidebarColors.hoverBackground;
+                  e.currentTarget.style.color = sidebarColors.textHover;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!link.active) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+                }
+              }}
             >
-              <Icon name={link.icon} />
-              {link.label}
+              <Icon name={link.icon} size={20} style={{ color: "inherit" }} />
+              <span style={{ fontWeight: link.active ? 600 : 400 }}>{link.label}</span>
             </a>
           ))}
         </nav>
+
+        {/* Sidebar Footer */}
+        <div style={{ 
+          marginTop: "auto", 
+          paddingTop: 24, 
+          borderTop: `1px solid ${sidebarColors.border}`,
+        }}>
+          <button
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              navigate('/login');
+              onClose();
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "12px 16px",
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              borderRadius: 10,
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: 14,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              fontFamily: "'Inter', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = sidebarColors.hoverBackground;
+              e.currentTarget.style.color = sidebarColors.textHover;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+            }}
+          >
+            <Icon name="logout" size={20} style={{ color: "inherit" }} />
+            <span>Logout</span>
+          </button>
+        </div>
       </aside>
     </>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function LibrisDashboard() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMd, setIsMd] = useState(false);
-  const [eventList, setEventList] = useState(events);
+  const [eventList, setEventList] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalEventsThisMonth: 0,
+    totalMessagesToday: 0,
+  });
+
+  // Load data on mount
+  useEffect(() => {
+    const dashboardStats = fetchDashboardStats();
+    setStats(dashboardStats);
+    
+    const events = getAllEvents();
+    const sortedEvents = [...events].sort((a, b) => new Date(b.date) - new Date(a.date));
+    setEventList(sortedEvents);
+  }, []);
 
   // Responsive breakpoint watcher
   useEffect(() => {
@@ -405,18 +477,48 @@ export default function LibrisDashboard() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const handleDelete = (id) => setEventList((prev) => prev.filter((e) => e.id !== id));
-  const handleEdit = (event) => alert(`Edit: ${event.title}`);
-
-  const handleBack = () => {
-    navigate(-1); // Go back to previous page
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // Get latest 3 events for display
+  const latestEvents = eventList.slice(0, 3);
+
+  // Metric cards configuration with real values
+  const metrics = [
+    {
+      icon: "person",
+      label: "Total Registered Users",
+      value: stats.totalUsers,
+      sub: "Active community members",
+      subIcon: "trending_up",
+      bg: colors.primaryFixed,
+      fg: colors.primary,
+      trend: stats.usersTrend,
+    },
+    {
+      icon: "event_available",
+      label: "Total Events This Month",
+      value: stats.totalEventsThisMonth,
+      sub: stats.eventsTrend,
+      subIcon: "calendar_month",
+      bg: colors.tertiaryFixed,
+      fg: colors.tertiary,
+      trend: stats.eventsTrend,
+    },
+    {
+      icon: "chat",
+      label: "Total Messages Today",
+      value: stats.totalMessagesToday,
+      sub: stats.messagesTrend,
+      subIcon: "sms",
+      bg: colors.secondaryContainer,
+      fg: colors.onSecondaryContainer,
+      trend: stats.messagesTrend,
+    },
+  ];
 
   return (
     <>
@@ -436,19 +538,18 @@ export default function LibrisDashboard() {
           font-family: 'Material Symbols Outlined';
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #F5F5F5; font-family: 'Inter', sans-serif; }
+        body { background: ${colors.surface}; font-family: 'Inter', sans-serif; }
         a { text-decoration: none; }
 
-        /* Permanent sidebar on md+ */
         @media (min-width: 768px) {
           #sidebar-permanent { display: flex !important; }
         }
 
-        /* Event grid */
         .event-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 16px;
+          gap: 20px;
+          padding-bottom: 20px;
         }
         @media (min-width: 768px) {
           .event-grid { grid-template-columns: repeat(2, 1fr); }
@@ -457,11 +558,10 @@ export default function LibrisDashboard() {
           .event-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
-        /* Metric grid */
         .metric-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 16px;
+          gap: 20px;
         }
         @media (min-width: 640px) {
           .metric-grid { grid-template-columns: repeat(2, 1fr); }
@@ -469,9 +569,20 @@ export default function LibrisDashboard() {
         @media (min-width: 1024px) {
           .metric-grid { grid-template-columns: repeat(3, 1fr); }
         }
+
+        .content-wrapper {
+          flex: 1;
+        }
+
+        /* Hide scrollbar track - FIX */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
+        ::-webkit-scrollbar-thumb { background: ${colors.primaryContainer}; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: ${colors.primary}; }
+        * { scrollbar-width: thin; scrollbar-color: ${colors.primaryContainer} transparent; }
       `}</style>
 
-      {/* ── Permanent sidebar (md+) ─────────────────────── */}
+      {/* ── PERMANENT SIDEBAR (md+) - WHITE TEXT ─────────────────────── */}
       <aside
         id="sidebar-permanent"
         style={{
@@ -479,27 +590,30 @@ export default function LibrisDashboard() {
           position: "fixed",
           left: 0, top: 0,
           height: "100%",
-          width: 260,
-          background: colors.surfaceContainerLow,
-          borderRight: `1px solid ${colors.outlineVariant}`,
+          width: 280,
+          background: sidebarColors.background,
+          borderRight: `1px solid ${sidebarColors.border}`,
           zIndex: 50,
           flexDirection: "column",
-          padding: "24px 16px",
+          padding: "28px 20px",
         }}
       >
-        <h1
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 24,
-            fontWeight: 600,
-            color: colors.primary,
-            marginBottom: 40,
-            paddingLeft: 16,
-          }}
-        >
-          Community Admin
-        </h1>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ marginBottom: 48, paddingLeft: 12 }}>
+          <h1
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 26,
+              fontWeight: 700,
+              color: sidebarColors.text,
+              marginBottom: 8,
+              letterSpacing: "-0.5px",
+            }}
+          >
+            Community Admin
+          </h1>
+        </div>
+
+        <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -510,25 +624,72 @@ export default function LibrisDashboard() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
+                gap: 14,
                 padding: "12px 16px",
-                borderRadius: 4,
-                fontWeight: link.active ? 700 : 400,
-                color: link.active ? colors.primary : colors.onSurfaceVariant,
-                background: link.active ? colors.surfaceContainer : "transparent",
-                borderRight: link.active ? `4px solid ${colors.primary}` : "4px solid transparent",
-                opacity: link.active ? 1 : 0.7,
+                borderRadius: 10,
+                fontWeight: link.active ? 600 : 400,
+                color: link.active ? sidebarColors.text : "rgba(255, 255, 255, 0.7)",
+                background: link.active ? sidebarColors.activeBackground : "transparent",
+                borderLeft: link.active ? `3px solid ${colors.primaryFixed}` : "3px solid transparent",
                 fontSize: 14,
-                lineHeight: "16px",
-                transition: "background 0.15s",
+                lineHeight: "20px",
+                transition: "all 0.2s ease",
                 cursor: "pointer",
               }}
+              onMouseEnter={(e) => {
+                if (!link.active) {
+                  e.currentTarget.style.background = sidebarColors.hoverBackground;
+                  e.currentTarget.style.color = sidebarColors.textHover;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!link.active) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+                }
+              }}
             >
-              <Icon name={link.icon} />
-              {link.label}
+              <Icon name={link.icon} size={20} style={{ color: "inherit" }} />
+              <span>{link.label}</span>
             </a>
           ))}
         </nav>
+
+        <div style={{ 
+          marginTop: "auto", 
+          paddingTop: 24, 
+          borderTop: `1px solid ${sidebarColors.border}`,
+        }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "12px 16px",
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              borderRadius: 10,
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: 14,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              fontFamily: "'Inter', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = sidebarColors.hoverBackground;
+              e.currentTarget.style.color = sidebarColors.textHover;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+            }}
+          >
+            <Icon name="logout" size={20} style={{ color: "inherit" }} />
+            <span>Logout</span>
+          </button>
+        </div>
       </aside>
 
       {/* ── Mobile drawer ───────────────────────────────── */}
@@ -537,29 +698,33 @@ export default function LibrisDashboard() {
       {/* ── Main content ────────────────────────────────── */}
       <main
         style={{
-          marginLeft: isMd ? 260 : 0,
+          marginLeft: isMd ? 280 : 0,
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
-          background: "#F5F5F5",
+          background: colors.surface,
+          border: "none",
+          outline: "none",
         }}
       >
-        {/* Header */}
+        {/* Header - SIMPLIFIED with no welcome text */}
         <header
           style={{
             position: "sticky",
             top: 0,
             zIndex: 40,
-            background: colors.surface,
+            background: colors.surfaceContainerLowest,
             borderBottom: `1px solid ${colors.outlineVariant}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            height: 64,
-            padding: "0 20px",
+            height: 70,
+            padding: "0 28px",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             {!isMd && (
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -568,18 +733,19 @@ export default function LibrisDashboard() {
                   border: "none",
                   cursor: "pointer",
                   padding: 8,
-                  color: colors.onSurface,
+                  color: colors.primary,
                   display: "flex",
+                  borderRadius: 8,
                 }}
               >
-                <Icon name="menu" />
+                <Icon name="menu" size={24} />
               </button>
             )}
             
             <h2
               style={{
                 fontFamily: "'Playfair Display', serif",
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: 700,
                 color: colors.primary,
               }}
@@ -588,31 +754,25 @@ export default function LibrisDashboard() {
             </h2>
           </div>
           
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 8,
-              color: colors.error,
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: colors.primaryFixed,
               display: "flex",
               alignItems: "center",
-              gap: 4,
-              borderRadius: 4,
-              transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#ffe9e9")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-          >
-            <Icon name="logout" size={20} />
-            <span style={{ fontSize: 14, fontWeight: 500 }}>Logout</span>
-          </button>
+              justifyContent: "center",
+              color: colors.primary,
+              fontWeight: 600,
+            }}>
+              <Icon name="person" size={20} />
+            </div>
+          </div>
         </header>
 
         {/* Body */}
-        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className="content-wrapper" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 36 }}>
           {/* Metric cards */}
           <div className="metric-grid">
             {metrics.map((m) => (
@@ -620,81 +780,82 @@ export default function LibrisDashboard() {
             ))}
           </div>
 
-          {/* Upcoming Events */}
+          {/* Latest Events Section - NO CREATE button */}
           <section>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                marginBottom: 16,
+                marginBottom: 24,
+                flexWrap: "wrap",
+                gap: 16,
               }}
             >
-              <h3
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color: colors.primary,
-                }}
-              >
-                Upcoming Events
-              </h3>
-              <button
-                style={{
-                  background: colors.primary,
-                  color: colors.onPrimary,
-                  border: "none",
-                  borderRadius: 4,
-                  padding: "8px 16px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  transition: "opacity 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-              >
-                <Icon name="add" size={16} />
-                Create Event
-              </button>
+              <div>
+                <h3
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: 26,
+                    fontWeight: 600,
+                    color: colors.primary,
+                  }}
+                >
+                  Latest Events
+                </h3>
+                <p style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 4 }}>
+                  Most recent community gatherings ({latestEvents.length} events)
+                </p>
+              </div>
             </div>
 
             <div className="event-grid">
-              {eventList.map((event) => (
+              {latestEvents.map((event, index) => (
                 <EventCard
                   key={event.id}
                   event={event}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  isLatest={index === 0}
                 />
               ))}
             </div>
+
+            {/* Show message if no events */}
+            {latestEvents.length === 0 && (
+              <div style={{
+                textAlign: "center",
+                padding: 60,
+                background: colors.surfaceContainerLowest,
+                borderRadius: 12,
+                border: `1px solid ${colors.outlineVariant}`,
+              }}>
+                <Icon name="event_busy" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
+                <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>
+                  No events found.
+                </p>
+              </div>
+            )}
           </section>
         </div>
 
         {/* Footer */}
         <footer
           style={{
-            marginTop: "auto",
-            padding: "32px 20px",
+            flexShrink: 0,
+            padding: "28px 32px",
             textAlign: "center",
-            borderTop: `1px solid ${colors.outlineVariant}`,
+            borderTop: "1px solid #e0e0e0",
             background: colors.surfaceContainerLowest,
           }}
         >
-          <p style={{ fontSize: 14, color: `${colors.onSurfaceVariant}99` }}>
-            © 2023 Community Admin Ecosystem. All rights reserved.
+          <p style={{ fontSize: 13, color: `${colors.onSurfaceVariant}CC` }}>
+            © 2024 Community Admin Ecosystem — Growing together, sustainably.
           </p>
-          <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 24 }}>
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "center", gap: 28 }}>
             {["System Status", "Terms of Service", "Privacy Policy"].map((link) => (
               <a
                 key={link}
                 href="#"
-                style={{ fontSize: 12, color: colors.onSurfaceVariant, transition: "color 0.15s" }}
+                style={{ fontSize: 12, color: colors.onSurfaceVariant, transition: "color 0.2s", textDecoration: "none" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = colors.primary)}
                 onMouseLeave={(e) => (e.currentTarget.style.color = colors.onSurfaceVariant)}
               >

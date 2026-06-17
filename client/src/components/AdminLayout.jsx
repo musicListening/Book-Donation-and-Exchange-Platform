@@ -1,22 +1,31 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "../styles/AdminLayout.css";
 
 const navItems = [
-  { path: "/admin/AdminDashboard", label: "Analytics", icon: "📊" },
-  { path: "/admin/users", label: "User Management", icon: "👥" },
-  { path: "/admin/reports/custom", label: "Reports", icon: "📄" },
-  { path: "/admin/config", label: "System Config", icon: "⚙️" },
+  { path: "/admin/dashboard", label: "Analytics" },
+  { path: "/admin/users", label: "User Management" },
+  { path: "/admin/reports/custom", label: "Reports" },
+  { path: "/admin/config", label: "System Config" },
 ];
 
 export default function AdminLayout({ children, title }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  // Get user info from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
     <div className="admin-layout">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <span className="logo-icon">📚</span>
           <h2>ShareShelf</h2>
           <p className="subtitle">Admin Portal</p>
         </div>
@@ -28,15 +37,28 @@ export default function AdminLayout({ children, title }) {
               to={item.path}
               className={`nav-item ${location.pathname === item.path ? "active" : ""}`}
             >
-              <span className="icon">{item.icon}</span> {item.label}
+              {item.label}
             </Link>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          <Link to="/" className="nav-item logout">
-            <span className="icon">🚪</span> Sign Out
-          </Link>
+          <button onClick={handleLogout} className="nav-item logout" style={{
+            background: 'none',
+            border: 'none',
+            width: '100%',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            color: 'var(--color-text-muted)',
+            transition: 'all 0.2s ease'
+          }}>
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -44,8 +66,8 @@ export default function AdminLayout({ children, title }) {
         <header className="top-header">
           <h1>{title}</h1>
           <div className="user-profile">
-            <span>Admin User</span>
-            <div className="avatar">A</div>
+            <span>{user?.name || 'Admin User'}</span>
+            <div className="avatar">{user?.name?.charAt(0) || 'A'}</div>
           </div>
         </header>
         {children}

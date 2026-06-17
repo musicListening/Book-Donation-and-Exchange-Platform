@@ -33,13 +33,19 @@ import OrderFulfillment from './pages/staff/OrderFulfillment';
 import VerifyDonation from './pages/staff/VerifyDonation';
 
 // Delivery & Logistics Pages
-import CreateDeliveryPage from './pages/delivery/CreateDeliveryPage';
-import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';
-import OrderHistoryPage from './pages/delivery/OrderHistoryPage';
+import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
+import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // Order history table
+import DriverProfile from './pages/delivery/DriverProfile';
+import DeliveryLayout from './components/deliveryLayout';
+
 
 // Community Admin Pages
-import CommunityDashboard from './pages/community/community_admin_dashboard';
-import MessageModeration from './pages/community/community_admin_community_management';
+import LibrisDashboard from './pages/community/community_admin_dashboard';  // Dashboard
+import MessageModeration from './pages/community/community_management';  // Messages
+import EventManagement from './pages/community/event_management';  // Event Management (with add/edit/delete)
+// ❌ REMOVED: UpcomingEvents (community_home)
+
+
 
 import './App.css';
 
@@ -80,18 +86,28 @@ function App() {
         <Route path="/staff/order-fulfillment" element={<OrderFulfillment />} />
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
-        {/* Delivery & Logistics Routes */}
-        <Route path="/create-delivery" element={<CreateDeliveryPage />} />
-        <Route path="/delivery/person" element={<DeliveryPersonPage />} />
-        <Route path="/order-history" element={<OrderHistoryPage />} />
+       
 
-        {/* Community Admin Routes */}
+        {/* Community Admin Routes - UPDATED */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />
-        <Route path="/community-admin/dashboard" element={<CommunityDashboard />} />
+        <Route path="/community-admin/dashboard" element={<LibrisDashboard />} />
+        <Route path="/community-admin/events" element={<EventManagement />} />  {/* ✅ Now uses EventManagement instead of UpcomingEvents */}
         <Route path="/community-admin/messages" element={<MessageModeration />} />
+        <Route path="/community-admin/event-management" element={<EventManagement />} />  {/* ✅ Keep this as well */}
+      
+      
+          {/* NEW: Delivery & Logistics Routes */}
+        <Route path="/delivery" element={<DeliveryLayout />}>
+          <Route index element={<DeliveryPersonPage />} />
+          <Route path="DeliveryPersonPage" element={<DeliveryPersonPage />} />
+          <Route path="history" element={<OrderHistoryPage />} />
+          <Route path="order-history" element={<OrderHistoryPage />} />
+          <Route path="profile" element={<DriverProfile />} />
+        </Route>
       </Routes>
     </Router>
   );
 }
+
 
 export default App;
