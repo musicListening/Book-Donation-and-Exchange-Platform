@@ -7,9 +7,17 @@ function VerifyDonation() {
   const [isbn, setIsbn] = useState('978-955-0020-14-8');
   const [condition, setCondition] = useState('Pristine');
   const [basePoints] = useState(3500.00);
+  const [flaggedItems] = useState([
+    { id: 1, title: 'The History of Ceylon (Collector\'s Edition)', author: 'Various Authors', isbn: '978-955-0020-14-8', notes: 'Water damage on spine' },
+  ]);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [flagForm, setFlagForm] = useState({ title: '', author: '', isbn: '', notes: '' });
+  const [editingFlag, setEditingFlag] = useState(null);
+
+  // ====== ISBN VALIDATION STATE ======
+  const [isbnError, setIsbnError] = useState('');
 
   useEffect(() => {
-    // Get logged-in user data from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
       const user = JSON.parse(userData);
@@ -19,7 +27,57 @@ function VerifyDonation() {
       });
     }
   }, []);
-  
+
+  // ====== ISBN VALIDATION FUNCTION ======
+  const validateISBN = (isbnString) => {
+    const cleanISBN = isbnString.replace(/[-\s]/g, '');
+    
+    if (!/^\d{13}$/.test(cleanISBN)) {
+      return { valid: false, error: 'ISBN must be exactly 13 digits' };
+    }
+    
+    if (!cleanISBN.startsWith('978955')) {
+      return { valid: false, error: 'Invalid Sri Lanka ISBN. Must start with 978-955' };
+    }
+    
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const digit = parseInt(cleanISBN[i], 10);
+      sum += (i % 2 === 0) ? digit : digit * 3;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    const actualCheckDigit = parseInt(cleanISBN[12], 10);
+    
+    if (checkDigit !== actualCheckDigit) {
+      return { valid: false, error: `Invalid check digit. Expected: ${checkDigit}` };
+    }
+    
+    return { valid: true, error: '' };
+  };
+
+  // ====== HANDLE ISBN CHANGE WITH VALIDATION ======
+  const handleIsbnChange = (e) => {
+    const value = e.target.value;
+    setFlagForm({...flagForm, isbn: value});
+    
+    const cleanValue = value.replace(/[-\s]/g, '');
+    
+    if (cleanValue.length === 0) {
+      setIsbnError('');
+    } else if (cleanValue.length < 13) {
+      setIsbnError(`ISBN needs ${13 - cleanValue.length} more digit(s)`);
+    } else if (cleanValue.length === 13) {
+      const result = validateISBN(value);
+      if (result.valid) {
+        setIsbnError('');
+      } else {
+        setIsbnError(result.error);
+      }
+    } else {
+      setIsbnError('ISBN cannot exceed 13 digits');
+    }
+  };
+
   const getMultiplier = () => {
     switch(condition) {
       case 'Pristine': return '+20%';
@@ -40,7 +98,6 @@ function VerifyDonation() {
     }
   };
 
-  // Get user initials for avatar
   const getUserInitials = () => {
     if (currentUser.name) {
       const names = currentUser.name.split(' ');
@@ -52,12 +109,68 @@ function VerifyDonation() {
     return 'VD';
   };
 
-  return (
-    <StaffLayout title="Donation Verification - Sri Lanka">
+  // Placeholder CRUD functions
+  const handleAddFlag = () => {
+    // Validate ISBN before adding
+    const cleanISBN = flagForm.isbn.replace(/[-\s]/g, '');
+    if (cleanISBN.length !== 13) {
+      setIsbnError('Please enter a valid 13-digit ISBN');
+      return;
+    }
+    const result = validateISBN(flagForm.isbn);
+    if (!result.valid) {
+      setIsbnError(result.error);
+      return;
+    }
+    
+    console.log('Add flag:', flagForm);
+    setShowFlagModal(false);
+  };
 
-      {/* Two column layout for Donor Info and Manifested Items */}
+  const handleEditFlag = (flag) => {
+    setEditingFlag(flag);
+    setFlagForm(flag);
+    setIsbnError('');
+    setShowFlagModal(true);
+  };
+
+  const handleUpdateFlag = () => {
+    // Validate ISBN before updating
+    const cleanISBN = flagForm.isbn.replace(/[-\s]/g, '');
+    if (cleanISBN.length !== 13) {
+      setIsbnError('Please enter a valid 13-digit ISBN');
+      return;
+    }
+    const result = validateISBN(flagForm.isbn);
+    if (!result.valid) {
+      setIsbnError(result.error);
+      return;
+    }
+    
+    console.log('Update flag:', editingFlag, flagForm);
+    setShowFlagModal(false);
+    setEditingFlag(null);
+  };
+
+  const handleDeleteFlag = (id) => {
+    console.log('Delete flag:', id);
+  };
+
+  return (
+    <StaffLayout>
+      <div className="content-header">
+        <div>
+          <h1>Donation Verification - Sri Lanka</h1>
+          <p className="page-subtitle">Verify and assess donated books for quality and authenticity</p>
+        </div>
+        <div className="user-info">
+          <span className="user-role">{currentUser.name || 'Verification Staff'}</span>
+          <span className="user-title">{currentUser.role || 'VERIFICATION LEAD'}</span>
+          <div className="user-avatar">{getUserInitials()}</div>
+        </div>
+      </div>
+
       <div className="verification-two-column">
-        {/* Left Column - Donor Information */}
         <div className="donor-info-card">
           <h3>DONOR INFORMATION</h3>
           <div className="donor-field">
@@ -88,10 +201,9 @@ function VerifyDonation() {
           </div>
         </div>
 
-        {/* Right Column - Manifested Items */}
         <div className="manifested-card">
           <div className="manifest-header">
-            <h3>MANIFESTED ITEMS (4)</h3>
+            <h3>MANIFESTED ITEMS ({flaggedItems.length + 3})</h3>
             <span className="batch-id">Batch ID: #SL-B-2024-001</span>
           </div>
 
@@ -109,25 +221,34 @@ function VerifyDonation() {
             </div>
           </div>
 
-          <div className="manifest-item flagged">
-            <div className="item-header">
-              <h4>The History of Ceylon (Collector's Edition)</h4>
-              <span className="item-points muted">-- pts</span>
+          {flaggedItems.map((flag) => (
+            <div key={flag.id} className="manifest-item flagged">
+              <div className="item-header">
+                <h4>{flag.title}</h4>
+                <span className="item-points muted">-- pts</span>
+              </div>
+              <p className="item-meta">Author: {flag.author}</p>
+              <p className="item-meta">ISBN: {flag.isbn}</p>
+              <p className="item-meta" style={{ color: '#d97706' }}>⚠️ {flag.notes}</p>
+              <div className="item-tags">
+                <span className="tag">Leatherbound</span>
+                <span className="tag">Rare Edition</span>
+                <span className="tag flagged-tag">Flagged Condition</span>
+                <button className="btn-small" onClick={() => handleEditFlag(flag)} style={{ marginLeft: '8px' }}>Edit</button>
+                <button className="btn-small" onClick={() => handleDeleteFlag(flag.id)} style={{ marginLeft: '4px', background: '#dc3545', color: 'white' }}>Remove</button>
+              </div>
             </div>
-            <p className="item-meta">Author: Various Authors</p>
-            <p className="item-meta">ISBN: 978-955-0020-14-8</p>
-            <div className="item-tags">
-              <span className="tag">Leatherbound</span>
-              <span className="tag">Rare Edition</span>
-              <span className="tag flagged-tag">Flagged Condition</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Verification Protocol */}
       <div className="verification-protocol">
-        <h3>VERIFICATION PROTOCOL</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0 }}>VERIFICATION PROTOCOL</h3>
+          <button className="btn-secondary" onClick={() => { setEditingFlag(null); setFlagForm({ title: '', author: '', isbn: '', notes: '' }); setIsbnError(''); setShowFlagModal(true); }}>
+            + Flag Item
+          </button>
+        </div>
         <div className="isbn-verification">
           <div className="isbn-label">Scan or Verify ISBN (Sri Lanka Standard)</div>
           <div className="isbn-input-group">
@@ -147,7 +268,6 @@ function VerifyDonation() {
         </div>
       </div>
 
-      {/* Condition Assessment */}
       <div className="condition-assessment">
         <h3>Condition Assessment</h3>
 
@@ -187,7 +307,6 @@ function VerifyDonation() {
         </div>
       </div>
 
-      {/* Points */}
       <div className="points-calculation">
         <div className="points-row">
           <span className="points-label">Base Value Points</span>
@@ -205,12 +324,56 @@ function VerifyDonation() {
         </div>
       </div>
 
-      {/* Buttons */}
       <div className="action-buttons-verify">
         <button className="calc-points-btn">Calculate Points</button>
         <button className="flag-review-btn">Flag Review</button>
         <button className="approve-btn">Approve</button>
       </div>
+
+      {/* Flag Modal - with ISBN Validation */}
+      {showFlagModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingFlag ? 'Edit Flagged Item' : 'Flag Item for Review'}</h2>
+            
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Title</label>
+              <input type="text" className="form-control" value={flagForm.title} onChange={(e) => setFlagForm({...flagForm, title: e.target.value})} />
+            </div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Author</label>
+              <input type="text" className="form-control" value={flagForm.author} onChange={(e) => setFlagForm({...flagForm, author: e.target.value})} />
+            </div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>ISBN</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={flagForm.isbn} 
+                onChange={handleIsbnChange}
+                placeholder="978-955-xxxx-xx-x"
+                style={{
+                  borderColor: isbnError ? '#dc3545' : '#e5e5e5'
+                }}
+              />
+              {isbnError && (
+                <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
+                  {isbnError}
+                </div>
+              )}
+            </div>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Notes (Reason for flagging)</label>
+              <textarea className="form-control" value={flagForm.notes} onChange={(e) => setFlagForm({...flagForm, notes: e.target.value})} style={{ minHeight: '80px' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => { setShowFlagModal(false); setEditingFlag(null); setIsbnError(''); }}>Cancel</button>
+              <button className="btn-primary" onClick={editingFlag ? handleUpdateFlag : handleAddFlag}>{editingFlag ? 'Update' : 'Add'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="system-advisory">
         <span className="advisory-icon">ℹ️</span>
