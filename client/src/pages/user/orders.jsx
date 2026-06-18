@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
 
+  const [user, setUser] = useState({ name: 'User', points: 0 });
+  const [cartCount, setCartCount] = useState(0);
+
   useEffect(() => {
     const storedOrders = JSON.parse(localStorage.getItem('ss_orders') || '[]');
     setOrders(storedOrders);
+    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0 };
+    setUser(storedUser);
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
   }, []);
 
   const getStatusIndex = (status) => {
@@ -44,17 +52,7 @@ const Orders = () => {
   if (orders.length === 0) {
     return (
       <div style={styles.body}>
-        <header style={styles.header}>
-          <nav style={styles.navbar}>
-            <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-            <ul style={styles.navLinks}>
-              <li><a href="/user-dashboard" style={styles.navLink}>Dashboard</a></li>
-              <li><a href="/marketplace" style={styles.navLink}>Marketplace</a></li>
-              <li><a href="/orders" style={{ ...styles.navLink, ...styles.navLinkActive }}>My Orders</a></li>
-              <li><a href="/donate" style={styles.navLink}>Donate</a></li>
-            </ul>
-          </nav>
-        </header>
+        <Navbar variant="user" user={user} cartCount={cartCount} />
         <main style={styles.mainContent}>
           <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>My Orders</h1><p>Track your book bundles and craft deliveries.</p></div>
           <div style={styles.emptyOrders}><i className="fa-solid fa-box-open" style={{ fontSize: 64, color: '#DEE2E6', marginBottom: 20 }}></i><h3>No orders yet</h3><p>Items you redeem in the marketplace will appear here.</p></div>
@@ -65,17 +63,7 @@ const Orders = () => {
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <Link to="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</Link>
-          <ul style={styles.navLinks}>
-            <li><Link to="/user-dashboard" style={{ ...styles.navLink, ...styles.navLinkActive }}>Dashboard</Link></li>
-            <li><Link to="/marketplace" style={styles.navLink}>Marketplace</Link></li>
-            <li><Link to="/orders" style={{ ...styles.navLink, ...styles.navLinkActive }}>My Orders</Link></li>
-            <li><Link to="/donate" style={styles.navLink}>Donate</Link></li>
-          </ul>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>My Orders</h1><p>Track your book bundles and craft deliveries.</p></div>

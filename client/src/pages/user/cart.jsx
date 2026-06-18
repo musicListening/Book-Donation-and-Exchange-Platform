@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
 
 const Cart = () => {
   const [user, setUser] = useState({ points: 0 });
@@ -80,44 +81,32 @@ const Cart = () => {
 
   if (cart.length === 0) {
     return (
-      <>
-        <div style={styles.body}>
-          <header style={styles.header}>
-            <nav style={styles.navbar}>
-              <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-              <div><div style={styles.pointsBadge}><i className="fa-solid fa-coins"></i> <span>{user.points}</span> pts</div></div>
-            </nav>
-          </header>
-          <main style={styles.mainContent}>
-            <h1 style={styles.cartTitle}>Your Shopping Cart</h1>
-            <div style={styles.cartCard}>
-              <div style={styles.emptyCart}>
-                <i className="fa-solid fa-cart-shopping" style={{ fontSize: 64, color: '#DEE2E6', marginBottom: 20 }}></i>
-                <h3>Your cart is empty</h3>
-                <p>Go to the <a href="/marketplace" style={{ color: '#E76F51', fontWeight: 700 }}>Marketplace</a> to find some treasures.</p>
-              </div>
+      <div style={styles.body}>
+        <Navbar variant="user" user={user} cartCount={0} />
+        <main style={styles.mainContent}>
+          <h1 style={styles.cartTitle}>Your Shopping Cart</h1>
+          <div style={styles.cartCard}>
+            <div style={styles.emptyCart}>
+              <i className="fa-solid fa-cart-shopping" style={{ fontSize: 64, color: '#DEE2E6', marginBottom: 20 }}></i>
+              <h3>Your cart is empty</h3>
+              <p>Go to the <a href="/marketplace" style={{ color: '#E76F51', fontWeight: 700 }}>Marketplace</a> to find some treasures.</p>
             </div>
-            <div style={{ ...styles.summaryCard, opacity: 0.5 }}>
-              <h3>Order Summary</h3>
-              <div style={styles.summaryRow}><span>Subtotal</span><span>0 pts</span></div>
-              <div style={styles.summaryRow}><span>Shipping</span><span>FREE</span></div>
-              <div style={styles.summaryTotal}><span>Total</span><span>0 pts</span></div>
-              <button style={styles.btnCheckout} disabled>Place Order</button>
-            </div>
-          </main>
-        </div>
-      </>
+          </div>
+          <div style={{ ...styles.summaryCard, opacity: 0.5 }}>
+            <h3>Order Summary</h3>
+            <div style={styles.summaryRow}><span>Subtotal</span><span>0 pts</span></div>
+            <div style={styles.summaryRow}><span>Shipping</span><span>FREE</span></div>
+            <div style={styles.summaryTotal}><span>Total</span><span>0 pts</span></div>
+            <button style={styles.btnCheckout} disabled>Place Order</button>
+          </div>
+        </main>
+      </div>
     );
   }
 
   return (
     <div style={styles.body}>
-      <header style={styles.header}>
-        <nav style={styles.navbar}>
-          <a href="/" style={styles.logo}><i className="fa-solid fa-book-open"></i> ShareShelf</a>
-          <div><div style={styles.pointsBadge}><i className="fa-solid fa-coins"></i> <span>{user.points}</span> pts</div></div>
-        </nav>
-      </header>
+      <Navbar variant="user" user={user} cartCount={cart.length} />
 
       <main style={styles.mainContent}>
         <h1 style={styles.cartTitle}>Your Shopping Cart</h1>

@@ -47,16 +47,7 @@ function StaffDashboard() {
   };
 
   return (
-    <StaffLayout>
-      <div className="content-header">
-        <h1>Operations Overview - Sri Lanka</h1>
-        <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
-          <div className="user-avatar">{getUserInitials()}</div>
-        </div>
-      </div>
-
+    <StaffLayout title="Operations Overview - Sri Lanka">
       <p className="welcome-text">Welcome back, {getFirstName()}! Here is what needs your attention today across Sri Lanka.</p>
 
       <div className="stats-grid">
