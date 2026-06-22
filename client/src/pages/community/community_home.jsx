@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from 'react-router-dom';
 
 // ── Design tokens (Balanced Teal & Earth Tones) ────────────────
 const c = {
@@ -347,6 +348,25 @@ export default function UpcomingEvents() {
               <Icon name="groups" size={22} /> Groups
             </button>
           </nav>
+          
+          {/* Exit Button - Navigates back to UserDashboard */}
+          <Link to="/user-dashboard" style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px",
+            padding: "10px 20px",
+            background: c.error,
+            color: c.white,
+            border: "none",
+            borderRadius: 40,
+            fontSize: "clamp(14px, 1.1vw, 16px)",
+            fontWeight: 600,
+            cursor: "pointer",
+            textDecoration: "none",
+            transition: "all 0.2s"
+          }}>
+            <Icon name="exit_to_app" size={20} /> Exit
+          </Link>
         </div>
       </header>
 

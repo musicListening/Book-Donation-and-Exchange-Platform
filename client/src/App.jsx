@@ -38,14 +38,11 @@ import OrderHistoryPage from './pages/delivery/OrderHistoryPage';           // O
 import DriverProfile from './pages/delivery/DriverProfile';
 import DeliveryLayout from './components/deliveryLayout';
 
-
-// Community Admin Pages
+// Community Pages
+import CommunityHome from './pages/community/community_home';  // Community Hub
 import LibrisDashboard from './pages/community/community_admin_dashboard';  // Dashboard
 import MessageModeration from './pages/community/community_management';  // Messages
 import EventManagement from './pages/community/event_management';  // Event Management (with add/edit/delete)
-// ❌ REMOVED: UpcomingEvents (community_home)
-
-
 
 import './App.css';
 
@@ -63,6 +60,7 @@ function App() {
 
         {/* User Routes */}
         <Route path="/user-dashboard" element={<UserDashboard />} />
+        <Route path="/community-home" element={<CommunityHome />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/donate" element={<Donate />} />
         <Route path="/marketplace" element={<Marketplace />} />
@@ -86,17 +84,14 @@ function App() {
         <Route path="/staff/order-fulfillment" element={<OrderFulfillment />} />
         <Route path="/staff/verify-donation" element={<VerifyDonation />} />
 
-       
-
-        {/* Community Admin Routes - UPDATED */}
+        {/* Community Admin Routes */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />
         <Route path="/community-admin/dashboard" element={<LibrisDashboard />} />
-        <Route path="/community-admin/events" element={<EventManagement />} />  {/* ✅ Now uses EventManagement instead of UpcomingEvents */}
+        <Route path="/community-admin/events" element={<EventManagement />} />
         <Route path="/community-admin/messages" element={<MessageModeration />} />
-        <Route path="/community-admin/event-management" element={<EventManagement />} />  {/* ✅ Keep this as well */}
+        <Route path="/community-admin/event-management" element={<EventManagement />} />
       
-      
-          {/* NEW: Delivery & Logistics Routes */}
+        {/* Delivery & Logistics Routes */}
         <Route path="/delivery" element={<DeliveryLayout />}>
           <Route index element={<DeliveryPersonPage />} />
           <Route path="DeliveryPersonPage" element={<DeliveryPersonPage />} />
@@ -108,6 +103,5 @@ function App() {
     </Router>
   );
 }
-
 
 export default App;
