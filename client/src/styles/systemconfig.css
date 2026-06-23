@@ -1,0 +1,310 @@
+/* src/styles/systemconfig.css */
+
+/* Page Container & Animations */
+.system-config-container {
+  padding: 2rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-header-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e4d4b;
+  margin-bottom: 8px;
+}
+
+.page-header-subtitle {
+  font-size: 14px;
+  color: #767777;
+}
+
+/* Section Cards */
+.config-section-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.config-section-card:hover {
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.section-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(118, 119, 119, 0.2);
+  padding-bottom: 12px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e4d4b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* Form Inputs & Grids */
+.config-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.config-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+}
+
+@media (max-width: 1024px) {
+  .config-grid-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .config-grid-2 { grid-template-columns: 1fr; }
+}
+
+.config-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #767777;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.config-input, .config-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(118, 119, 119, 0.3);
+  border-radius: 6px;
+  font-size: 14px;
+  color: #191c1d;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.config-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23767777' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+.config-input:focus, .config-select:focus {
+  outline: none;
+  border-color: #1e4d4b;
+  box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.2);
+}
+
+.config-hint {
+  font-size: 12px;
+  color: rgba(118, 119, 119, 0.7);
+  margin-top: 2px;
+}
+
+/* Gamification Table */
+.tier-table-wrapper {
+  overflow-x: auto;
+}
+
+.tier-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tier-table th {
+  text-align: left;
+  padding: 16px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #767777;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tier-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  font-size: 14px;
+}
+
+.tier-table tr {
+  transition: background-color 0.2s ease;
+}
+
+.tier-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.tier-input {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  width: 100%;
+  font-size: 14px;
+  color: #191c1d;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.tier-input:focus {
+  outline: none;
+  border-bottom-color: #1e4d4b;
+}
+
+.tier-input.name-input {
+  font-weight: 600;
+  color: #1e4d4b;
+}
+
+.tier-input.threshold-input {
+  color: #643c29;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.reward-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(233, 196, 106, 0.15);
+  color: #765a05;
+  border: 1px solid rgba(233, 196, 106, 0.3);
+  white-space: nowrap;
+}
+
+.add-tier-btn {
+  margin-top: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px dashed #643c29;
+  color: #643c29;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-tier-btn:hover {
+  background: rgba(100, 60, 41, 0.05);
+  transform: translateX(4px);
+}
+
+/* Mystery Config Sub-Cards */
+.mystery-sub-card {
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.mystery-sub-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e4d4b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mystery-sub-title::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 16px;
+  background: #e9c46a;
+  border-radius: 2px;
+}
+
+/* Sticky Footer */
+.config-sticky-footer {
+  position: fixed;
+  bottom: 0;
+  left: 280px; /* Matches your AdminLayout sidebar width */
+  right: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid #e5e7eb;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  z-index: 40;
+}
+
+.btn-cancel-config {
+  background: none;
+  border: none;
+  color: #767777;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-cancel-config:hover {
+  color: #1e4d4b;
+}
+
+.btn-save-config {
+  background: #1e4d4b;
+  color: #ffffff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(30, 77, 75, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-save-config:hover {
+  background: #153a38;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(30, 77, 75, 0.3);
+}
+
+.btn-save-config:active {
+  transform: scale(0.98);
+}
