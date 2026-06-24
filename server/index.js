@@ -12,6 +12,8 @@ app.use(express.json());
 // 3. Import and use the auth routes
 const authRoutes = require('./routes/auth'); 
 app.use('/api/auth', authRoutes);
+const userRoutes = require('./routes/users');
+app.use('/api/users', userRoutes);
 
 // 4. Start Server
 const PORT = 5000;

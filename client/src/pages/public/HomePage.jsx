@@ -1,8 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 
 const Home = () => {
+  // ===== STATE DECLARATIONS =====
+  const [cartMessage, setCartMessage] = useState(null);
+  const [counters, setCounters] = useState({
+    books: 0,
+    members: 0,
+    points: 0
+  });
+  const [isVisible, setIsVisible] = useState(false);
+  const statsRef = useRef(null);
+
+  // ===== FIRST useEffect - For initialization =====
   useEffect(() => {
     // Initialize Demo Data
     if (!localStorage.getItem('ss_users')) {
@@ -38,6 +49,103 @@ const Home = () => {
     });
   }, []);
 
+  // ===== SECOND useEffect - For Intersection Observer =====
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
+    }
+
+    return () => {
+      if (statsRef.current) {
+        observer.unobserve(statsRef.current);
+      }
+    };
+  }, []);
+
+  // ===== THIRD useEffect - For counter animation =====
+  useEffect(() => {
+    if (isVisible) {
+      const targetBooks = 12450;
+      const targetMembers = 3800;
+      const targetPoints = 1200000;
+      const duration = 2000;
+      const steps = 60;
+      const interval = duration / steps;
+
+      let currentStep = 0;
+
+      const timer = setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+        
+        const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+        const easedProgress = easeOut(progress);
+
+        setCounters({
+          books: Math.round(targetBooks * easedProgress),
+          members: Math.round(targetMembers * easedProgress),
+          points: Math.round(targetPoints * easedProgress)
+        });
+
+        if (currentStep >= steps) {
+          setCounters({
+            books: targetBooks,
+            members: targetMembers,
+            points: targetPoints
+          });
+          clearInterval(timer);
+        }
+      }, interval);
+
+      return () => clearInterval(timer);
+    }
+  }, [isVisible]);
+
+  // ===== handleAddToCart function =====
+  const handleAddToCart = (item) => {
+    const currentUser = localStorage.getItem('ss_current_user');
+    
+    if (!currentUser) {
+      window.location.href = '/login?redirect=/cart';
+      return;
+    }
+
+    try {
+      const existingCart = JSON.parse(localStorage.getItem('ss_cart')) || [];
+      
+      const existingItemIndex = existingCart.findIndex(
+        cartItem => cartItem.id === item.id && cartItem.type === item.type
+      );
+
+      if (existingItemIndex > -1) {
+        existingCart[existingItemIndex].quantity = (existingCart[existingItemIndex].quantity || 1) + 1;
+      } else {
+        existingCart.push({ ...item, quantity: 1 });
+      }
+
+      localStorage.setItem('ss_cart', JSON.stringify(existingCart));
+      
+      setCartMessage(`${item.title} added to cart! 🛒`);
+      setTimeout(() => setCartMessage(null), 3000);
+      
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      setCartMessage('Failed to add item to cart. Please try again.');
+      setTimeout(() => setCartMessage(null), 3000);
+    }
+  };
+
   const styles = {
     // Header - FIXED
     header: { 
@@ -71,7 +179,7 @@ const Home = () => {
       alignItems: 'center', 
       gap: 8,
       flexShrink: 0,
-      marginRight: '40px' // Add space between logo and nav links
+      marginRight: '40px'
     },
     navLinks: { 
       display: 'flex', 
@@ -80,8 +188,8 @@ const Home = () => {
       listStyle: 'none', 
       margin: 0, 
       padding: 0,
-      flex: 1, // Takes remaining space
-      justifyContent: 'center' // Center the nav links
+      flex: 1,
+      justifyContent: 'center'
     },
     navLink: { 
       textDecoration: 'none', 
@@ -96,7 +204,7 @@ const Home = () => {
       alignItems: 'center', 
       gap: 12,
       flexShrink: 0,
-      marginLeft: 'auto' // Pushes actions to the right
+      marginLeft: 'auto'
     },
     pointsBadge: { 
       display: 'flex', 
@@ -120,7 +228,6 @@ const Home = () => {
       padding: '4px 8px'
     },
     
-    // Rest of your styles remain the same...
     btn: { display: 'inlineFlex', alignItems: 'center', gap: 8, padding: '14px 28px', fontSize: 16, fontWeight: 600, borderRadius: 12, border: '2px solid transparent', cursor: 'pointer', textDecoration: 'none' },
     btnPrimary: { backgroundColor: '#1E4D4B', color: 'white', borderColor: '#1E4D4B' },
     btnSecondary: { backgroundColor: 'transparent', color: '#1E4D4B', borderColor: '#1E4D4B' },
@@ -154,8 +261,21 @@ const Home = () => {
     
     statsBar: { background: '#1E4D4B', padding: '48px 80px' },
     statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' },
-    statNumber: { fontSize: 42, fontWeight: 800, display: 'block', marginBottom: 4, color: 'white' },
-    statLabel: { fontSize: 16, opacity: 0.9, color: 'white' },
+    statNumber: { 
+      fontSize: 42, 
+      fontWeight: 800, 
+      display: 'block', 
+      marginBottom: 4, 
+      color: 'white',
+      transition: 'all 0.3s ease',
+      textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    },
+    statLabel: { 
+      fontSize: 16, 
+      opacity: 0.9, 
+      color: 'white',
+      letterSpacing: '0.5px'
+    },
     
     categories: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     categoriesHeader: { textAlign: 'center', marginBottom: 48 },
@@ -198,23 +318,87 @@ const Home = () => {
     ctaBanner: { background: '#E76F51', padding: 80, textAlign: 'center' },
     ctaNote: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 16 },
     
-    footer: { background: '#343A40', padding: '64px 80px 32px', color: 'rgba(255,255,255,0.7)' },
-    footerGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr', gap: 32 },
-    footerLogo: { fontFamily: 'Playfair Display, serif', fontSize: 24, color: 'white', marginBottom: 16 },
-    socialLinks: { display: 'flex', gap: 16 },
-    socialLink: { width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', textDecoration: 'none' },
-    footerLinks: { listStyle: 'none', padding: 0 },
-    footerBottom: { maxWidth: 1440, margin: '48px auto 0', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', fontSize: 13 }
+    footer: { 
+      background: '#343A40', 
+      padding: '64px 80px 32px', 
+      color: 'rgba(255,255,255,0.7)' 
+    },
+    footerGrid: { 
+      maxWidth: 1440, 
+      margin: '0 auto', 
+      display: 'grid', 
+      gridTemplateColumns: '2fr 1fr 1fr',
+      gap: 48
+    },
+    footerColumn: {
+      display: 'flex',
+      flexDirection: 'column'
+    },
+    footerLogo: { 
+      fontFamily: 'Playfair Display, serif', 
+      fontSize: 24, 
+      color: 'white', 
+      marginBottom: 16 
+    },
+    socialLinks: { 
+      display: 'flex', 
+      gap: 12
+    },
+    socialLink: { 
+      width: 40, 
+      height: 40, 
+      borderRadius: '50%', 
+      background: 'rgba(255,255,255,0.1)', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      color: 'white', 
+      textDecoration: 'none',
+      transition: 'background 0.3s ease',
+      ':hover': {
+        background: 'rgba(255,255,255,0.2)'
+      }
+    },
+    footerLinks: { 
+      listStyle: 'none', 
+      padding: 0,
+      margin: 0
+    },
+    footerBottom: { 
+      maxWidth: 1440, 
+      margin: '48px auto 0', 
+      paddingTop: 24, 
+      borderTop: '1px solid rgba(255,255,255,0.1)', 
+      textAlign: 'center', 
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.5)'
+    }
   };
 
   return (
     <div style={styles.body}>
+      {/* ===== CART MESSAGE NOTIFICATION ===== */}
+      {cartMessage && (
+        <div style={{
+          position: 'fixed',
+          top: 20,
+          right: 20,
+          background: cartMessage.includes('Failed') ? '#dc3545' : '#2A9D8F',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: 8,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 9999,
+          fontSize: 15,
+          fontWeight: 500
+        }}>
+          {cartMessage}
+        </div>
+      )}
+
       {/* ============ HEADER ============ */}
       <Navbar variant="public" />
 
-      {/* Rest of your sections remain exactly the same */}
-      {/* ... (keep all the other sections unchanged) ... */}
-      
       {/* ============ HERO SECTION ============ */}
       <section style={styles.hero}>
         <div style={styles.heroContent}>
@@ -230,10 +414,10 @@ const Home = () => {
             reading revolution.
           </p>
           <div style={styles.heroButtons}>
-            <Link to="/donate" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnLg }}>
+            <Link to="/login?redirect=/donate" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnLg }}>
               <i className="fa-solid fa-hand-holding-heart"></i> Start Donating
             </Link>
-            <Link to="/marketplace" style={{ ...styles.btn, ...styles.btnGold, ...styles.btnLg }}>
+            <Link to="/login?redirect=/marketplace" style={{ ...styles.btn, ...styles.btnGold, ...styles.btnLg }}>
               <i className="fa-solid fa-store"></i> Explore Marketplace
             </Link>
           </div>
@@ -303,19 +487,25 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ============ STATS BAR ============ */}
-      <section style={styles.statsBar}>
+      {/* ============ STATS BAR WITH ANIMATION ============ */}
+      <section ref={statsRef} style={styles.statsBar}>
         <div style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
-            <span style={styles.statNumber}>📦 12,450+</span>
+            <span style={styles.statNumber}>
+              {counters.books.toLocaleString()}+
+            </span>
             <span style={styles.statLabel}>Books Donated</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span style={styles.statNumber}>👥 3,800+</span>
+            <span style={styles.statNumber}>
+              {counters.members.toLocaleString()}+
+            </span>
             <span style={styles.statLabel}>Active Members</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span style={styles.statNumber}>🪙 1.2M+</span>
+            <span style={styles.statNumber}>
+              {counters.points > 0 ? (counters.points / 1000).toFixed(1) + 'M+' : '0'}
+            </span>
             <span style={styles.statLabel}>Points Earned</span>
           </div>
         </div>
@@ -362,7 +552,7 @@ const Home = () => {
             <h2 style={styles.sectionTitle}>🔥 Staff-Curated Bundles</h2>
             <p style={{ color: '#6C757D' }}>Handpicked collections by our expert staff.</p>
           </div>
-          <a href="#" style={styles.viewAll}>View All <i className="fa-solid fa-arrow-right"></i></a>
+          <Link to="/login?redirect=/marketplace" style={styles.viewAll}>View All <i className="fa-solid fa-arrow-right"></i></Link>
         </div>
         <div style={styles.bundlesScroll}>
           <div style={styles.bundleCard}>
@@ -376,7 +566,12 @@ const Home = () => {
               <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Anika</p>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 250</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
+                <button 
+                  onClick={() => handleAddToCart({ id: 1, title: 'Cozy Winter Reads', price: 250, type: 'bundle' })}
+                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                >
+                  Add to Cart
+                </button>
               </div>
             </div>
           </div>
@@ -390,7 +585,12 @@ const Home = () => {
               <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Raj</p>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 180</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
+                <button 
+                  onClick={() => handleAddToCart({ id: 2, title: 'Mindfulness Collection', price: 180, type: 'bundle' })}
+                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                >
+                  Add to Cart
+                </button>
               </div>
             </div>
           </div>
@@ -404,7 +604,12 @@ const Home = () => {
               <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Priya</p>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 320</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
+                <button 
+                  onClick={() => handleAddToCart({ id: 3, title: 'Science Explorers Pack', price: 320, type: 'bundle' })}
+                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                >
+                  Add to Cart
+                </button>
               </div>
             </div>
           </div>
@@ -418,7 +623,12 @@ const Home = () => {
               <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: David</p>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 400</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
+                <button 
+                  onClick={() => handleAddToCart({ id: 4, title: 'Timeless Literature', price: 400, type: 'bundle' })}
+                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                >
+                  Add to Cart
+                </button>
               </div>
             </div>
           </div>
@@ -439,7 +649,12 @@ const Home = () => {
               <h4>Hand-Painted Bookmarks (Set of 5)</h4>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 75</span>
-                <button style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
+                <button 
+                  onClick={() => handleAddToCart({ id: 5, title: 'Hand-Painted Bookmarks', price: 75, type: 'craft' })}
+                  style={styles.wishlistBtn}
+                >
+                  <i className="fa-regular fa-heart"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -450,7 +665,12 @@ const Home = () => {
               <h4>Origami Wall Art Set</h4>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 120</span>
-                <button style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
+                <button 
+                  onClick={() => handleAddToCart({ id: 6, title: 'Origami Wall Art Set', price: 120, type: 'craft' })}
+                  style={styles.wishlistBtn}
+                >
+                  <i className="fa-regular fa-heart"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -461,7 +681,12 @@ const Home = () => {
               <h4>Recycled Paper Journal</h4>
               <div style={styles.bundlePriceRow}>
                 <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 90</span>
-                <button style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
+                <button 
+                  onClick={() => handleAddToCart({ id: 7, title: 'Recycled Paper Journal', price: 90, type: 'craft' })}
+                  style={styles.wishlistBtn}
+                >
+                  <i className="fa-regular fa-heart"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -560,7 +785,7 @@ const Home = () => {
       <footer id="about" style={styles.footer}>
         <div style={styles.footerGrid}>
           <div>
-            <div style={styles.footerLogo}>📚 Projenius</div>
+            <div style={styles.footerLogo}>ShareShelf</div>
             <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
               Building a sustainable ecosystem to reduce book waste, promote literacy, 
               and create a circular economy for books through donations and point-based exchanges.
@@ -575,34 +800,41 @@ const Home = () => {
           <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Quick Links</h4>
             <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><Link to="/donate" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Donate Books</Link></li>
-              <li style={{ marginBottom: 8 }}><Link to="/marketplace" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Marketplace</Link></li>
-              <li style={{ marginBottom: 8 }}><a href="#how-it-works" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>How It Works</a></li>
-              <li style={{ marginBottom: 8 }}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>FAQs</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Staff & Admin</h4>
-            <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><Link to="/staff-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Portal</Link></li>
-              <li style={{ marginBottom: 8 }}><Link to="/admin-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Dashboard</Link></li>
-              <li style={{ marginBottom: 8 }}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Documentation</a></li>
+              <li style={{ marginBottom: 8 }}>
+                <Link to="/login?redirect=/donate" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>
+                  Donate Books
+                </Link>
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                <Link to="/login?redirect=/marketplace" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>
+                  Marketplace
+                </Link>
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                <a href="#how-it-works" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>
+                  How It Works
+                </a>
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                <a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>
+                  FAQs
+                </a>
+              </li>
             </ul>
           </div>
           <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Contact</h4>
             <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> hello@projenius.com</li>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-phone"></i> +91 98765 43210</li>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-location-dot"></i> Bangalore, India</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> shareshelf@gmail.com</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-phone"></i> +94 71 350 6062</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-location-dot"></i> Colombo, Sri Lanka</li>
             </ul>
           </div>
         </div>
         <div style={styles.footerBottom}>
-          <p>&copy; 2025 Projenius. Built with ❤️ for book lovers everywhere.</p>
+          <p>&copy; 2025 ShareShelf. Built with ❤️ for book lovers everywhere.</p>
         </div>
       </footer>
-
     </div>
   );
 };

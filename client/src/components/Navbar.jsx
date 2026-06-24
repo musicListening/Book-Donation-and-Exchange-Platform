@@ -50,7 +50,7 @@ export default function Navbar({
   const publicLinks = [
     { to: '/', label: 'Home' },
     { label: 'How It Works', hash: 'how-it-works' },
-    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/login?redirect=/marketplace', label: 'Marketplace', requiresLogin: true },
     { label: 'About', hash: 'about' },
   ];
 

@@ -58,7 +58,22 @@ const UserDashboard = () => {
     activityItem: { display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid #DEE2E6' },
     activityIcon: { width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
     alertCard: { background: 'linear-gradient(135deg, #FFF5EC 0%, #FFE8D6 100%)', border: '1px solid #F4A261', borderRadius: 12, padding: 20, marginBottom: 24, display: 'flex', gap: 16 },
-    featuredBundle: { background: '#1E4D4B', color: 'white', borderRadius: 16, padding: 24 }
+    featuredBundle: { background: '#1E4D4B', color: 'white', borderRadius: 16, padding: 24 },
+    communityBtn: {
+      background: '#E9C46A',
+      color: '#343A40',
+      padding: '10px 24px',
+      borderRadius: 50,
+      textDecoration: 'none',
+      fontWeight: 600,
+      fontSize: 14,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      transition: 'all 0.3s ease',
+      border: 'none',
+      cursor: 'pointer'
+    }
   };
 
   if (!user) return <div>Loading...</div>;
@@ -69,8 +84,16 @@ const UserDashboard = () => {
 
       <main style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
-          <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
-          <p>Here's what's happening with your library today.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
+              <p>Here's what's happening with your library today.</p>
+            </div>
+            {/* Community Button */}
+            <Link to="/community-home" style={styles.communityBtn}>
+              <i className="fa-solid fa-users"></i> Community
+            </Link>
+          </div>
         </div>
 
         <div style={styles.dashboardGrid}>
