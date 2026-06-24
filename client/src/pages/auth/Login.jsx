@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -7,6 +7,11 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the redirect path from URL parameters
+  const searchParams = new URLSearchParams(location.search);
+  const redirectPath = searchParams.get('redirect');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -32,17 +37,23 @@ const Login = () => {
       
       const userRole = data.user.role;
       
-      // UPDATED: Match your App.js routes
+      // If there's a redirect path and it's valid, use it
+      if (redirectPath) {
+        navigate(redirectPath);
+        return;
+      }
+
+      // Otherwise, redirect based on role
       if (userRole === 'PLATFORM_ADMIN') {
-        navigate('/admin/dashboard');  // Changed from /admin/AdminDashboard
+        navigate('/admin/dashboard');
       } else if (userRole === 'OPERATIONS_STAFF') {
-        navigate('/staff/dashboard');  // Changed from /staff
+        navigate('/staff/dashboard');
       } else if (userRole === 'DELIVERY_PERSONNEL') {
         navigate('/delivery/DeliveryPersonPage');
       } else if (userRole === 'COMMUNITY_ADMIN') {
-        navigate('/community-admin/dashboard');  // Changed from /community-admin
+        navigate('/community-admin/dashboard');
       } else {
-        navigate('/user-dashboard');  // Changed from /
+        navigate('/user-dashboard');
       }
 
     } catch (err) {
@@ -145,7 +156,9 @@ const Login = () => {
         <Link to="/" style={styles.logo}>
           <i className="fa-solid fa-book-open"></i> ShareShelf
         </Link>
-        <p style={{ color: '#6C757D', marginBottom: 30 }}>Welcome back, book lover!</p>
+        <p style={{ color: '#6C757D', marginBottom: 30 }}>
+          {redirectPath ? 'Please log in to continue' : 'Welcome back, book lover!'}
+        </p>
         
         {error && <div style={styles.error}>{error}</div>}
         
@@ -189,11 +202,6 @@ const Login = () => {
         <p style={{ marginTop: 25, fontSize: 14 }}>
           Don't have an account? <Link to="/signup" style={{ color: '#E76F51', textDecoration: 'none', fontWeight: 700 }}>Join the revolution</Link>
         </p>
-        
-        <div style={styles.demoHint}>
-          <strong>Demo Credentials:</strong><br />
-          User: user@example.com / user123
-        </div>
       </div>
     </div>
   );

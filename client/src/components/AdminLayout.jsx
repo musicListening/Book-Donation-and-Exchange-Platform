@@ -26,7 +26,7 @@ export default function AdminLayout({ children, title }) {
     localStorage.removeItem("user");
     localStorage.removeItem("ss_current_user");
     localStorage.removeItem("userRole");
-    navigate("/login");
+    navigate("/");
   };
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
