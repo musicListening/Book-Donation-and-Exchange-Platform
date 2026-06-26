@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { collectionAPI } from '../../services/api';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+
 
 
 function BundleManagement() {
