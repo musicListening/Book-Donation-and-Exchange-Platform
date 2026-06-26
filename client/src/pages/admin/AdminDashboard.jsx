@@ -87,7 +87,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <AdminLayout title="Admin Console">
+    <AdminLayout title="Admin Console" hideHeaderLabel={true} hideNotifications={true}>
       <section className="stats-grid">
         <div className="stat-card">
           <div className="stat-info">

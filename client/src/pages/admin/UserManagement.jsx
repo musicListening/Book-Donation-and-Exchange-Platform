@@ -11,7 +11,10 @@ const statuses = ["All Statuses", "Active", "Deactivated"];
 // Helper: Convert DB role format to display format
 const formatRole = (role) => {
   if (!role) return "End User";
-  return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return role
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
 export default function UserManagement() {
@@ -34,6 +37,15 @@ export default function UserManagement() {
     password: "",
     role: "END_USER",
   });
+
+  // === Edit Modal State ===
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "", email: "", role: "END_USER", points: 0
+  });
+  const [editError, setEditError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   // === FETCH REAL DATA FROM NEON DATABASE ===
   const fetchUsers = async () => {
@@ -116,8 +128,41 @@ export default function UserManagement() {
     setCurrentPage(1);
   }, [search, roleFilter, statusFilter]);
 
-  const getStatusClass = (isActive) => {
-    return isActive ? "status-active" : "status-deactivated";
+  // === EDIT USER ===
+  const openEditModal = (user) => {
+    setEditUser(user);
+    setEditForm({
+      name: user.name || "",
+      email: user.email || "",
+      role: user.role || "END_USER",
+      points: user.points ?? 0,
+    });
+    setEditError("");
+    setShowEditModal(true);
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    setEditError("");
+    setIsEditing(true);
+    try {
+      const response = await fetch(`${API_URL}/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to update user");
+      }
+      setShowEditModal(false);
+      setEditUser(null);
+      fetchUsers();
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setIsEditing(false);
+    }
   };
 
   // === NEW: Handle Add User Submission ===
@@ -150,7 +195,7 @@ export default function UserManagement() {
   };
 
   return (
-    <AdminLayout title="Admin Console">
+    <AdminLayout title="Admin Console" hideHeaderLabel={true} hideNotifications={true}>
       <section className="user-management">
         <div className="page-header">
           <div>
@@ -165,9 +210,7 @@ export default function UserManagement() {
         </div>
 
         {error && (
-          <div style={{ backgroundColor: "#FEE2E2", color: "#B91C1C", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px", fontSize: "14px", border: "1px solid #FECACA" }}>
-            ⚠️ {error}
-          </div>
+          <div className="error-banner">⚠️ {error}</div>
         )}
 
         <div className="controls-bar">
@@ -194,8 +237,8 @@ export default function UserManagement() {
         <div className="table-card">
           <div className="table-responsive">
             {loading ? (
-              <div style={{ padding: "60px", textAlign: "center", color: "#767777" }}>
-                <div style={{ fontSize: "24px", marginBottom: "12px" }}>⏳</div>
+              <div className="loading-state">
+                <span className="loading-spinner">⏳</span>
                 <p>Loading users from database...</p>
               </div>
             ) : (
@@ -205,59 +248,65 @@ export default function UserManagement() {
                     <th>User ID</th>
                     <th>Name</th>
                     <th>Role</th>
+                    <th>Status</th>
                     <th className="text-center">Level</th>
                     <th className="text-right">Points Balance</th>
-                    <th>Status</th>
                     <th className="text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedUsers.length === 0 ? (
-                    <tr><td colSpan="7" style={{ padding: "40px", textAlign: "center", color: "#767777" }}>No users found matching your filters.</td></tr>
+                    <tr><td colSpan="7" className="empty-state">No users found matching your filters.</td></tr>
                   ) : (
-                    paginatedUsers.map((user) => (
-                      <tr key={user.id}>
-                        <td className="font-mono">{user.id.substring(0, 8).toUpperCase()}</td>
-                        <td>
-                          <div className="user-cell">
-                            <div className="user-avatar"><span></span></div>
-                            <div>
-                              <span className="user-name">{user.name}</span>
-                              <br />
-                              <span style={{ fontSize: "12px", color: "#767777" }}>{user.email}</span>
+                    paginatedUsers.map((user) => {
+                      const userInitials = user.name
+                        ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                        : 'U';
+                      return (
+                        <tr key={user.id}>
+                          <td className="font-mono">{user.id.substring(0, 8).toUpperCase()}</td>
+                          <td>
+                            <div className="user-cell">
+                              <div className="user-avatar"><span>{userInitials}</span></div>
+                              <div>
+                                <span className="user-name">{user.name}</span>
+                                <br />
+                                <span style={{ fontSize: "12px", color: "#767777" }}>{user.email}</span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td>{formatRole(user.role)}</td>
-                        <td className="text-center">{user.level}</td>
-                        <td className="text-right">{user.points?.toLocaleString()}</td>
-                        <td>
-                          <span className={`status-badge ${getStatusClass(user.isActive)}`}>
-                            {user.isActive ? "Active" : "Deactivated"}
-                          </span>
-                        </td>
-                        <td className="text-right">
-                          <div className="action-buttons">
-                            <button className="icon-btn edit" title="Edit Permissions"><span>👤</span></button>
-                            <button 
-                              className="icon-btn deactivate" 
-                              title={user.isActive ? "Deactivate" : "Activate"}
-                              onClick={() => handleToggleStatus(user.id, user.isActive)}
-                            >
-                              <span>{user.isActive ? "🚫" : "✅"}</span>
-                            </button>
-                            <button 
-                              className="icon-btn delete" 
-                              title="Delete User"
-                              onClick={() => handleDeleteUser(user.id, user.name)}
-                              style={{ marginLeft: "8px" }}
-                            >
-                              <span>🗑️</span>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td>
+                            <span className={`role-badge role-${user.role?.toLowerCase() || 'end_user'}`}>
+                              {formatRole(user.role)}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge ${user.isActive ? "status-active" : "status-deactivated"}`}>
+                              {user.isActive ? "Active" : "Deactivated"}
+                            </span>
+                          </td>
+                          <td className="text-center">{user.level}</td>
+                          <td className="text-right">{user.points?.toLocaleString()}</td>
+                          <td className="text-right">
+                            <div className="action-buttons">
+                              <button className="action-text-btn" onClick={() => openEditModal(user)}>Edit</button>
+                              <button 
+                                className={`action-text-btn ${user.isActive ? "deactivate" : "activate"}`}
+                                onClick={() => handleToggleStatus(user.id, user.isActive)}
+                              >
+                                {user.isActive ? "Deactivate" : "Activate"}
+                              </button>
+                              <button 
+                                className="action-text-btn delete"
+                                onClick={() => handleDeleteUser(user.id, user.name)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -282,43 +331,34 @@ export default function UserManagement() {
 
         {/* === NEW: Add User Modal === */}
         {showAddModal && (
-          <div style={{
-            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
-            justifyContent: "center", alignItems: "center", zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: "white", padding: "32px", borderRadius: "12px",
-              width: "100%", maxWidth: "450px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
-            }}>
-              <h3 style={{ marginTop: 0, color: "#1E4D4B", marginBottom: "24px", fontSize: "20px" }}>Add New User</h3>
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3 className="modal-title">Add New User</h3>
               
               {formError && (
-                <p style={{ color: "#B91C1C", backgroundColor: "#FEE2E2", padding: "10px", borderRadius: "6px", fontSize: "14px", marginBottom: "16px" }}>
-                  ⚠️ {formError}
-                </p>
+                <p className="modal-error">⚠️ {formError}</p>
               )}
 
               <form onSubmit={handleAddUser}>
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: "600", color: "#767777" }}>Full Name</label>
-                  <input type="text" required value={newUser.name} onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} />
+                <div className="modal-field">
+                  <label>Full Name</label>
+                  <input type="text" required value={newUser.name}
+                    onChange={(e) => setNewUser({...newUser, name: e.target.value})} />
                 </div>
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: "600", color: "#767777" }}>Email Address</label>
-                  <input type="email" required value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} />
+                <div className="modal-field">
+                  <label>Email Address</label>
+                  <input type="email" required value={newUser.email}
+                    onChange={(e) => setNewUser({...newUser, email: e.target.value})} />
                 </div>
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: "600", color: "#767777" }}>Password</label>
-                  <input type="password" required value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} />
+                <div className="modal-field">
+                  <label>Password</label>
+                  <input type="password" required value={newUser.password}
+                    onChange={(e) => setNewUser({...newUser, password: e.target.value})} />
                 </div>
-                <div style={{ marginBottom: "24px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: "600", color: "#767777" }}>Role</label>
-                  <select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "14px", backgroundColor: "white", boxSizing: "border-box" }}>
+                <div className="modal-field">
+                  <label>Role</label>
+                  <select value={newUser.role}
+                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}>
                     <option value="END_USER">End User</option>
                     <option value="OPERATIONS_STAFF">Operations Staff</option>
                     <option value="PLATFORM_ADMIN">Platform Admin</option>
@@ -326,15 +366,63 @@ export default function UserManagement() {
                     <option value="COMMUNITY_ADMIN">Community Admin</option>
                   </select>
                 </div>
-
-                <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-                  <button type="button" onClick={() => setShowAddModal(false)}
-                    style={{ padding: "10px 20px", border: "1px solid #D1D5DB", borderRadius: "6px", backgroundColor: "white", cursor: "pointer", fontWeight: "600" }}>
+                <div className="modal-actions">
+                  <button type="button" className="modal-btn cancel" onClick={() => setShowAddModal(false)}>
                     Cancel
                   </button>
-                  <button type="submit" disabled={isSubmitting}
-                    style={{ padding: "10px 20px", border: "none", borderRadius: "6px", backgroundColor: "#1E4D4B", color: "white", cursor: isSubmitting ? "not-allowed" : "pointer", fontWeight: "600", opacity: isSubmitting ? 0.7 : 1 }}>
+                  <button type="submit" className="modal-btn submit" disabled={isSubmitting}>
                     {isSubmitting ? "Creating..." : "Create User"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* === EDIT USER MODAL === */}
+        {showEditModal && editUser && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3 className="modal-title">Edit User</h3>
+
+              {editError && (
+                <p className="modal-error">⚠️ {editError}</p>
+              )}
+
+              <form onSubmit={handleEditUser}>
+                <div className="modal-field">
+                  <label>Full Name</label>
+                  <input type="text" required value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
+                </div>
+                <div className="modal-field">
+                  <label>Email Address</label>
+                  <input type="email" required value={editForm.email}
+                    onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
+                </div>
+                <div className="modal-field">
+                  <label>Role</label>
+                  <select value={editForm.role}
+                    onChange={(e) => setEditForm({...editForm, role: e.target.value})}>
+                    <option value="END_USER">End User</option>
+                    <option value="OPERATIONS_STAFF">Operations Staff</option>
+                    <option value="PLATFORM_ADMIN">Platform Admin</option>
+                    <option value="DELIVERY_PERSONNEL">Delivery Personnel</option>
+                    <option value="COMMUNITY_ADMIN">Community Admin</option>
+                  </select>
+                </div>
+                <div className="modal-field">
+                  <label>Points Balance</label>
+                  <input type="number" min="0" value={editForm.points}
+                    onChange={(e) => setEditForm({...editForm, points: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="modal-btn cancel"
+                    onClick={() => { setShowEditModal(false); setEditUser(null); }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="modal-btn submit" disabled={isEditing}>
+                    {isEditing ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
