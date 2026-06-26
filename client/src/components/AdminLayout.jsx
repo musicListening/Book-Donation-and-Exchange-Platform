@@ -9,7 +9,7 @@ const navItems = [
   { path: "/admin/config", label: "System Config", icon: "settings" },
 ];
 
-export default function AdminLayout({ children, title }) {
+export default function AdminLayout({ children, title, hideHeaderLabel = false, hideNotifications = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -101,15 +101,17 @@ export default function AdminLayout({ children, title }) {
             </button>
 
             <div style={{ minWidth: 0 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '11px', fontWeight: 600, letterSpacing: '0.8px',
-                textTransform: 'uppercase', color: '#8A9A9A',
-                marginBottom: '2px', fontFamily: 'Inter, sans-serif',
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
-                Admin Portal
-              </div>
+              {!hideHeaderLabel && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  fontSize: '11px', fontWeight: 600, letterSpacing: '0.8px',
+                  textTransform: 'uppercase', color: '#8A9A9A',
+                  marginBottom: '2px', fontFamily: 'Inter, sans-serif',
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
+                  Admin Portal
+                </div>
+              )}
               <h1 className="ss-layout__page-title" style={{ margin: 0 }}>
                 {title || 'Admin Portal'}
               </h1>
@@ -130,25 +132,27 @@ export default function AdminLayout({ children, title }) {
               {dateStr} · {timeStr}
             </div>
 
-            <button style={{
-              position: 'relative', width: '38px', height: '38px',
-              background: 'rgba(26,107,104,0.06)',
-              border: '1px solid rgba(26,107,104,0.12)',
-              borderRadius: '10px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#1A6B68', transition: 'all 0.2s ease',
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,107,104,0.12)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,107,104,0.06)'}
-              title="Notifications"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>notifications</span>
-              <span style={{
-                position: 'absolute', top: '5px', right: '5px',
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: '#E76F51', border: '1.5px solid white',
-              }} />
-            </button>
+            {!hideNotifications && (
+              <button style={{
+                position: 'relative', width: '38px', height: '38px',
+                background: 'rgba(26,107,104,0.06)',
+                border: '1px solid rgba(26,107,104,0.12)',
+                borderRadius: '10px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#1A6B68', transition: 'all 0.2s ease',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,107,104,0.12)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,107,104,0.06)'}
+                title="Notifications"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>notifications</span>
+                <span style={{
+                  position: 'absolute', top: '5px', right: '5px',
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: '#E76F51', border: '1.5px solid white',
+                }} />
+              </button>
+            )}
 
             <div style={{ position: 'relative' }}>
               <button
@@ -250,25 +254,7 @@ export default function AdminLayout({ children, title }) {
                       </div>
                     </div>
 
-                    {[
-                      { icon: 'person', label: 'My Profile' },
-                      { icon: 'settings', label: 'Settings' },
-                    ].map(item => (
-                      <button key={item.label} style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        width: '100%', padding: '9px 12px', border: 'none',
-                        background: 'none', borderRadius: '8px', cursor: 'pointer',
-                        fontSize: '13px', fontWeight: 500, color: '#5C6A6A',
-                        fontFamily: 'Inter, sans-serif', textAlign: 'left',
-                        transition: 'all 0.15s',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(26,107,104,0.07)'; e.currentTarget.style.color = '#1A6B68'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#5C6A6A'; }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{item.icon}</span>
-                        {item.label}
-                      </button>
-                    ))}
+
 
                     <div style={{ borderTop: '1px solid rgba(26,107,104,0.08)', margin: '6px 0' }} />
 
