@@ -25,6 +25,8 @@ const orderRoutes = require('./routes/orders');
 app.use('/api/auth', authRoutes);
 const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
 
 // CRUD Routes
 app.use('/api/tasks', taskRoutes);
@@ -41,7 +43,8 @@ app.get('/api/health', (req, res) => {
 
 // 6. Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
+const prisma = require('./db');
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🟢 Server running on http://localhost:${PORT}`);
     console.log(`📚 CRUD routes registered:`);
     console.log(`   - /api/tasks (Staff Dashboard)`);
@@ -50,4 +53,12 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`   - /api/books (Inventory Management)`);
     console.log(`   - /api/donations (Donation Schedule)`);
     console.log(`   - /api/orders (Order Fulfillment)`);
+    // Warm up Neon DB connection
+    try {
+        await prisma.$connect();
+        const result = await prisma.$queryRaw`SELECT 1 as ok`;
+        console.log(`🗄️  Database connected (${result[0].ok})`);
+    } catch (e) {
+        console.warn(`⏳ Database warm-up pending (${e.message.split('\n')[0]})`);
+    }
 });
