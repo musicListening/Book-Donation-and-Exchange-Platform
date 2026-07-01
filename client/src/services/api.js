@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://book-donation-and-exchange-platform.onrender.com/api';
 
 // ===== USER API =====
 export const userAPI = {
