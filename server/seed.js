@@ -233,6 +233,44 @@ async function main() {
   const totalTxns = await prisma.pointTransaction.count();
   console.log(`Created ${totalTxns} point transactions.`);
 
+  // ── System Configuration Defaults ──
+  const defaultConfigs = [
+    { key: 'BASE_POINTS_PER_BOOK', value: '10', description: 'Minimum points awarded for a single verified book donation' },
+    { key: 'COLLECTION_BONUS_PERCENTAGE', value: '10', description: 'Extra percentage added when a verified collection is donated' },
+    { key: 'POINT_TO_CASH_CONVERSION_RATE', value: '100:10', description: 'Conversion metric (e.g., 100 points = 10 Rs)' },
+    { key: 'LEVEL_THRESHOLDS', value: JSON.stringify([
+      { level: 1, minPoints: 0, name: 'Book Lover', reward: 'Basic Mystery Box (3 Books)' },
+      { level: 2, minPoints: 250, name: 'Bibliophile', reward: 'Rare Collection Unlock (Victorian Set)' },
+      { level: 3, minPoints: 750, name: 'Grand Librarian', reward: 'Premium Mystery Box + 5% Discount' },
+      { level: 4, minPoints: 2000, name: 'Literary Elite', reward: 'Exclusive Editions + Direct Support' },
+      { level: 5, minPoints: 5000, name: 'Legendary Reader', reward: 'All Mystery Boxes Free + Rare Unlocks' },
+    ]), description: 'JSON array of level thresholds with minPoints, name, and reward' },
+    { key: 'MYSTERY_BOX_BOOKS', value: '5', description: 'Number of random books in a standard mystery box' },
+    { key: 'MYSTERY_BOX_POINTS_COST', value: '200', description: 'Points required to redeem a mystery box' },
+    { key: 'RARE_COLLECTION_MIN_LEVEL', value: '2', description: 'Minimum level required to browse rare collections' },
+    { key: 'MYSTERY_BOX_LOCKS', value: JSON.stringify([
+      { level: 1, unlock: 'Standard Mystery Box' },
+      { level: 3, unlock: 'Premium Mystery Box' },
+      { level: 4, unlock: 'Rare Collection Access' },
+      { level: 5, unlock: 'All Mystery Boxes Free' },
+    ]), description: 'JSON array mapping levels to mystery box/rare unlocks' },
+    { key: 'GLOBAL_NOTIFICATION_TEMPLATES', value: JSON.stringify({
+      levelUp: 'Congratulations! You\'ve reached {levelName}!',
+      pointsEarned: 'You earned {points} points for your donation.',
+      mysteryBoxUnlocked: 'You\'ve unlocked a {boxName}! Redeem it now.',
+      orderUpdate: 'Your order #{orderId} is now {status}.',
+    }), description: 'JSON object of notification message templates' },
+  ];
+
+  for (const cfg of defaultConfigs) {
+    await prisma.systemConfig.upsert({
+      where: { key: cfg.key },
+      update: { value: cfg.value, description: cfg.description },
+      create: cfg,
+    });
+  }
+  console.log(`Seeded ${defaultConfigs.length} system configuration entries.`);
+
   console.log('\nSeed complete! Database is now abundant with data.');
 }
 

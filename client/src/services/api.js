@@ -1,6 +1,25 @@
 // src/services/api.js
 const API_BASE = 'http://localhost:5000/api';
 
+// ===== USER API =====
+export const userAPI = {
+  getById: async (id) => {
+    console.log('📡 GET /users');
+    const users = await fetch(`${API_BASE}/users`).then(r => r.json());
+    const user = users.find(u => u.id === id);
+    if (!user) throw new Error('User not found');
+    return user;
+  },
+  getAll: async () => {
+    console.log('📡 GET /users');
+    const response = await fetch(`${API_BASE}/users`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+};
+
+// ===== SYSTEM CONFIG API =====
+
 // ===== TASK API (Staff Dashboard) =====
 export const taskAPI = {
     // GET all tasks
@@ -73,7 +92,25 @@ export const taskAPI = {
     },
 };
 
-// src/services/api.js - Add these methods
+// ===== SYSTEM CONFIG API =====
+export const systemConfigAPI = {
+  getAll: async () => {
+    console.log('📡 GET /admin/config');
+    const response = await fetch(`${API_BASE}/admin/config`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+  update: async (config) => {
+    console.log('📡 PUT /admin/config', config);
+    const response = await fetch(`${API_BASE}/admin/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+};
 
 // ===== COLLECTION API (Bundle Management) =====
 export const collectionAPI = {

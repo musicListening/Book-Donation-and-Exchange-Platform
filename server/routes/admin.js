@@ -218,4 +218,48 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
+// ===== SYSTEM CONFIGURATION =====
+
+// GET /api/admin/config — fetch all system config as key-value pairs
+router.get('/config', async (req, res) => {
+  try {
+    const configs = await prisma.systemConfig.findMany();
+    const map = {};
+    for (const c of configs) {
+      map[c.key] = c.value;
+    }
+    res.json(map);
+  } catch (error) {
+    console.error('Config fetch error:', error);
+    res.status(500).json({ error: 'Failed to load configuration' });
+  }
+});
+
+// PUT /api/admin/config — upsert system config values
+router.put('/config', async (req, res) => {
+  try {
+    const entries = req.body; // { key: value, ... }
+    const updatedBy = req.headers['x-user-id'] || null;
+
+    for (const [key, value] of Object.entries(entries)) {
+      await prisma.systemConfig.upsert({
+        where: { key },
+        update: { value: String(value), updatedBy, updatedAt: new Date() },
+        create: { key, value: String(value), updatedBy },
+      });
+    }
+
+    // Return updated config
+    const configs = await prisma.systemConfig.findMany();
+    const map = {};
+    for (const c of configs) {
+      map[c.key] = c.value;
+    }
+    res.json(map);
+  } catch (error) {
+    console.error('Config update error:', error);
+    res.status(500).json({ error: 'Failed to update configuration' });
+  }
+});
+
 module.exports = router;

@@ -1,17 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { systemConfigAPI } from '../../services/api';
 
 const Profile = () => {
-  const [user, setUser] = useState({ name: '', email: '', points: 0 });
+  const [user, setUser] = useState({ name: '', email: '', points: 0, level: 1 });
   const [activeTab, setActiveTab] = useState('donations');
   const [cartCount, setCartCount] = useState(0);
+  const [levels, setLevels] = useState([]);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'Arjun Sharma', email: 'arjun@example.com', points: 450 };
     setUser(storedUser);
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
+
+    // Fetch level config
+    const fetchConfig = async () => {
+      try {
+        const config = await systemConfigAPI.getAll();
+        if (config.LEVEL_THRESHOLDS) {
+          try {
+            setLevels(JSON.parse(config.LEVEL_THRESHOLDS));
+          } catch {}
+        }
+      } catch {}
+    };
+    fetchConfig();
   }, []);
+
+  const getLevelName = () => {
+    if (levels.length === 0) return 'Bibliophile';
+    const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
+    const found = sorted.find(l => l.level === (user.level || 1));
+    return found ? found.name : `Level ${user.level || 1}`;
+  };
+
+  const getLevelProgress = () => {
+    if (levels.length === 0) return 80;
+    const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
+    const idx = sorted.findIndex(l => l.level === (user.level || 1));
+    const current = sorted[idx] || sorted[0];
+    const next = sorted[idx + 1] || current;
+    const min = parseInt(current.minPoints) || 0;
+    const nextMin = parseInt(next.minPoints) || min + 1;
+    const pts = user.points || 0;
+    const range = nextMin - min;
+    if (range <= 0) return 100;
+    return Math.min(100, Math.max(5, ((pts - min) / range) * 100));
+  };
+
+  const levelName = getLevelName();
+  const levelProgress = getLevelProgress();
 
   const styles = {
     body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', paddingTop: 72, margin: 0 },
@@ -97,7 +136,7 @@ const Profile = () => {
             <h2>{user.name}</h2>
             <p style={{ color: '#6C757D', fontSize: 14 }}>{user.email}</p>
             <div style={styles.pointsBox}><span style={{ fontSize: 12, fontWeight: 700, color: '#6C757D', textTransform: 'uppercase' }}>Points Balance</span><strong style={styles.pointsStrong}>{user.points} pts</strong></div>
-            <div style={styles.levelContainer}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}><span>Level: <strong>Bibliophile</strong></span><span style={{ color: '#1E4D4B', fontWeight: 700 }}>80%</span></div><div style={styles.progressBar}><div style={styles.progressFill}></div></div></div>
+            <div style={styles.levelContainer}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}><span>Level: <strong>{levelName}</strong></span><span style={{ color: '#1E4D4B', fontWeight: 700 }}>{Math.round(levelProgress)}%</span></div><div style={styles.progressBar}><div style={{ ...styles.progressFill, width: `${levelProgress}%` }}></div></div></div>
             <button style={styles.btn}>Edit Profile</button>
           </div>
         </div>
