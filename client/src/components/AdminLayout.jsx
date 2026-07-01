@@ -53,7 +53,6 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
             </span>
             <span className="ss-sidebar__brand-name">ShareShelf</span>
           </a>
-          <div className="ss-sidebar__portal-label">Admin Portal</div>
         </div>
 
         <nav className="ss-sidebar__nav">
@@ -101,19 +100,8 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
             </button>
 
             <div style={{ minWidth: 0 }}>
-              {!hideHeaderLabel && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  fontSize: '11px', fontWeight: 600, letterSpacing: '0.8px',
-                  textTransform: 'uppercase', color: '#8A9A9A',
-                  marginBottom: '2px', fontFamily: 'Inter, sans-serif',
-                }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
-                  Admin Portal
-                </div>
-              )}
               <h1 className="ss-layout__page-title" style={{ margin: 0 }}>
-                {title || 'Admin Portal'}
+                {title || 'Dashboard'}
               </h1>
             </div>
           </div>

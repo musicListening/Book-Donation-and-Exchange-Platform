@@ -25,6 +25,21 @@ const orderRoutes = require('./routes/orders');
 app.use('/api/auth', authRoutes);
 const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
+
+// CRUD Routes
+app.use('/api/tasks', taskRoutes);
+app.use('/api/shipments', shipmentRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/donations', donationRoutes);
+app.use('/api/orders', orderRoutes);
+
+// 5. Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
+});
 
 // CRUD Routes
 app.use('/api/tasks', taskRoutes);
