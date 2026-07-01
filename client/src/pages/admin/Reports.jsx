@@ -75,7 +75,7 @@ export default function Reports() {
   };
 
   return (
-    <AdminLayout title="System Reports">
+    <AdminLayout title="System Reports" hideHeaderLabel={true} hideNotifications={true}>
       <div className="reports-container">
         
         {/* Setup Section */}

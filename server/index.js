@@ -23,6 +23,8 @@ const orderRoutes = require('./routes/orders');
 
 // 4. Register routes
 app.use('/api/auth', authRoutes);
+const userRoutes = require('./routes/users');
+app.use('/api/users', userRoutes);
 
 // CRUD Routes
 app.use('/api/tasks', taskRoutes);

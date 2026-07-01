@@ -52,7 +52,12 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // 2. Compare the typed password with the hashed password in the DB
+        // 2. Check if user is deactivated
+        if (!user.isActive) {
+            return res.status(403).json({ message: 'Your account has been deactivated. Contact an administrator.' });
+        }
+
+        // 3. Compare the typed password with the hashed password in the DB
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
             return res.status(400).json({ message: 'Invalid email or password' });

@@ -31,7 +31,7 @@ export default function SystemConfig() {
   };
 
   return (
-    <AdminLayout title="System Configuration">
+    <AdminLayout title="System Configuration" hideHeaderLabel={true} hideNotifications={true}>
       <div className="system-config-container">
         {/* Page Header */}
         <div style={{ marginBottom: "32px" }}>
