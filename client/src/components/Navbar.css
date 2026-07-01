@@ -19,6 +19,19 @@
   --nav-shadow-scrolled: 0 4px 32px rgba(26, 107, 104, 0.15);
   --nav-radius: 14px;
   --nav-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Admin layout compatibility design tokens */
+  --color-primary: #1A6B68;
+  --color-secondary: #E9C46A;
+  --color-tertiary: #643C29;
+  --color-neutral: #5C6A6A;
+  --color-bg-light: #F4F6F7;
+  --color-surface: #FFFFFF;
+  --color-text-dark: #1E2A2A;
+  --color-text-muted: #5C6A6A;
+  --color-border: rgba(26, 107, 104, 0.12);
+  --font-headline: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 /* ── Base ────────────────────────────────────────────────── */
