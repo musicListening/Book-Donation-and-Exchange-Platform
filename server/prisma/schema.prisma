@@ -35,11 +35,9 @@ model User {
   Payment                                         Payment[]
   PointTransaction_PointTransaction_staffIdToUser PointTransaction[] @relation("PointTransaction_staffIdToUser")
   PointTransaction_PointTransaction_userIdToUser  PointTransaction[] @relation("PointTransaction_userIdToUser")
-  SystemConfig                                    SystemConfig[]
-  
-  // ===== NEW: Staff Management Relations =====
-  tasks                                           Task[]
   shipments                                       Shipment[]
+  SystemConfig                                    SystemConfig[]
+  tasks                                           Task[]
 }
 
 model DonationRequest {
@@ -320,37 +318,33 @@ model SystemConfig {
   User        User?    @relation(fields: [updatedBy], references: [id], onUpdate: NoAction)
 }
 
-// ============================================
-// NEW: STAFF MANAGEMENT MODELS
-// ============================================
-
 model Task {
   id        String   @id @default(uuid())
-  taskId    String   @unique // e.g., "#SL-88210"
+  taskId    String   @unique
   donor     String
   location  String
-  volume    String   // e.g., "45 Books"
-  date      String   // e.g., "Oct 12, 2023 | 14:30"
-  status    String   // "Pending", "In Review", "Approved", "Rejected"
+  volume    String
+  date      String
+  status    String
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Shipment {
-  id          String   @id @default(uuid())
-  orderId     String   @unique // e.g., "#SL-92410"
-  recipient   String
-  location    String
-  items       String   // e.g., "45 Books"
-  status      String   // "In Transit", "On Time", "Delayed", "Delivered"
-  lastUpdate  String   // e.g., "2 hours ago"
-  driver      String
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  orderId    String   @unique
+  recipient  String
+  location   String
+  items      String
+  status     String
+  lastUpdate String
+  driver     String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {
