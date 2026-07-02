@@ -120,7 +120,7 @@ export default function CustomReportGeneration() {
   const report = currentReport || reportDataTemplates["Total Points Provided"];
 
   return (
-    <AdminLayout title="Custom Reports">
+    <AdminLayout title="Custom Reports" hideHeaderLabel={true} hideNotifications={true}>
       <div className="report-dashboard-container">
         {notification && (
           <div className="toast-notification">
