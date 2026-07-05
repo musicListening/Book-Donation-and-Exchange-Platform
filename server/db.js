@@ -28,11 +28,11 @@ async function warmUpDb() {
       await prisma.$connect();
       await prisma.$queryRaw`SELECT 1`;
       console.log('💾 Neon Database connected successfully!');
-      return;
+      return true;
     } catch (err) {
       if (attempt === 3) {
         console.error('❌ Database connection failed:', err.message);
-        return;
+        throw err;
       }
       console.warn(`DB warm-up attempt ${attempt}/3 failed, retrying...`);
       await new Promise(r => setTimeout(r, 2000));

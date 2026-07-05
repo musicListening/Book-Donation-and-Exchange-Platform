@@ -58,19 +58,24 @@ app.get('/api/health', (req, res) => {
 // 6. Connect to database and Start Server
 const PORT = process.env.PORT || 5000;
 
-warmUpDb();
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🟢 Server running on http://localhost:${PORT}`);
-    console.log(`📚 Registered API Routes:`);
-    console.log(`   - [POST/GET] /api/auth/*`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
-    console.log(`   - [GET] /api/admin/*`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/tasks`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/shipments`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/collections`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/books`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
-    console.log(`   - [GET] /api/health`);
-});
+warmUpDb()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🟢 Server running on http://localhost:${PORT}`);
+      console.log(`📚 Registered API Routes:`);
+      console.log(`   - [POST/GET] /api/auth/*`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
+      console.log(`   - [GET] /api/admin/*`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/tasks`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/shipments`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/collections`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/books`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
+      console.log(`   - [GET] /api/health`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ Failed to start server due to DB connection error:', err);
+    process.exit(1);
+  });
