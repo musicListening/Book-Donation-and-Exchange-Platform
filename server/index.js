@@ -1,3 +1,4 @@
+// server/index.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -7,14 +8,61 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 
 // 2. Parse JSON bodies (Also must be before routes)
-app.use(express.json()); 
+app.use(express.json());
 
-// 3. Import and use the auth routes
-const authRoutes = require('./routes/auth'); 
+// 3. Import routes
+const authRoutes = require('./routes/auth');
+
+// Import CRUD routes
+const taskRoutes = require('./routes/tasks');
+const shipmentRoutes = require('./routes/shipments');
+const collectionRoutes = require('./routes/collections');
+const bookRoutes = require('./routes/books');
+const donationRoutes = require('./routes/donations');
+const orderRoutes = require('./routes/orders');
+
+// 4. Register routes
 app.use('/api/auth', authRoutes);
+const userRoutes = require('./routes/users');
+app.use('/api/users', userRoutes);
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
 
-// 4. Start Server
-const PORT = 5000;
+// CRUD Routes
+app.use('/api/tasks', taskRoutes);
+app.use('/api/shipments', shipmentRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/donations', donationRoutes);
+app.use('/api/orders', orderRoutes);
+
+// 5. Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// CRUD Routes
+app.use('/api/tasks', taskRoutes);
+app.use('/api/shipments', shipmentRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/donations', donationRoutes);
+app.use('/api/orders', orderRoutes);
+
+// 5. Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// 6. Start Server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🟢 Server running on http://localhost:${PORT}`);
+    console.log(`📚 CRUD routes registered:`);
+    console.log(`   - /api/tasks (Staff Dashboard)`);
+    console.log(`   - /api/shipments (Order Fulfillment)`);
+    console.log(`   - /api/collections (Bundle Management)`);
+    console.log(`   - /api/books (Inventory Management)`);
+    console.log(`   - /api/donations (Donation Schedule)`);
+    console.log(`   - /api/orders (Order Fulfillment)`);
 });
