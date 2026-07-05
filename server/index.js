@@ -2,18 +2,34 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const prisma = require('./db');
 const app = express();
 
 // 1. ENABLE CORS (MUST BE AT THE VERY TOP, BEFORE ROUTES!)
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'https://shareshelfplatform.netlify.app',
+  'https://book-donation-and-exchange-platform.onrender.com',
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // allow all in dev; tighten in production
+    }
+  },
+  credentials: true,
+}));
 
 // 2. Parse JSON bodies (Also must be before routes)
 app.use(express.json());
 
 // 3. Import routes
 const authRoutes = require('./routes/auth');
-
-// Import CRUD routes
+const userRoutes = require('./routes/users');
+const adminRoutes = require('./routes/admin');
 const taskRoutes = require('./routes/tasks');
 const shipmentRoutes = require('./routes/shipments');
 const collectionRoutes = require('./routes/collections');
@@ -23,9 +39,7 @@ const orderRoutes = require('./routes/orders');
 
 // 4. Register routes
 app.use('/api/auth', authRoutes);
-const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
-const adminRoutes = require('./routes/admin');
 app.use('/api/admin', adminRoutes);
 
 // CRUD Routes
@@ -41,28 +55,28 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// CRUD Routes
-app.use('/api/tasks', taskRoutes);
-app.use('/api/shipments', shipmentRoutes);
-app.use('/api/collections', collectionRoutes);
-app.use('/api/books', bookRoutes);
-app.use('/api/donations', donationRoutes);
-app.use('/api/orders', orderRoutes);
-
-// 5. Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Server is running' });
-});
-
-// 6. Start Server
+// 6. Connect to database and Start Server
 const PORT = process.env.PORT || 5000;
+
+prisma.$connect()
+    .then(() => {
+        console.log(`💾 Neon Database connected successfully!`);
+    })
+    .catch((err) => {
+        console.error(`❌ Database connection failed:`, err);
+    });
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🟢 Server running on http://localhost:${PORT}`);
-    console.log(`📚 CRUD routes registered:`);
-    console.log(`   - /api/tasks (Staff Dashboard)`);
-    console.log(`   - /api/shipments (Order Fulfillment)`);
-    console.log(`   - /api/collections (Bundle Management)`);
-    console.log(`   - /api/books (Inventory Management)`);
-    console.log(`   - /api/donations (Donation Schedule)`);
-    console.log(`   - /api/orders (Order Fulfillment)`);
-});
+    console.log(`📚 Registered API Routes:`);
+    console.log(`   - [POST/GET] /api/auth/*`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
+    console.log(`   - [GET] /api/admin/*`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/tasks`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/shipments`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/collections`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/books`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
+    console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
+    console.log(`   - [GET] /api/health`);
+});
