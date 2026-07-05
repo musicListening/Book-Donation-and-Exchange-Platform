@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const prisma = require('./db');
+const { prisma, warmUpDb } = require('./db');
 const app = express();
 
 // 1. ENABLE CORS (MUST BE AT THE VERY TOP, BEFORE ROUTES!)
@@ -58,13 +58,7 @@ app.get('/api/health', (req, res) => {
 // 6. Connect to database and Start Server
 const PORT = process.env.PORT || 5000;
 
-prisma.$connect()
-    .then(() => {
-        console.log(`💾 Neon Database connected successfully!`);
-    })
-    .catch((err) => {
-        console.error(`❌ Database connection failed:`, err);
-    });
+warmUpDb();
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🟢 Server running on http://localhost:${PORT}`);

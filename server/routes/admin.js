@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const prisma = require('../db');
+const { prisma, withRetry } = require('../db');
 
 // GET /api/admin/dashboard — aggregate stats for the admin dashboard
 router.get('/dashboard', async (req, res) => {
   try {
+    // Warm up connection for Neon cold starts
+    await withRetry(() => prisma.$queryRaw`SELECT 1`, 2);
+
     const [
       totalUsers,
       totalDonations,
@@ -223,6 +226,7 @@ router.get('/dashboard', async (req, res) => {
 // GET /api/admin/config — fetch all system config as key-value pairs
 router.get('/config', async (req, res) => {
   try {
+    await withRetry(() => prisma.$queryRaw`SELECT 1`, 2);
     const configs = await prisma.systemConfig.findMany();
     const map = {};
     for (const c of configs) {
