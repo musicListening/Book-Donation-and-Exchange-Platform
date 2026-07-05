@@ -2,17 +2,8 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "../../components/AdminLayout";
 import "../../styles/AdminDashboard.css";
 import { TrendingUp } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
-
-const API_URL = "http://localhost:5000/api";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { adminAPI } from "../../services/api";
 
 const GENRE_COLORS = [
   "#1E4D4B",
@@ -59,8 +50,7 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/admin/dashboard`)
-      .then((r) => r.json())
+    adminAPI.getDashboard()
       .then((d) => {
         setData(d);
         setLoading(false);
