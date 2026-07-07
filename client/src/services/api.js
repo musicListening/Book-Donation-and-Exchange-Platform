@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://book-donation-and-exchange-platform.onrender.com/api';
 
 // ===== USER API =====
 export const userAPI = {
@@ -18,7 +18,15 @@ export const userAPI = {
   },
 };
 
-// ===== SYSTEM CONFIG API =====
+// ===== ADMIN DASHBOARD API =====
+export const adminAPI = {
+  getDashboard: async () => {
+    console.log('📡 GET /admin/dashboard');
+    const response = await fetch(`${API_BASE}/admin/dashboard`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+};
 
 // ===== TASK API (Staff Dashboard) =====
 export const taskAPI = {

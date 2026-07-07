@@ -28,9 +28,6 @@ git push origin user-roshean
 git checkout main
 git pull origin main
 git checkout user-roshean
-git merge main
-# resolve conflicts if any, then push
-git push origin user-roshean
 ```
 
 ### 3. Open a Pull Request

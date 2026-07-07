@@ -1165,3 +1165,383 @@ h1, h2, h3 {
     .hero-buttons { flex-direction: column; }
     .points-badge { display: none; }
 }
+
+/* ============ HERO COLLAGE & PREMIUM ANIMATIONS ============ */
+.hero-section-bg {
+    position: relative;
+    background: #0a1f1e !important;
+    overflow: hidden;
+}
+.hero-section-bg::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(160deg, rgba(10, 31, 30, 0.75) 0%, rgba(15, 39, 38, 0.65) 50%, rgba(10, 31, 30, 0.85) 100%) !important;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Ambient particles behind hero */
+.hero-section-bg .hero-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(233, 196, 106, 0.12);
+    pointer-events: none;
+    z-index: 2;
+}
+.hero-particle--1 {
+    width: 300px; height: 300px;
+    top: -60px; right: -80px;
+    animation: particle-drift 18s ease-in-out infinite;
+    filter: blur(60px);
+}
+.hero-particle--2 {
+    width: 200px; height: 200px;
+    bottom: -40px; left: 10%;
+    background: rgba(42, 157, 143, 0.1) !important;
+    animation: particle-drift 22s ease-in-out infinite reverse;
+    filter: blur(50px);
+}
+.hero-particle--3 {
+    width: 150px; height: 150px;
+    top: 40%; left: 50%;
+    background: rgba(231, 111, 81, 0.08) !important;
+    animation: particle-drift 15s ease-in-out infinite;
+    filter: blur(45px);
+}
+
+@keyframes particle-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.1); }
+    50% { transform: translate(-20px, 15px) scale(0.95); }
+    75% { transform: translate(15px, 25px) scale(1.05); }
+}
+
+/* Hexagon 1 — smooth float UP and DOWN */
+.hexagon-wrapper-1 {
+    animation: hex-bob-1 8s ease-in-out infinite;
+    will-change: transform;
+    cursor: pointer;
+    transition: background 0.4s ease;
+}
+
+/* Hexagon 2 — smooth diagonal drift */
+.hexagon-wrapper-2 {
+    animation: hex-swing-2 10s ease-in-out infinite;
+    animation-delay: -3s;
+    will-change: transform;
+    cursor: pointer;
+    transition: background 0.4s ease;
+}
+
+/* Hexagon 3 — smooth orbital float */
+.hexagon-wrapper-3 {
+    animation: hex-orbit-3 12s ease-in-out infinite;
+    animation-delay: -6s;
+    will-change: transform;
+    cursor: pointer;
+    transition: background 0.4s ease;
+}
+
+/* Hexagon 4 — soft side drift */
+.hexagon-wrapper-4 {
+    animation: hex-float-4 14s ease-in-out infinite;
+    animation-delay: -2s;
+    will-change: transform;
+    cursor: pointer;
+    transition: background 0.4s ease;
+}
+
+@keyframes hex-bob-1 {
+    0%   { transform: translateY(0px) scale(1); }
+    33%  { transform: translateY(-30px) scale(1.02); }
+    66%  { transform: translateY(-10px) scale(1.01); }
+    100% { transform: translateY(0px) scale(1); }
+}
+
+@keyframes hex-swing-2 {
+    0%   { transform: translate(0px, 0px) rotate(-2deg); }
+    33%  { transform: translate(-20px, -25px) rotate(-5deg); }
+    66%  { transform: translate(15px, -35px) rotate(1deg); }
+    100% { transform: translate(0px, 0px) rotate(-2deg); }
+}
+
+@keyframes hex-orbit-3 {
+    0%   { transform: translate(0px, 0px) rotate(3deg) scale(1); }
+    33%  { transform: translate(25px, -30px) rotate(7deg) scale(1.03); }
+    66%  { transform: translate(-15px, -40px) rotate(1deg) scale(1.01); }
+    100% { transform: translate(0px, 0px) rotate(3deg) scale(1); }
+}
+
+@keyframes hex-float-4 {
+    0%   { transform: translate(0px, 0px) rotate(-4deg) scale(1); }
+    33%  { transform: translate(20px, 15px) rotate(2deg) scale(0.98); }
+    66%  { transform: translate(5px, 30px) rotate(-2deg) scale(1.02); }
+    100% { transform: translate(0px, 0px) rotate(-4deg) scale(1); }
+}
+
+.hexagon-wrapper-1:hover,
+.hexagon-wrapper-2:hover,
+.hexagon-wrapper-3:hover,
+.hexagon-wrapper-4:hover {
+    animation-play-state: paused !important;
+    transform: scale(1.08) translateY(-6px) !important;
+    z-index: 20 !important;
+    background: rgba(233, 196, 106, 0.5) !important;
+}
+
+/* Hero buttons */
+.hero-btn-primary {
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease, background-color 0.3s ease !important;
+    position: relative;
+    overflow: hidden;
+}
+.hero-btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.5s ease;
+}
+.hero-btn-primary:hover::after {
+    left: 100%;
+}
+.hero-btn-primary:hover {
+    transform: translateY(-3px) scale(1.02) !important;
+    background-color: rgba(255, 255, 255, 0.97) !important;
+    box-shadow: 0 12px 30px rgba(255, 255, 255, 0.25) !important;
+}
+
+.hero-btn-secondary {
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), border-color 0.3s ease, background-color 0.3s ease !important;
+}
+.hero-btn-secondary:hover {
+    transform: translateY(-3px) scale(1.02) !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hero trust badges */
+.hero-trust-badge {
+    transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+.hero-trust-badge:hover {
+    transform: translateY(-2px) !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hero badge shimmer */
+.hero-badge-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+.hero-badge-shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -150%;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer-sweep 3s ease-in-out infinite;
+}
+@keyframes shimmer-sweep {
+    0% { left: -150%; }
+    50%, 100% { left: 150%; }
+}
+
+/* ============ SCROLL REVEAL ANIMATIONS ============ */
+.reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Staggered children reveal */
+.reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.reveal-stagger.revealed > *:nth-child(1) { transition-delay: 0.05s; }
+.reveal-stagger.revealed > *:nth-child(2) { transition-delay: 0.12s; }
+.reveal-stagger.revealed > *:nth-child(3) { transition-delay: 0.19s; }
+.reveal-stagger.revealed > *:nth-child(4) { transition-delay: 0.26s; }
+.reveal-stagger.revealed > *:nth-child(5) { transition-delay: 0.33s; }
+.reveal-stagger.revealed > *:nth-child(6) { transition-delay: 0.40s; }
+.reveal-stagger.revealed > * {
+    opacity: 0;
+    transform: translateY(30px);
+}
+.reveal-stagger.revealed > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Hero content entrance */
+.hero-enter {
+    animation: hero-slide-up 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.hero-enter--delay-1 { animation-delay: 0.15s; }
+.hero-enter--delay-2 { animation-delay: 0.3s; }
+.hero-enter--delay-3 { animation-delay: 0.45s; }
+.hero-enter--delay-4 { animation-delay: 0.6s; }
+.hero-enter--delay-5 { animation-delay: 0.75s; }
+
+@keyframes hero-slide-up {
+    0% { opacity: 0; transform: translateY(35px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Visual side fade-in from right */
+.hero-visual-enter {
+    animation: hero-visual-in 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.3s both;
+}
+@keyframes hero-visual-in {
+    0% { opacity: 0; transform: translateX(50px) scale(0.92); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ============ CARD HOVER MICRO-ANIMATIONS ============ */
+.card-hover-lift {
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                box-shadow 0.4s ease,
+                border-color 0.4s ease !important;
+}
+.card-hover-lift:hover {
+    transform: translateY(-8px) scale(1.05) !important;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15) !important;
+    border-color: var(--secondary) !important;
+}
+
+/* Step card icon pulse on hover */
+.step-icon-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+.card-hover-lift:hover .step-icon-hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(233, 196, 106, 0.4);
+}
+
+/* Bundle card image zoom */
+.bundle-img-zoom {
+    overflow: hidden;
+}
+.bundle-img-zoom > * {
+    transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+.card-hover-lift:hover .bundle-img-zoom > * {
+    transform: scale(1.08);
+}
+
+/* Category card arrow reveal */
+.category-arrow {
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    color: var(--primary);
+    margin-left: auto;
+}
+.card-hover-lift:hover .category-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Testimonial card subtle scale */
+.testimonial-hover {
+    transition: transform 0.35s ease, box-shadow 0.35s ease !important;
+}
+.testimonial-hover:hover {
+    transform: translateY(-4px) scale(1.02) !important;
+    box-shadow: 0 12px 35px rgba(233, 196, 106, 0.15) !important;
+}
+
+/* Stats counter glow */
+.stat-glow {
+    transition: text-shadow 0.4s ease !important;
+}
+.stat-glow:hover {
+    text-shadow: 0 0 30px rgba(233, 196, 106, 0.5);
+}
+
+/* Level card hover */
+.level-hover {
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease !important;
+}
+.level-hover:hover {
+    transform: translateY(-8px) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+    border-color: var(--secondary) !important;
+}
+
+/* CTA section pulse */
+.cta-pulse {
+    position: relative;
+    overflow: hidden;
+}
+.cta-pulse::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 60%);
+    transform: translate(-50%, -50%);
+    animation: cta-breathe 6s ease-in-out infinite;
+}
+@keyframes cta-breathe {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+    50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+
+/* Wishlist heart animation */
+.wishlist-heart {
+    transition: color 0.25s ease, transform 0.25s ease !important;
+}
+.wishlist-heart:hover {
+    color: var(--accent) !important;
+    transform: scale(1.3) !important;
+}
+
+/* Footer social icon hover */
+.social-hover {
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+.social-hover:hover {
+    transform: translateY(-3px) scale(1.1) !important;
+    background-color: var(--primary) !important;
+    box-shadow: 0 6px 20px rgba(30, 77, 75, 0.4) !important;
+}
+
+/* Progress bar animation */
+.progress-animate {
+    animation: progress-fill 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes progress-fill {
+    0% { width: 0%; }
+    100% { width: 40%; }
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f3f5;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--primary-light);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
