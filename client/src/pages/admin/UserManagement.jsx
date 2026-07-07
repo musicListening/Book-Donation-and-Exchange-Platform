@@ -194,66 +194,105 @@ export default function UserManagement() {
     }
   };
 
+  // Compute stats from filtered data
+  const totalUsers = filteredUsers.length;
+  const activeUsers = filteredUsers.filter(u => u.isActive).length;
+  const adminCount = filteredUsers.filter(u => u.role === "PLATFORM_ADMIN" || u.role === "COMMUNITY_ADMIN").length;
+  const totalPoints = filteredUsers.reduce((sum, u) => sum + (u.points || 0), 0);
+
   return (
     <AdminLayout title="Admin Console" hideHeaderLabel={true} hideNotifications={true}>
       <section className="user-management">
-        <div className="page-header">
-          <div>
-            <h2 className="page-title">User Management & Account Audits</h2>
-            <p className="page-subtitle">Manage system access and perform security audits.</p>
-          </div>
-          {/* Updated button to open modal */}
-          <button className="action-btn" onClick={() => setShowAddModal(true)}>
-            <span className="btn-icon">➕</span>
-            <span>Add New User</span>
-          </button>
-        </div>
-
-        {error && (
-          <div className="error-banner">⚠️ {error}</div>
-        )}
-
-        <div className="controls-bar">
-          <div className="search-box">
-            <span className="search-icon"></span>
-            <input type="text" placeholder="Search users by Name, ID, or Email..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <div className="filters">
-            <div className="filter-group">
-              <label>Role:</label>
-              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                {roles.map((role) => (<option key={role} value={role}>{role}</option>))}
-              </select>
+        {/* ── Hero Panel ── */}
+        <div className="um-hero-panel">
+          <div className="um-hero-grid">
+            <div>
+              <p className="um-hero-intro-label">Administration</p>
+              <h1 className="um-hero-headline">
+                User Management <span className="um-hero-headline-italic">& Audits</span>
+              </h1>
+              <p className="um-hero-description">
+                Manage system access, monitor user activity, and perform security audits across the entire platform.
+              </p>
+              <button className="um-hero-action-btn" onClick={() => setShowAddModal(true)}>
+                <span className="btn-icon">➕</span>
+                <span>Add New User</span>
+              </button>
             </div>
-            <div className="filter-group">
-              <label>Status:</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                {statuses.map((status) => (<option key={status} value={status}>{status}</option>))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="table-card">
-          <div className="table-responsive">
-            {loading ? (
-              <div className="loading-state">
-                <span className="loading-spinner">⏳</span>
-                <p>Loading users from database...</p>
+            <div className="um-hero-stats-grid">
+              <div className="um-hero-stat-box">
+                <p className="um-hero-stat-label">Total Users</p>
+                <p className="um-hero-stat-value">{totalUsers}</p>
+                <p className="um-hero-stat-hint">matching current filters</p>
               </div>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>User ID</th>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th className="text-center">Level</th>
-                    <th className="text-right">Points Balance</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
+              <div className="um-hero-stat-box">
+                <p className="um-hero-stat-label">Active Users</p>
+                <p className="um-hero-stat-value">{activeUsers}</p>
+                <p className="um-hero-stat-hint">currently enabled</p>
+              </div>
+              <div className="um-hero-stat-box">
+                <p className="um-hero-stat-label">Admins</p>
+                <p className="um-hero-stat-value">{adminCount}</p>
+                <p className="um-hero-stat-hint">platform & community</p>
+              </div>
+              <div className="um-hero-stat-box">
+                <p className="um-hero-stat-label">Total Points</p>
+                <p className="um-hero-stat-value">{totalPoints.toLocaleString()}</p>
+                <p className="um-hero-stat-hint">across all users</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="um-content-wrapper">
+          {error && (
+            <div className="error-banner">⚠️ {error}</div>
+          )}
+
+          <div className="controls-bar">
+            <div className="search-box">
+              <span className="search-icon"></span>
+              <input type="text" placeholder="Search users by Name, ID, or Email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="filters">
+              <div className="filter-group">
+                <label>Role:</label>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                  {roles.map((role) => (<option key={role} value={role}>{role}</option>))}
+                </select>
+              </div>
+              <div className="filter-group">
+                <label>Status:</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  {statuses.map((status) => (<option key={status} value={status}>{status}</option>))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="table-card">
+            <div className="table-header-bar">
+              <span className="records-badge">{filteredUsers.length} users found</span>
+            </div>
+            <div className="table-responsive">
+              {loading ? (
+                <div className="loading-state">
+                  <span className="loading-spinner">⏳</span>
+                  <p>Loading users from database...</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>User ID</th>
+                      <th>Name</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th className="text-center">Level</th>
+                      <th className="text-right">Points Balance</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {paginatedUsers.length === 0 ? (
                     <tr><td colSpan="7" className="empty-state">No users found matching your filters.</td></tr>
@@ -271,7 +310,7 @@ export default function UserManagement() {
                               <div>
                                 <span className="user-name">{user.name}</span>
                                 <br />
-                                <span style={{ fontSize: "12px", color: "#767777" }}>{user.email}</span>
+                                <span className="user-email">{user.email}</span>
                               </div>
                             </div>
                           </td>
@@ -286,7 +325,7 @@ export default function UserManagement() {
                             </span>
                           </td>
                           <td className="text-center">{user.level}</td>
-                          <td className="text-right">{user.points?.toLocaleString()}</td>
+                          <td className="text-right points-col">{user.points?.toLocaleString()}</td>
                           <td className="text-right">
                             <div className="action-buttons">
                               <button className="action-text-btn" onClick={() => openEditModal(user)}>Edit</button>
@@ -327,6 +366,7 @@ export default function UserManagement() {
               <button className="page-btn" disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage((p) => p + 1)}>▶</button>
             </div>
           </div>
+        </div>
         </div>
 
         {/* === NEW: Add User Modal === */}
