@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const prisma = require('../db');
+const { prisma } = require('../db');
 
 // 1. GET ALL USERS
 router.get('/', async (req, res) => {

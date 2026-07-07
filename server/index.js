@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const prisma = require('./db');
+const { prisma, warmUpDb } = require('./db');
 const app = express();
 
 // 1. ENABLE CORS (MUST BE AT THE VERY TOP, BEFORE ROUTES!)
@@ -58,25 +58,24 @@ app.get('/api/health', (req, res) => {
 // 6. Connect to database and Start Server
 const PORT = process.env.PORT || 5000;
 
-prisma.$connect()
-    .then(() => {
-        console.log(`💾 Neon Database connected successfully!`);
-    })
-    .catch((err) => {
-        console.error(`❌ Database connection failed:`, err);
+warmUpDb()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🟢 Server running on http://localhost:${PORT}`);
+      console.log(`📚 Registered API Routes:`);
+      console.log(`   - [POST/GET] /api/auth/*`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
+      console.log(`   - [GET] /api/admin/*`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/tasks`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/shipments`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/collections`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/books`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
+      console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
+      console.log(`   - [GET] /api/health`);
     });
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🟢 Server running on http://localhost:${PORT}`);
-    console.log(`📚 Registered API Routes:`);
-    console.log(`   - [POST/GET] /api/auth/*`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
-    console.log(`   - [GET] /api/admin/*`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/tasks`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/shipments`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/collections`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/books`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
-    console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
-    console.log(`   - [GET] /api/health`);
-});
+  })
+  .catch(err => {
+    console.error('❌ Failed to start server due to DB connection error:', err);
+    process.exit(1);
+  });
