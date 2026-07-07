@@ -1,4 +1,4 @@
-import '../../styles/Delivery.css';
+import '../../styles/delivery.css';
 
 const DeliveryPersonPage = () => {
   return (

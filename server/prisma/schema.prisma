@@ -35,7 +35,9 @@ model User {
   Payment                                         Payment[]
   PointTransaction_PointTransaction_staffIdToUser PointTransaction[] @relation("PointTransaction_staffIdToUser")
   PointTransaction_PointTransaction_userIdToUser  PointTransaction[] @relation("PointTransaction_userIdToUser")
+  Shipment                                        Shipment[]
   SystemConfig                                    SystemConfig[]
+  Task                                            Task[]
 }
 
 model DonationRequest {
@@ -314,6 +316,35 @@ model SystemConfig {
   updatedBy   String?
   updatedAt   DateTime @default(now())
   User        User?    @relation(fields: [updatedBy], references: [id], onUpdate: NoAction)
+}
+
+model Shipment {
+  id         String   @id
+  orderId    String   @unique
+  recipient  String
+  location   String
+  items      String
+  status     String
+  lastUpdate String
+  driver     String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  User       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id        String   @id
+  taskId    String   @unique
+  donor     String
+  location  String
+  volume    String
+  date      String
+  status    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import AuthModal from './AuthModal';
 import './Navbar.css';
 
 /**
@@ -21,6 +22,7 @@ export default function Navbar({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login' });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,7 +52,7 @@ export default function Navbar({
   const publicLinks = [
     { to: '/', label: 'Home' },
     { label: 'How It Works', hash: 'how-it-works' },
-    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/login?redirect=/marketplace', label: 'Marketplace', requiresLogin: true },
     { label: 'About', hash: 'about' },
   ];
 
@@ -144,8 +146,8 @@ export default function Navbar({
           <div className="ss-navbar__actions">
             {variant === 'public' && (
               <>
-                <Link to="/signup" className="ss-navbar__btn ss-navbar__btn--ghost">Sign Up</Link>
-                <Link to="/login" className="ss-navbar__btn ss-navbar__btn--primary">Log In</Link>
+                <button onClick={() => setAuthModal({ isOpen: true, mode: 'signup' })} className="ss-navbar__btn ss-navbar__btn--ghost">Sign Up</button>
+                <button onClick={() => setAuthModal({ isOpen: true, mode: 'login' })} className="ss-navbar__btn ss-navbar__btn--primary">Log In</button>
               </>
             )}
 
@@ -191,9 +193,9 @@ export default function Navbar({
             )}
 
             {variant === 'community' && (
-              <Link to="/login" className="ss-navbar__btn ss-navbar__btn--primary">
+              <button onClick={() => setAuthModal({ isOpen: true, mode: 'login' })} className="ss-navbar__btn ss-navbar__btn--primary">
                 Sign In
-              </Link>
+              </button>
             )}
 
             {/* ── MOBILE HAMBURGER ── */}
@@ -249,8 +251,8 @@ export default function Navbar({
           <div className="ss-navbar__mobile-actions">
             {variant === 'public' && (
               <>
-                <Link to="/signup" className="ss-navbar__btn ss-navbar__btn--ghost" onClick={() => setMobileOpen(false)}>Sign Up</Link>
-                <Link to="/login" className="ss-navbar__btn ss-navbar__btn--primary" onClick={() => setMobileOpen(false)}>Log In</Link>
+                <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'signup' }); }} className="ss-navbar__btn ss-navbar__btn--ghost">Sign Up</button>
+                <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'login' }); }} className="ss-navbar__btn ss-navbar__btn--primary">Log In</button>
               </>
             )}
             {variant === 'user' && user && (
@@ -263,6 +265,12 @@ export default function Navbar({
       </header>
       {/* Spacer so content doesn't hide under fixed navbar */}
       <div className="ss-navbar__spacer" />
+
+      <AuthModal 
+        isOpen={authModal.isOpen} 
+        initialMode={authModal.mode} 
+        onClose={() => setAuthModal(prev => ({ ...prev, isOpen: false }))} 
+      />
     </>
   );
 }

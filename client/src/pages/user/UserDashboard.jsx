@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
+import { systemConfigAPI } from '../../services/api';
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
+  const [levels, setLevels] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -13,6 +15,31 @@ const UserDashboard = () => {
       return;
     }
     setUser(storedUser);
+
+    // Fetch fresh user data and level config
+    const fetchData = async () => {
+      try {
+        const config = await systemConfigAPI.getAll();
+        if (config.LEVEL_THRESHOLDS) {
+          try {
+            const parsed = JSON.parse(config.LEVEL_THRESHOLDS);
+            setLevels(parsed);
+          } catch {}
+        }
+        // Try to get fresh user data
+        try {
+          const res = await fetch(`http://localhost:5000/api/users`);
+          const users = await res.json();
+          const freshUser = users.find(u => u.id === storedUser.id);
+          if (freshUser) {
+            setUser(freshUser);
+            localStorage.setItem('user', JSON.stringify(freshUser));
+            localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
+          }
+        } catch {}
+      } catch {}
+    };
+    fetchData();
   }, [navigate]);
 
   const logout = () => {
@@ -22,16 +49,32 @@ const UserDashboard = () => {
     navigate('/login');
   };
 
-  // Level is stored as an integer (1, 2, 3) in the DB
-  const levels = [
-    { name: 'Book Lover',     min: 0,   next: 250,   nextName: 'Bibliophile' },
-    { name: 'Bibliophile',    min: 251, next: 750,   nextName: 'Grand Librarian' },
-    { name: 'Grand Librarian',min: 751, next: 10000, nextName: 'Legendary Reader' },
-  ];
+  // Build level info from dynamic thresholds
+  const getLevelInfo = () => {
+    if (levels.length === 0) {
+      return { name: 'Book Lover', min: 0, next: 250, nextName: 'Bibliophile', progress: 50 };
+    }
+    const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
+    const currentLevel = user?.level || 1;
+    const idx = sorted.findIndex(l => l.level === currentLevel);
+    const current = sorted[idx] || sorted[0];
+    const next = sorted[idx + 1] || sorted[idx];
+    const min = parseInt(current.minPoints) || 0;
+    const nextMin = parseInt(next.minPoints) || min;
+    const pts = user?.points || 0;
+    const range = nextMin - min;
+    const progress = range > 0 ? Math.min(100, Math.max(5, ((pts - min) / range) * 100)) : 100;
+    return {
+      name: current.name || `Level ${current.level}`,
+      min,
+      next: nextMin,
+      nextName: next !== current ? (next.name || `Level ${next.level}`) : 'Max Level',
+      progress,
+    };
+  };
 
-  const levelIndex = Math.max(0, Math.min((user?.level ?? 1) - 1, levels.length - 1));
-  const currentLevelInfo = levels[levelIndex];
-  const progress = user ? Math.min(100, Math.max(5, ((user.points - currentLevelInfo.min) / (currentLevelInfo.next - currentLevelInfo.min)) * 100)) : 0;
+  const currentLevelInfo = getLevelInfo();
+  const progress = currentLevelInfo.progress;
 
   const activities = [
     { type: 'donation', title: 'Points Credited', desc: 'Verified 5 Fiction books', points: '+50', time: '2 hours ago' },
@@ -58,7 +101,22 @@ const UserDashboard = () => {
     activityItem: { display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid #DEE2E6' },
     activityIcon: { width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
     alertCard: { background: 'linear-gradient(135deg, #FFF5EC 0%, #FFE8D6 100%)', border: '1px solid #F4A261', borderRadius: 12, padding: 20, marginBottom: 24, display: 'flex', gap: 16 },
-    featuredBundle: { background: '#1E4D4B', color: 'white', borderRadius: 16, padding: 24 }
+    featuredBundle: { background: '#1E4D4B', color: 'white', borderRadius: 16, padding: 24 },
+    communityBtn: {
+      background: '#E9C46A',
+      color: '#343A40',
+      padding: '10px 24px',
+      borderRadius: 50,
+      textDecoration: 'none',
+      fontWeight: 600,
+      fontSize: 14,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      transition: 'all 0.3s ease',
+      border: 'none',
+      cursor: 'pointer'
+    }
   };
 
   if (!user) return <div>Loading...</div>;
@@ -69,8 +127,16 @@ const UserDashboard = () => {
 
       <main style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
-          <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
-          <p>Here's what's happening with your library today.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
+              <p>Here's what's happening with your library today.</p>
+            </div>
+            {/* Community Button */}
+            <Link to="/community-home" style={styles.communityBtn}>
+              <i className="fa-solid fa-users"></i> Community
+            </Link>
+          </div>
         </div>
 
         <div style={styles.dashboardGrid}>
