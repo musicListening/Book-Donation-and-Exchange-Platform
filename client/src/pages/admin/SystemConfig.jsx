@@ -90,9 +90,10 @@ export default function SystemConfig() {
   // ── Mystery Box Per-Level Config handlers ──
   const handleAddMysteryBoxConfig = () => {
     const usedLevels = mysteryBoxConfigs.map(c => c.level);
-    const availableLevel = levels.find(l => !usedLevels.includes(l.level));
+    const unlockedLevelNums = mysteryBoxLocks.map(lock => parseInt(lock.level, 10));
+    const availableLevel = levels.find(l => unlockedLevelNums.includes(l.level) && !usedLevels.includes(l.level));
     if (!availableLevel) {
-      setMessage({ type: 'error', text: 'All levels already have mystery box configs. Add more levels first.' });
+      setMessage({ type: 'error', text: 'No more eligible levels. Ensure the level has a Level Unlock and doesn\'t already have a mystery box config.' });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
