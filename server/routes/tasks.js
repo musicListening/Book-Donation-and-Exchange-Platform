@@ -1,109 +1,184 @@
-// server/routes/tasks.js
-const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const express = require("express");
 const router = express.Router();
+const { PrismaClient } = require("@prisma/client");
 
-// Generate task ID (e.g., "#SL-88210")
-const generateTaskId = () => {
-    const random = Math.floor(10000 + Math.random() * 90000);
-    return `#SL-${random}`;
-};
+const prisma = new PrismaClient();
 
-// ===== CREATE Task =====
-router.post('/', async (req, res) => {
+
+// ================= GET ALL TASKS =================
+router.get("/", async (req, res) => {
     try {
-        const { donor, location, volume, status, userId } = req.body;
-
-        const task = await prisma.task.create({
-            data: {
-                taskId: generateTaskId(),
-                donor,
-                location,
-                volume,
-                date: new Date().toLocaleString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }),
-                status: status || 'Pending',
-                userId,
+        const tasks = await prisma.task.findMany({
+            orderBy: {
+                createdAt: "desc"
             }
         });
 
-        res.status(201).json(task);
-    } catch (error) {
-        console.error('Error creating task:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ===== READ ALL Tasks =====
-router.get('/', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        const where = userId ? { userId } : {};
-
-        const tasks = await prisma.task.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        });
-
         res.json(tasks);
+
     } catch (error) {
-        console.error('Error fetching tasks:', error);
-        res.status(500).json({ error: error.message });
+        console.error("LOAD TASK ERROR:", error);
+        res.status(500).json({
+            error: "Failed to load tasks"
+        });
     }
 });
 
-// ===== UPDATE Task =====
-router.put('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { donor, location, volume, status } = req.body;
 
-        const task = await prisma.task.update({
-            where: { id },
-            data: { donor, location, volume, status }
+// ================= CREATE TASK =================
+router.post("/", async (req, res) => {
+    try {
+        const {
+            donor,
+            location,
+            volume,
+            status,
+            userId
+        } = req.body;
+
+
+        // Check user ID
+        if (!userId) {
+            return res.status(400).json({
+                error: "User ID is required"
+            });
+        }
+
+
+        // Check user exists
+        const user = await prisma.user.findUnique({
+            where: {
+                id: userId
+            }
         });
 
-        res.json(task);
-    } catch (error) {
-        console.error('Error updating task:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
-// ===== UPDATE Task Status (for dropdown) =====
-router.put('/:id/status', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
+        if (!user) {
+            return res.status(404).json({
+                error: "User not found"
+            });
+        }
 
-        const task = await prisma.task.update({
-            where: { id },
-            data: { status }
+
+        const task = await prisma.task.create({
+            data: {
+                id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+
+                taskId: `#SL-${Date.now().toString().slice(-6)}`,
+
+                donor: donor,
+
+                location: location,
+
+                volume: volume,
+
+                date: new Date()
+                    .toISOString()
+                    .split("T")[0],
+
+                status: status || "Pending",
+
+                userId: userId,
+
+                createdAt: new Date(),
+
+                updatedAt: new Date()
+            }
         });
 
-        res.json(task);
+
+        res.status(201).json(task);
+
+
     } catch (error) {
-        console.error('Error updating task status:', error);
-        res.status(500).json({ error: error.message });
+
+        console.error("CREATE TASK ERROR:", error);
+
+        res.status(500).json({
+            error: error.message
+        });
     }
 });
 
-// ===== DELETE Task =====
-router.delete('/:id', async (req, res) => {
+
+
+// ================= UPDATE TASK =================
+router.put("/:id", async (req, res) => {
     try {
-        const { id } = req.params;
-        await prisma.task.delete({ where: { id } });
-        res.json({ message: 'Task deleted successfully' });
+
+        const {
+            donor,
+            location,
+            volume,
+            status
+        } = req.body;
+
+
+        const task = await prisma.task.update({
+
+            where: {
+                id: req.params.id
+            },
+
+            data: {
+
+                donor,
+
+                location,
+
+                volume,
+
+                status,
+
+                updatedAt: new Date()
+            }
+        });
+
+
+        res.json(task);
+
+
     } catch (error) {
-        console.error('Error deleting task:', error);
-        res.status(500).json({ error: error.message });
+
+        console.error("UPDATE TASK ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to update task"
+        });
     }
 });
+
+
+
+// ================= DELETE TASK =================
+router.delete("/:id", async (req, res) => {
+
+    try {
+
+        await prisma.task.delete({
+
+            where: {
+                id: req.params.id
+            }
+
+        });
+
+
+        res.json({
+            message: "Task deleted successfully"
+        });
+
+
+    } catch (error) {
+
+        console.error("DELETE TASK ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to delete task"
+        });
+    }
+
+});
+
 
 module.exports = router;
