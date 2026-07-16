@@ -318,8 +318,7 @@ body:has(.app-container) {
 }
 
 .user-role {
-  font-size: 14px;
-  color: #767777;
+  display: none !important; /* HIDE the text */
 }
 
 .user-avatar {
@@ -349,14 +348,7 @@ body:has(.app-container) {
 }
 
 .user-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: #E9C46A;
-  background: rgba(233, 196, 106, 0.15);
-  padding: 4px 10px;
-  border-radius: 20px;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
+  display: none !important; /* HIDE the role text */
 }
 
 /* ============================================
@@ -1760,7 +1752,10 @@ body:has(.app-container) {
     width: 100%;
   }
   .user-title {
-    display: none;
+    display: none !important;
+  }
+  .user-role {
+    display: none !important;
   }
   .condition-options {
     grid-template-columns: 1fr;
@@ -1829,219 +1824,46 @@ body:has(.app-container) {
 }
 
 /* ============================================
-   STAFF TOP BAR ENHANCEMENTS
+   STAFF TOP BAR ENHANCEMENTS (HIDDEN)
    ============================================ */
 
-.staff-datetime {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(26, 107, 104, 0.06);
-  border: 1px solid rgba(26, 107, 104, 0.12);
-  border-radius: 10px;
-  padding: 6px 14px;
-  font-size: 12px;
-  color: #5c6a6a;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.staff-notification-btn {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  background: rgba(26, 107, 104, 0.06);
-  border: 1px solid rgba(26, 107, 104, 0.12);
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  font-size: 18px;
-}
-
-.staff-notification-btn:hover {
-  background: rgba(26, 107, 104, 0.12);
-}
-
-.notification-badge {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #e76f51;
-  border: 1.5px solid white;
-}
-
-/* User menu wrapper */
-.staff-user-menu-wrapper {
-  position: relative;
-}
-
+/* Hide all top bar user info elements */
+.staff-datetime,
+.staff-notification-btn,
+.staff-user-menu-wrapper,
 .staff-user-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(26, 107, 104, 0.06);
-  border: 1px solid rgba(26, 107, 104, 0.15);
-  border-radius: 12px;
-  padding: 6px 12px 6px 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  display: none !important;
 }
 
-.staff-user-btn:hover {
-  background: rgba(26, 107, 104, 0.1);
-}
-
-.staff-user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #1a6b68, #0f4f4d);
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
+/* Keep only the avatar in the top right */
+.user-info .user-avatar {
+  display: flex !important;
+  width: 36px;
+  height: 36px;
+  background: #E9C46A;
+  border-radius: 50%;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(26, 107, 104, 0.3);
+  color: #1E4D4B;
+  font-weight: 600;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
+/* Ensure user-info only shows avatar */
+.user-info {
+  display: flex !important;
+  align-items: center;
+  gap: 0 !important;
+}
+
+.user-role,
+.user-title,
+.staff-user-name,
+.staff-user-role-badge,
+.dropdown-arrow,
 .staff-user-info-text {
-  text-align: left;
-  line-height: 1.3;
-}
-
-.staff-user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e2a2a;
-  white-space: nowrap;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.staff-user-role-badge {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: #1a6b68;
-}
-
-.dropdown-arrow {
-  font-size: 12px;
-  color: #8a9a9a;
-  transition: transform 0.2s ease;
-}
-
-/* Dropdown overlay */
-.dropdown-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 199;
-}
-
-/* Staff dropdown */
-.staff-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 220px;
-  background: white;
-  border: 1px solid rgba(26, 107, 104, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 16px 48px rgba(26, 107, 104, 0.14);
-  padding: 8px;
-  z-index: 300;
-}
-
-.staff-dropdown-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px 12px;
-  border-bottom: 1px solid rgba(26, 107, 104, 0.08);
-  margin-bottom: 6px;
-}
-
-.staff-dropdown-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, #1a6b68, #0f4f4d);
-  color: white;
-  font-size: 15px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 10px rgba(26, 107, 104, 0.3);
-}
-
-.staff-dropdown-name {
-  font-weight: 700;
-  font-size: 13px;
-  color: #1e2a2a;
-}
-
-.staff-dropdown-role {
-  font-size: 11px;
-  color: white;
-  background: linear-gradient(135deg, #1a6b68, #2a9d8f);
-  padding: 2px 8px;
-  border-radius: 50px;
-  display: inline-block;
-  margin-top: 3px;
-  font-weight: 600;
-}
-
-.staff-dropdown-greeting {
-  padding: 8px 12px;
-  font-size: 11px;
-  color: #8a9a9a;
-}
-
-.staff-dropdown-divider {
-  border-top: 1px solid rgba(26, 107, 104, 0.08);
-  margin: 6px 0;
-}
-
-.staff-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 12px;
-  border: none;
-  background: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: #5c6a6a;
-  text-align: left;
-  transition: all 0.15s;
-}
-
-.staff-dropdown-item:hover {
-  background: rgba(26, 107, 104, 0.07);
-  color: #1a6b68;
-}
-
-.staff-dropdown-logout {
-  color: #c65d53;
-  font-weight: 600;
-}
-
-.staff-dropdown-logout:hover {
-  background: rgba(198, 93, 83, 0.08);
+  display: none !important;
 }
 
 /* Page content wrapper */
@@ -2050,35 +1872,645 @@ body:has(.app-container) {
   min-height: calc(100vh - 100px);
 }
 
-/* Responsive adjustments for new elements */
+/* Responsive adjustments */
 @media (max-width: 768px) {
-  .staff-user-name {
-    display: none;
-  }
-  
-  .staff-datetime {
-    font-size: 10px;
-    padding: 4px 10px;
-  }
-  
-  .staff-user-btn {
-    padding: 6px 8px 6px 6px;
-  }
-  
-  .staff-dropdown {
-    right: -20px;
-    min-width: 200px;
+  .user-info .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
   }
 }
 
 @media (max-width: 480px) {
-  .staff-datetime {
-    display: none;
+  .user-info .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+}
+
+/* ============================================
+   DONATION SCHEDULE ADDITIONAL STYLES
+   ============================================ */
+
+/* Loading State */
+.loading-container {
+  padding: 40px;
+  text-align: center;
+}
+
+.loading-container h2 {
+  color: #64748b;
+}
+
+/* Panel Header */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.panel-header h3 {
+  margin: 0;
+}
+
+.pending-count {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.refresh-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-add-appointment {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #1E4D4B;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-add-appointment:hover {
+  background: #153d3b;
+}
+
+/* Empty States */
+.empty-state {
+  text-align: center;
+  color: #64748b;
+  padding: 20px;
+}
+
+.empty-appointments {
+  text-align: center;
+  color: #64748b;
+  padding: 40px 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.empty-appointments p {
+  font-size: 16px;
+  margin: 0;
+}
+
+.empty-subtext {
+  font-size: 13px;
+  margin: 8px 0 0 0 !important;
+}
+
+/* Donation Items */
+.donation-item {
+  background: white;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.donation-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.donation-item.pending {
+  border-left: 3px solid #ff9800;
+}
+
+.donation-item.verified {
+  border-left: 3px solid #4caf50;
+  opacity: 0.8;
+}
+
+.donation-item.rejected {
+  border-left: 3px solid #f44336;
+}
+
+.donation-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.donation-info {
+  flex: 1;
+}
+
+.donation-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.donation-date {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.donor-name {
+  margin: 4px 0;
+  font-size: 16px;
+}
+
+.donation-details {
+  margin: 2px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.collection-badge {
+  display: inline-block;
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+.donation-location {
+  margin: 2px 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.donation-notes {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.points-awarded {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #1E4D4B;
+  font-weight: bold;
+}
+
+.rejection-notes {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #f44336;
+}
+
+.submitted-time {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #999;
+}
+
+.donation-action {
+  margin-left: 12px;
+}
+
+.btn-verify {
+  background: #1E4D4B;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-verify:hover {
+  background: #153d3b;
+}
+
+.verified-badge {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.rejected-badge {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #f44336;
+  font-weight: bold;
+}
+
+/* Today's Date Display */
+.today-date-display {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #f0f7f6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1E4D4B;
+  font-weight: 500;
+}
+
+.appointment-count {
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: normal;
+}
+
+/* Status Chips */
+.status-chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.chip.arrived {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.chip.in-transit {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.chip.scheduled {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* Appointment Items */
+.appointment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.appointment-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.appointment-item.status-arrived {
+  border-left: 4px solid #4caf50;
+}
+
+.appointment-item.status-in_transit {
+  border-left: 4px solid #ff9800;
+}
+
+.appointment-item.status-scheduled {
+  border-left: 4px solid #2196f3;
+}
+
+.appointment-info {
+  flex: 1;
+}
+
+.appointment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.appointment-header .donor-name {
+  font-size: 15px;
+}
+
+.donation-id-badge {
+  font-size: 10px;
+  background: #e3f2fd;
+  color: #0d47a1;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.appointment-type {
+  font-size: 13px;
+  color: #555;
+  margin-top: 4px;
+}
+
+.book-count {
+  margin-left: 8px;
+  color: #64748b;
+}
+
+.appointment-details {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.contact-info {
+  margin-left: 12px;
+}
+
+.appointment-notes {
+  margin-left: 12px;
+  font-style: italic;
+}
+
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-edit:hover {
+  background: #f5f5f5;
+}
+
+.btn-delete {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: none;
+  background: #dc3545;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-delete:hover {
+  background: #c82333;
+}
+
+/* Modal Styles - Enhanced */
+.modal-subtitle {
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.user-submitted-info {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.user-submitted-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.info-grid {
+  font-size: 14px;
+}
+
+.info-grid p {
+  margin: 4px 0;
+}
+
+.staff-verification {
+  margin-bottom: 20px;
+}
+
+.staff-verification h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-group.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.form-control:focus {
+  border-color: #E9C46A;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(233, 196, 106, 0.2);
+}
+
+textarea.form-control {
+  min-height: 60px;
+  resize: vertical;
+}
+
+/* Points Calculation */
+.points-calculation {
+  background: #e8f5e9;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.points-calculation h4 {
+  margin: 0 0 8px 0;
+  color: #2e7d32;
+}
+
+.points-details {
+  font-size: 14px;
+}
+
+.points-details p {
+  margin: 4px 0;
+}
+
+.bonus-points {
+  color: #2e7d32;
+}
+
+.total-points {
+  margin: 8px 0 0 0;
+  font-weight: bold;
+  font-size: 18px;
+  color: #1E4D4B;
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #e5e5e5;
+  padding-top: 20px;
+}
+
+.btn-cancel {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background: white;
+}
+
+.btn-cancel:hover {
+  background: #f5f5f5;
+}
+
+.btn-reject {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #dc3545;
+  color: white;
+}
+
+.btn-reject:hover {
+  background: #c82333;
+}
+
+.btn-verify-confirm {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #1E4D4B;
+  color: white;
+}
+
+.btn-verify-confirm:hover {
+  background: #153d3b;
+}
+
+.btn-save {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #1E4D4B;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #153d3b;
+}
+
+/* Appointment Modal */
+.appointment-modal {
+  max-width: 500px;
+}
+
+/* Schedule Actions */
+.schedule-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Today Stats Card */
+.stat-card.today-stats {
+  border-left: 3px solid #1E4D4B;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .donation-content {
+    flex-direction: column;
   }
   
-  .staff-notification-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
+  .donation-action,
+  .verified-badge,
+  .rejected-badge {
+    margin-left: 0;
+    margin-top: 8px;
+    width: 100%;
+  }
+  
+  .donation-action button {
+    width: 100%;
+  }
+  
+  .appointment-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .appointment-actions {
+    margin-top: 8px;
+    justify-content: flex-start;
+  }
+  
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .panel-actions {
+    width: 100%;
+  }
+  
+  .panel-actions button {
+    flex: 1;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  .schedule-actions {
+    flex-direction: column;
+  }
+  
+  .schedule-actions button {
+    width: 100%;
   }
 }
