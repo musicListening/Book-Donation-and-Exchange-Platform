@@ -63,7 +63,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <AdminLayout title="Admin Console">
+    <AdminLayout title="Admin Console" hideNotifications={true}>
         <div className="loading-box">
           <span className="loading-spinner-char">⏳</span>
           <p className="loading-text">Loading dashboard analytics...</p>
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
   const craftListingsStr = (stats.craftListings || 0).toLocaleString();
 
   return (
-    <AdminLayout title="Admin Console">
+    <AdminLayout title="Admin Console" hideNotifications={true}>
       <header className="dashboard-header-bar">
         <div className="dashboard-header-inner">
           <div className="dashboard-header-title-block">

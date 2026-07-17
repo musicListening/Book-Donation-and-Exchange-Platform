@@ -125,7 +125,7 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// 4. DELETE USER PERMANENTLY
+// 5. DELETE USER PERMANENTLY
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;

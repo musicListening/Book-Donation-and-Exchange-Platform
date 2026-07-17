@@ -26,6 +26,15 @@ export const adminAPI = {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   },
+  getReport: async (type, startDate, endDate) => {
+    const params = new URLSearchParams({ type, startDate, endDate });
+    console.log(`📡 GET /admin/report?${params}`);
+    const response = await fetch(`${API_BASE}/admin/report?${params}`, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
 };
 
 // ===== TASK API (Staff Dashboard) =====

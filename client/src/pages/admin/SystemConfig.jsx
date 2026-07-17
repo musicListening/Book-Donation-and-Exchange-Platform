@@ -22,6 +22,9 @@ export default function SystemConfig() {
   const [rareCollectionMinLevel, setRareCollectionMinLevel] = useState("2");
   const [mysteryBoxLocks, setMysteryBoxLocks] = useState([]);
 
+  // NEW: Per-level mystery box configs
+  const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
+
   useEffect(() => {
     loadConfig();
   }, []);
@@ -39,14 +42,13 @@ export default function SystemConfig() {
       if (config.RARE_COLLECTION_MIN_LEVEL) setRareCollectionMinLevel(config.RARE_COLLECTION_MIN_LEVEL);
 
       if (config.LEVEL_THRESHOLDS) {
-        try {
-          setLevels(JSON.parse(config.LEVEL_THRESHOLDS));
-        } catch {}
+        try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
       }
       if (config.MYSTERY_BOX_LOCKS) {
-        try {
-          setMysteryBoxLocks(JSON.parse(config.MYSTERY_BOX_LOCKS));
-        } catch {}
+        try { setMysteryBoxLocks(JSON.parse(config.MYSTERY_BOX_LOCKS)); } catch {}
+      }
+      if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+        try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
       }
     } catch (err) {
       setMessage({ type: 'error', text: 'Failed to load configuration' });
@@ -55,6 +57,7 @@ export default function SystemConfig() {
     }
   };
 
+  // ── Level handlers ──
   const handleAddTier = () => {
     const newId = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
     setLevels([...levels, { level: newId, minPoints: "0", name: "New Level", reward: "TBD" }]);
@@ -66,8 +69,10 @@ export default function SystemConfig() {
 
   const handleDeleteLevel = (level) => {
     setLevels(levels.filter(l => l.level !== level));
+    setMysteryBoxConfigs(mysteryBoxConfigs.filter(c => c.level !== level));
   };
 
+  // ── Mystery Box Lock handlers ──
   const handleAddLock = () => {
     setMysteryBoxLocks([...mysteryBoxLocks, { level: "1", unlock: "New Unlock" }]);
   };
@@ -82,6 +87,64 @@ export default function SystemConfig() {
     setMysteryBoxLocks(mysteryBoxLocks.filter((_, i) => i !== idx));
   };
 
+  // ── Mystery Box Per-Level Config handlers ──
+  const handleAddMysteryBoxConfig = () => {
+    const usedLevels = mysteryBoxConfigs.map(c => c.level);
+    const unlockedLevelNums = mysteryBoxLocks.map(lock => parseInt(lock.level, 10));
+    const availableLevel = levels.find(l => unlockedLevelNums.includes(l.level) && !usedLevels.includes(l.level));
+    if (!availableLevel) {
+      setMessage({ type: 'error', text: 'No more eligible levels. Ensure the level has a Level Unlock and doesn\'t already have a mystery box config.' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setMysteryBoxConfigs([...mysteryBoxConfigs, {
+      level: availableLevel.level,
+      points: 100,
+      books: 3,
+      bookTitles: []
+    }]);
+  };
+
+  const handleMysteryBoxConfigChange = (level, field, value) => {
+    setMysteryBoxConfigs(mysteryBoxConfigs.map(c => c.level === level ? { ...c, [field]: value } : c));
+  };
+
+  const handleDeleteMysteryBoxConfig = (level) => {
+    setMysteryBoxConfigs(mysteryBoxConfigs.filter(c => c.level !== level));
+  };
+
+  const handleAddBookTitle = (level) => {
+    setMysteryBoxConfigs(mysteryBoxConfigs.map(c => {
+      if (c.level === level) {
+        return { ...c, bookTitles: [...(c.bookTitles || []), ""] };
+      }
+      return c;
+    }));
+  };
+
+  const handleBookTitleChange = (level, bookIdx, value) => {
+    setMysteryBoxConfigs(mysteryBoxConfigs.map(c => {
+      if (c.level === level) {
+        const titles = [...(c.bookTitles || [])];
+        titles[bookIdx] = value;
+        return { ...c, bookTitles: titles };
+      }
+      return c;
+    }));
+  };
+
+  const handleRemoveBookTitle = (level, bookIdx) => {
+    setMysteryBoxConfigs(mysteryBoxConfigs.map(c => {
+      if (c.level === level) {
+        const titles = [...(c.bookTitles || [])];
+        titles.splice(bookIdx, 1);
+        return { ...c, bookTitles: titles };
+      }
+      return c;
+    }));
+  };
+
+  // ── Save ──
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -96,6 +159,7 @@ export default function SystemConfig() {
         RARE_COLLECTION_MIN_LEVEL: rareCollectionMinLevel,
         LEVEL_THRESHOLDS: JSON.stringify(levels),
         MYSTERY_BOX_LOCKS: JSON.stringify(mysteryBoxLocks),
+        MYSTERY_BOX_LEVEL_CONFIG: JSON.stringify(mysteryBoxConfigs),
       };
 
       await systemConfigAPI.update(payload);
@@ -111,218 +175,294 @@ export default function SystemConfig() {
   if (loading) {
     return (
       <AdminLayout title="System Configuration" hideHeaderLabel={true} hideNotifications={true}>
-        <div className="system-config-container" style={{ textAlign: 'center', padding: '80px 0' }}>
+        <div className="sc-loading-state">
+          <div className="sc-loading-spinner"></div>
           <p>Loading configuration...</p>
         </div>
       </AdminLayout>
     );
   }
 
+  const configuredLevels = mysteryBoxConfigs.map(c => c.level);
+
   return (
     <AdminLayout title="System Configuration" hideHeaderLabel={true} hideNotifications={true}>
-      <div className="system-config-container">
-        <div style={{ marginBottom: "32px" }}>
-          <h2 className="page-header-title">System Configuration & Platform Rules</h2>
-          <p className="page-header-subtitle">Configure the core economic models, gamification tiers, and collection logic for the entire platform.</p>
+      <div className="sc-wrapper">
+        {/* ── Hero Header ── */}
+        <div className="sc-hero-panel">
+          <div className="sc-hero-grid">
+            <div>
+              <p className="sc-hero-label">Platform Settings</p>
+              <h1 className="sc-hero-title">
+                System Configuration <span className="sc-hero-title-italic">& Rules</span>
+              </h1>
+              <p className="sc-hero-desc">
+                Configure the core economic models, gamification tiers, mystery boxes, and collection logic for the entire platform.
+              </p>
+            </div>
+            <div className="sc-hero-stats">
+              <div className="sc-hero-stat-box">
+                <p className="sc-hero-stat-label">Levels</p>
+                <p className="sc-hero-stat-value">{levels.length}</p>
+              </div>
+              <div className="sc-hero-stat-box">
+                <p className="sc-hero-stat-label">Mystery Boxes</p>
+                <p className="sc-hero-stat-value">{mysteryBoxConfigs.length}</p>
+              </div>
+              <div className="sc-hero-stat-box">
+                <p className="sc-hero-stat-label">Base Points</p>
+                <p className="sc-hero-stat-value">{basePointRate}</p>
+              </div>
+              <div className="sc-hero-stat-box">
+                <p className="sc-hero-stat-label">Box Cost</p>
+                <p className="sc-hero-stat-value">{mysteryBoxPointsCost}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {message && (
-          <div style={{
-            padding: '12px 20px',
-            borderRadius: 8,
-            marginBottom: 20,
-            background: message.type === 'success' ? '#d4edda' : '#f8d7da',
-            color: message.type === 'success' ? '#155724' : '#721c24',
-            fontWeight: 600,
-          }}>
-            {message.text}
-          </div>
-        )}
-
-        {/* Section 1: Point & Economics Settings */}
-        <section className="config-section-card">
-          <div className="section-header">
-            <h3 className="section-title">Point & Economics Settings</h3>
-          </div>
-          <div className="config-grid-3">
-            <div className="config-input-group">
-              <label className="config-label">Base Points Per Book</label>
-              <input 
-                className="config-input" 
-                type="number" min="0"
-                value={basePointRate}
-                onChange={(e) => setBasePointRate(e.target.value)}
-              />
-              <p className="config-hint">Minimum points awarded for every single verified book donation.</p>
+        <div className="sc-content">
+          {message && (
+            <div className={`sc-toast ${message.type === 'success' ? 'sc-toast-success' : 'sc-toast-error'}`}>
+              {message.type === 'success' ? '✓' : '⚠'} {message.text}
             </div>
-            <div className="config-input-group">
-              <label className="config-label">Collection Bonus %</label>
-              <input 
-                className="config-input" 
-                type="number" min="0" max="100"
-                value={collectionBonus}
-                onChange={(e) => setCollectionBonus(e.target.value)}
-              />
-              <p className="config-hint">Extra percentage awarded when a user donates a verified complete collection.</p>
-            </div>
-            <div className="config-input-group">
-              <label className="config-label">Point-to-Cash Conversion</label>
-              <input 
-                className="config-input" 
-                type="text" 
-                value={conversionRate}
-                onChange={(e) => setConversionRate(e.target.value)}
-              />
-              <p className="config-hint">Ratio of points to currency (e.g., 100:10 means 100 points = 10 Rs).</p>
-            </div>
-          </div>
-        </section>
+          )}
 
-        {/* Section 2: Gamification & Levels */}
-        <section className="config-section-card">
-          <div className="section-header">
-            <h3 className="section-title">Gamification & Levels</h3>
-          </div>
-          <div className="tier-table-wrapper">
-            <table className="tier-table">
-              <thead>
-                <tr>
-                  <th>Level #</th>
-                  <th>Level Name</th>
-                  <th>Min Points</th>
-                  <th>Reward Unlock</th>
-                  <th style={{ width: "50px" }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {levels.map((level) => (
-                  <tr key={level.level}>
-                    <td style={{ fontWeight: 700, color: '#1E4D4B' }}>{level.level}</td>
-                    <td>
-                      <input 
-                        className="tier-input name-input" 
-                        type="text" 
-                        value={level.name}
-                        onChange={(e) => handleLevelChange(level.level, 'name', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input 
-                        className="tier-input threshold-input" 
-                        type="number" min="0"
-                        value={level.minPoints}
-                        onChange={(e) => handleLevelChange(level.level, 'minPoints', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input 
-                        className="tier-input" 
-                        type="text" 
-                        value={level.reward || ''}
-                        onChange={(e) => handleLevelChange(level.level, 'reward', e.target.value)}
-                        placeholder="Reward description"
-                      />
-                    </td>
-                    <td>
-                      <button 
-                        onClick={() => handleDeleteLevel(level.level)}
-                        style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: 18 }}
-                        title="Remove level"
-                      >×</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button onClick={handleAddTier} className="add-tier-btn">
-              + Add New Tier
-            </button>
-          </div>
-        </section>
-
-        {/* Section 3: Mystery & Rare Collections Configuration */}
-        <section className="config-section-card">
-          <div className="section-header">
-            <h3 className="section-title">Mystery & Rare Collections</h3>
-          </div>
-          <div className="config-grid-2">
-            {/* Mystery Box Config */}
-            <div className="mystery-sub-card">
-              <h4 className="mystery-sub-title">Mystery Box Configuration</h4>
-              <div className="config-input-group" style={{ marginBottom: "20px" }}>
-                <label className="config-label">Books per Mystery Box</label>
-                <input 
-                  className="config-input" 
-                  type="number" min="1"
-                  value={mysteryBoxBooks}
-                  onChange={(e) => setMysteryBoxBooks(e.target.value)}
-                />
-                <p className="config-hint">Number of random books included in a standard mystery box.</p>
+          {/* ── Section 1: Point & Economics ── */}
+          <section className="sc-card">
+            <div className="sc-card-header">
+              <div className="sc-card-icon sc-icon-teal">
+                <i className="fa-solid fa-coins"></i>
               </div>
-              <div className="config-input-group">
-                <label className="config-label">Points Cost to Redeem (0 = Free)</label>
-                <input 
-                  className="config-input" 
-                  type="number" min="0"
-                  value={mysteryBoxPointsCost}
-                  onChange={(e) => setMysteryBoxPointsCost(e.target.value)}
-                />
-                <p className="config-hint">Points required for a user to unlock/redeem a mystery box. Set 0 for free.</p>
+              <div>
+                <h3 className="sc-card-title">Point & Economics Settings</h3>
+                <p className="sc-card-subtitle">Configure the core earning and conversion rules</p>
               </div>
             </div>
-
-            {/* Mystery Box Level Locks */}
-            <div className="mystery-sub-card">
-              <h4 className="mystery-sub-title">Level Unlocks for Mystery Boxes</h4>
-              {mysteryBoxLocks.map((lock, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, minWidth: 40 }}>Level:</span>
-                  <input
-                    className="config-input"
-                    style={{ width: 60 }}
-                    type="number" min="1"
-                    value={lock.level}
-                    onChange={(e) => handleLockChange(idx, 'level', e.target.value)}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Unlocks:</span>
-                  <input
-                    className="config-input"
-                    style={{ flex: 1 }}
-                    type="text"
-                    value={lock.unlock}
-                    onChange={(e) => handleLockChange(idx, 'unlock', e.target.value)}
-                  />
-                  <button
-                    onClick={() => handleDeleteLock(idx)}
-                    style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: 18 }}
-                  >×</button>
+            <div className="sc-grid-3">
+              <div className="sc-input-group">
+                <label className="sc-label">Base Points Per Book</label>
+                <div className="sc-input-wrapper">
+                  <input className="sc-input" type="number" min="0" value={basePointRate} onChange={(e) => setBasePointRate(e.target.value)} />
+                  <span className="sc-input-suffix">pts</span>
                 </div>
-              ))}
-              <button onClick={handleAddLock} className="add-tier-btn" style={{ marginTop: 8 }}>
-                + Add Level Unlock
-              </button>
-              <div className="config-input-group" style={{ marginTop: 16 }}>
-                <label className="config-label">Minimum Level for Rare Collections</label>
-                <select 
-                  className="config-select"
-                  value={rareCollectionMinLevel}
-                  onChange={(e) => setRareCollectionMinLevel(e.target.value)}
-                >
-                  {levels.map(l => (
-                    <option key={l.level} value={l.level}>{l.name} (Level {l.level})</option>
-                  ))}
-                </select>
-                <p className="config-hint">Users must reach this level to browse rare curated collections.</p>
+                <p className="sc-hint">Minimum points awarded for every verified book donation.</p>
+              </div>
+              <div className="sc-input-group">
+                <label className="sc-label">Collection Bonus %</label>
+                <div className="sc-input-wrapper">
+                  <input className="sc-input" type="number" min="0" max="100" value={collectionBonus} onChange={(e) => setCollectionBonus(e.target.value)} />
+                  <span className="sc-input-suffix">%</span>
+                </div>
+                <p className="sc-hint">Extra percentage for verified complete collection donations.</p>
+              </div>
+              <div className="sc-input-group">
+                <label className="sc-label">Point-to-Cash Conversion</label>
+                <input className="sc-input" type="text" value={conversionRate} onChange={(e) => setConversionRate(e.target.value)} />
+                <p className="sc-hint">Ratio format: 100:10 means 100 points = 10 Rs.</p>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Sticky Footer */}
-        <footer className="config-sticky-footer">
-          <button className="btn-cancel-config" onClick={loadConfig}>Cancel Changes</button>
-          <button className="btn-save-config" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save System Rules'}
+          {/* ── Section 2: Gamification & Levels ── */}
+          <section className="sc-card">
+            <div className="sc-card-header">
+              <div className="sc-card-icon sc-icon-gold">
+                <i className="fa-solid fa-layer-group"></i>
+              </div>
+              <div>
+                <h3 className="sc-card-title">Gamification & Levels</h3>
+                <p className="sc-card-subtitle">Define level tiers, thresholds, and reward unlocks</p>
+              </div>
+            </div>
+            <div className="sc-tier-table-wrap">
+              <table className="sc-tier-table">
+                <thead>
+                  <tr>
+                    <th className="sc-tier-th-level">Level</th>
+                    <th>Level Name</th>
+                    <th>Min Points</th>
+                    <th>Reward Unlock</th>
+                    <th className="sc-tier-th-action"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {levels.map((level) => (
+                    <tr key={level.level}>
+                      <td className="sc-tier-level-num">{level.level}</td>
+                      <td>
+                        <input className="sc-tier-input sc-tier-name" type="text" value={level.name} onChange={(e) => handleLevelChange(level.level, 'name', e.target.value)} />
+                      </td>
+                      <td>
+                        <input className="sc-tier-input sc-tier-points" type="number" min="0" value={level.minPoints} onChange={(e) => handleLevelChange(level.level, 'minPoints', e.target.value)} />
+                      </td>
+                      <td>
+                        <input className="sc-tier-input" type="text" value={level.reward || ''} onChange={(e) => handleLevelChange(level.level, 'reward', e.target.value)} placeholder="Reward description" />
+                      </td>
+                      <td>
+                        <button className="sc-tier-delete" onClick={() => handleDeleteLevel(level.level)} title="Remove level">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={handleAddTier} className="sc-add-btn">
+                <i className="fa-solid fa-plus"></i> Add New Tier
+              </button>
+            </div>
+          </section>
+
+          {/* ── Section 3: Mystery Box Per-Level Config ── */}
+          <section className="sc-card">
+            <div className="sc-card-header">
+              <div className="sc-card-icon sc-icon-orange">
+                <i className="fa-solid fa-box-open"></i>
+              </div>
+              <div>
+                <h3 className="sc-card-title">Mystery Box — Per Level Configuration</h3>
+                <p className="sc-card-subtitle">Set custom books count, points, and specific book titles for each level's mystery box</p>
+              </div>
+            </div>
+
+            <div className="sc-mystery-grid">
+              {mysteryBoxConfigs.length === 0 && (
+                <div className="sc-mystery-empty">
+                  <i className="fa-solid fa-box-open"></i>
+                  <p>No mystery boxes configured yet. Add one to get started.</p>
+                </div>
+              )}
+
+              {mysteryBoxConfigs.map((config) => {
+                const levelInfo = levels.find(l => l.level === config.level);
+                return (
+                  <div key={config.level} className="sc-mystery-box-card">
+                    <div className="sc-mystery-box-header">
+                      <div className="sc-mystery-box-badge">
+                        <span className="sc-mystery-box-level">Lvl {config.level}</span>
+                        <span className="sc-mystery-box-name">{levelInfo?.name || 'Unknown'}</span>
+                      </div>
+                      <button className="sc-tier-delete" onClick={() => handleDeleteMysteryBoxConfig(config.level)} title="Remove">
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+
+                    <div className="sc-mystery-box-fields">
+                      <div className="sc-input-group">
+                        <label className="sc-label">Points Awarded</label>
+                        <div className="sc-input-wrapper">
+                          <input className="sc-input" type="number" min="0" value={config.points} onChange={(e) => handleMysteryBoxConfigChange(config.level, 'points', parseInt(e.target.value) || 0)} />
+                          <span className="sc-input-suffix">pts</span>
+                        </div>
+                      </div>
+                      <div className="sc-input-group">
+                        <label className="sc-label">Books in Box</label>
+                        <div className="sc-input-wrapper">
+                          <input className="sc-input" type="number" min="1" value={config.books} onChange={(e) => handleMysteryBoxConfigChange(config.level, 'books', parseInt(e.target.value) || 1)} />
+                          <span className="sc-input-suffix">books</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="sc-mystery-books-section">
+                      <label className="sc-label">Custom Book Titles (optional)</label>
+                      {(config.bookTitles || []).map((title, idx) => (
+                        <div key={idx} className="sc-book-title-row">
+                          <input className="sc-input sc-book-input" type="text" value={title} onChange={(e) => handleBookTitleChange(config.level, idx, e.target.value)} placeholder={`Book ${idx + 1} title`} />
+                          <button className="sc-book-remove" onClick={() => handleRemoveBookTitle(config.level, idx)}>
+                            <i className="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                      ))}
+                      <button className="sc-add-book-btn" onClick={() => handleAddBookTitle(config.level)}>
+                        <i className="fa-solid fa-plus"></i> Add Book Title
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {mysteryBoxConfigs.length < levels.length && (
+                <button onClick={handleAddMysteryBoxConfig} className="sc-mystery-add-card">
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Add Mystery Box for Level {levels.find(l => !configuredLevels.includes(l.level))?.level || ''}</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* ── Section 4: General Mystery Box & Rare Collections ── */}
+          <section className="sc-card">
+            <div className="sc-card-header">
+              <div className="sc-card-icon sc-icon-purple">
+                <i className="fa-solid fa-gem"></i>
+              </div>
+              <div>
+                <h3 className="sc-card-title">General Mystery Box & Rare Collections</h3>
+                <p className="sc-card-subtitle">Default settings and rare collection access rules</p>
+              </div>
+            </div>
+            <div className="sc-grid-2">
+              <div className="sc-sub-card">
+                <h4 className="sc-sub-card-title">
+                  <span className="sc-sub-dot sc-sub-dot-teal"></span>
+                  Default Mystery Box Settings
+                </h4>
+                <div className="sc-input-group" style={{ marginBottom: 16 }}>
+                  <label className="sc-label">Default Books per Box</label>
+                  <input className="sc-input" type="number" min="1" value={mysteryBoxBooks} onChange={(e) => setMysteryBoxBooks(e.target.value)} />
+                  <p className="sc-hint">Default number of random books if no per-level config exists.</p>
+                </div>
+                <div className="sc-input-group">
+                  <label className="sc-label">Default Points Cost (0 = Free)</label>
+                  <input className="sc-input" type="number" min="0" value={mysteryBoxPointsCost} onChange={(e) => setMysteryBoxPointsCost(e.target.value)} />
+                  <p className="sc-hint">Default points required to unlock a mystery box.</p>
+                </div>
+              </div>
+
+              <div className="sc-sub-card">
+                <h4 className="sc-sub-card-title">
+                  <span className="sc-sub-dot sc-sub-dot-gold"></span>
+                  Level Unlocks & Rare Access
+                </h4>
+                {mysteryBoxLocks.map((lock, idx) => (
+                  <div key={idx} className="sc-lock-row">
+                    <span className="sc-lock-label">Level</span>
+                    <input className="sc-input sc-lock-level" type="number" min="1" value={lock.level} onChange={(e) => handleLockChange(idx, 'level', e.target.value)} />
+                    <span className="sc-lock-label">Unlocks</span>
+                    <input className="sc-input sc-lock-desc" type="text" value={lock.unlock} onChange={(e) => handleLockChange(idx, 'unlock', e.target.value)} />
+                    <button className="sc-book-remove" onClick={() => handleDeleteLock(idx)}>
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                ))}
+                <button onClick={handleAddLock} className="sc-add-btn" style={{ marginTop: 8 }}>
+                  <i className="fa-solid fa-plus"></i> Add Level Unlock
+                </button>
+                <div className="sc-input-group" style={{ marginTop: 16 }}>
+                  <label className="sc-label">Min Level for Rare Collections</label>
+                  <select className="sc-select" value={rareCollectionMinLevel} onChange={(e) => setRareCollectionMinLevel(e.target.value)}>
+                    {levels.map(l => (
+                      <option key={l.level} value={l.level}>{l.name} (Level {l.level})</option>
+                    ))}
+                  </select>
+                  <p className="sc-hint">Users must reach this level to browse rare curated collections.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* ── Sticky Footer ── */}
+        <footer className="sc-footer">
+          <button className="sc-btn-cancel" onClick={loadConfig}>Cancel Changes</button>
+          <button className="sc-btn-save" onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <><span className="sc-btn-spinner"></span> Saving...</>
+            ) : (
+              <><i className="fa-solid fa-check"></i> Save System Rules</>
+            )}
           </button>
         </footer>
       </div>
