@@ -1,10 +1,27 @@
 /* Custom Report Generation Dashboard Stylesheet */
 
+:root {
+  --color-primary: #1A6B68;
+  --color-secondary: #E9C46A;
+  --color-tertiary: #643C29;
+  --color-surface: #ffffff;
+  --color-border: rgba(26, 107, 104, 0.12);
+  --color-neutral: #5C6A6A;
+  --color-text-dark: #1E2A2A;
+  --color-text-muted: #5C6A6A;
+  --color-bg-light: #F4F6F7;
+  --font-headline: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
 .report-dashboard-container {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   position: relative;
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* Toast Notifications */
