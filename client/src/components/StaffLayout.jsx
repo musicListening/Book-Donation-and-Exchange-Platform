@@ -17,12 +17,6 @@ function StaffLayout({ children, title }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [now, setNow] = useState(new Date());
 
-  // live clock
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -35,13 +29,6 @@ function StaffLayout({ children, title }) {
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'ST';
-
-  // greeting
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="app-container">
@@ -72,7 +59,8 @@ function StaffLayout({ children, title }) {
             <div className="sidebar-user-info">
               <div className="sidebar-user-avatar">{initials}</div>
               <div className="sidebar-user-details">
-                <strong>{user.name}</strong>
+                {/* Only show first letter of name */}
+                <strong>{user.name ? user.name[0] : 'S'}</strong>
                 <span>Operations Staff</span>
               </div>
             </div>
@@ -86,81 +74,14 @@ function StaffLayout({ children, title }) {
       {/* MAIN CONTENT */}
       <div className="main-content">
         
-        {/* TOP BAR */}
+        {/* TOP BAR - Only title, no user info/date/time */}
         <div className="content-header">
           <div>
             <h1>{title || 'Staff Portal'}</h1>
-            <div className="page-subtitle">
-              Staff Portal · Sri Lanka
-            </div>
-          </div>
           
-          <div className="user-info">
-            {/* Date & time */}
-            <div className="staff-datetime">
-              <span>🕐</span>
-              {dateStr} · {timeStr}
-            </div>
-
-            {/* Notification bell */}
-            <button className="staff-notification-btn" title="Notifications">
-              <span>🔔</span>
-              <span className="notification-badge"></span>
-            </button>
-
-            {/* User menu */}
-            <div className="staff-user-menu-wrapper">
-              <button 
-                className="staff-user-btn"
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-              >
-                <div className="staff-user-avatar">{initials}</div>
-                <div className="staff-user-info-text">
-                  <div className="staff-user-name">{user?.name || 'Staff Member'}</div>
-                  <div className="staff-user-role-badge">Operations</div>
-                </div>
-                <span className="dropdown-arrow">{userMenuOpen ? '▲' : '▼'}</span>
-              </button>
-
-              {userMenuOpen && (
-                <>
-                  <div 
-                    className="dropdown-overlay" 
-                    onClick={() => setUserMenuOpen(false)}
-                  />
-                  <div className="staff-dropdown">
-                    <div className="staff-dropdown-header">
-                      <div className="staff-dropdown-avatar">{initials}</div>
-                      <div>
-                        <div className="staff-dropdown-name">{user?.name || 'Staff Member'}</div>
-                        <div className="staff-dropdown-role">Operations Staff</div>
-                      </div>
-                    </div>
-                    <div className="staff-dropdown-greeting">
-                      {greeting}, {user?.name?.split(' ')[0] || 'there'} 👋
-                    </div>
-                    
-                    <div className="staff-dropdown-divider"></div>
-                    
-                    <button className="staff-dropdown-item">
-                      <span>👤</span> My Profile
-                    </button>
-                    <button className="staff-dropdown-item">
-                      <span>⚙️</span> Settings
-                    </button>
-                    
-                    <div className="staff-dropdown-divider"></div>
-                    
-                    <button className="staff-dropdown-item staff-dropdown-logout" onClick={handleLogout}>
-                      <span>🚪</span> Sign Out
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </div>
-
+        
         {/* Page Content */}
         <div className="staff-page-content">
           {children}

@@ -1,10 +1,71 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import '../../styles/HomePage.css';
 
 const Home = () => {
   const pageRef = useRef(null);
+
+  // ── Stats state ──
+  const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef(null);
+
+  // ── Animated counter hook ──
+  const useCountUp = (target, duration = 2000, start = false) => {
+    const [value, setValue] = useState(0);
+    const frameRef = useRef(null);
+
+    useEffect(() => {
+      if (!start || target <= 0) return;
+      const startTime = performance.now();
+      const animate = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.floor(eased * target));
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(animate);
+        }
+      };
+      frameRef.current = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(frameRef.current);
+    }, [target, duration, start]);
+
+    return value;
+  };
+
+  // ── Fetch real stats from API ──
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_URL}/stats`)
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(() => {});
+  }, []);
+
+  // ── IntersectionObserver to trigger counter animation ──
+  useEffect(() => {
+    if (!statsRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },
+      { threshold: 0.3 }
+    );
+    observer.observe(statsRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const animatedBooks = useCountUp(stats.booksDonated, 2200, statsVisible);
+  const animatedMembers = useCountUp(stats.activeMembers, 2200, statsVisible);
+  const animatedPoints = useCountUp(stats.pointsEarned, 2200, statsVisible);
+
+  // ── Format numbers for display ──
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return num.toLocaleString();
+    return num.toString();
+  };
 
   useEffect(() => {
     // Initialize Demo Data
@@ -446,17 +507,17 @@ const Home = () => {
 
       {/* ============ STATS BAR ============ */}
       <section style={styles.statsBar}>
-        <div className="reveal-stagger" style={styles.statsGrid}>
+        <div ref={statsRef} className="reveal-stagger" style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>📦 12,450+</span>
+            <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>👥 3,800+</span>
+            <span className="stat-glow" style={styles.statNumber}>👥 {formatNumber(animatedMembers)}+</span>
             <span style={styles.statLabel}>Active Members</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>🪙 1.2M+</span>
+            <span className="stat-glow" style={styles.statNumber}>🪙 {formatNumber(animatedPoints)}+</span>
             <span style={styles.statLabel}>Points Earned</span>
           </div>
         </div>
