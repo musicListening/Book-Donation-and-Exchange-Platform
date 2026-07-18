@@ -68,28 +68,6 @@ const Home = () => {
   };
 
   useEffect(() => {
-    // Initialize Demo Data
-    if (!localStorage.getItem('ss_users')) {
-      const initialUsers = [
-        { name: 'Arjun Sharma', email: 'user@example.com', password: 'user123', role: 'user', points: 450 },
-        { name: 'Staff Member', email: 'staff@projenius.com', password: 'staff123', role: 'staff', points: 0 },
-        { name: 'Admin User', email: 'admin@projenius.com', password: 'admin123', role: 'admin', points: 0 }
-      ];
-      const initialBundles = [
-        { id: 1, title: 'Timeless Literature', curator: 'Staff Pick', genre: 'Fiction', price: 250, stock: 12, image: '📚' },
-        { id: 2, title: 'Science for Kids', curator: 'Educator Choice', genre: 'Academic', price: 180, stock: 8, image: '🧪' },
-        { id: 3, title: 'The Mystery Files', curator: 'Detective Club', genre: 'Mystery', price: 320, stock: 5, image: '🕵️' }
-      ];
-      const initialCrafts = [
-        { id: 1, title: 'Origami Crane Set', curator: 'Akira', genre: 'Crafts', price: 75, stock: 15, image: '🦢' },
-        { id: 2, title: 'Recycled Notebook', curator: 'Eco-Art', genre: 'Crafts', price: 120, stock: 10, image: '📔' }
-      ];
-      
-      localStorage.setItem('ss_users', JSON.stringify(initialUsers));
-      localStorage.setItem('ss_bundles', JSON.stringify(initialBundles));
-      localStorage.setItem('ss_crafts', JSON.stringify(initialCrafts));
-    }
-
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
@@ -792,8 +770,8 @@ const Home = () => {
           <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Staff & Admin</h4>
             <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><Link to="/staff-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Portal</Link></li>
-              <li style={{ marginBottom: 8 }}><Link to="/admin-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Dashboard</Link></li>
+              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Login</Link></li>
+              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Login</Link></li>
               <li style={{ marginBottom: 8 }}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Documentation</a></li>
             </ul>
           </div>
