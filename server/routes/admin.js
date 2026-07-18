@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { prisma, withRetry } = require('../db');
 
+function safeJson(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
 // GET /api/admin/dashboard — aggregate stats for the admin dashboard
 router.get('/dashboard', async (req, res) => {
   try {
@@ -408,6 +412,38 @@ router.put('/config', async (req, res) => {
         update: { value: String(value), updatedBy, updatedAt: new Date() },
         create: { key, value: String(value), updatedBy },
       });
+    }
+
+    // Sync level-related config into the Level database table
+    const rawLevels = entries.LEVEL_THRESHOLDS ? safeJson(entries.LEVEL_THRESHOLDS) : null;
+    const rawLocks = entries.MYSTERY_BOX_LOCKS ? safeJson(entries.MYSTERY_BOX_LOCKS) : null;
+    const rawBoxConfigs = entries.MYSTERY_BOX_LEVEL_CONFIG ? safeJson(entries.MYSTERY_BOX_LEVEL_CONFIG) : null;
+
+    if (rawLevels) {
+      for (const lvl of rawLevels) {
+        const lock = rawLocks ? rawLocks.find((l) => String(l.level) === String(lvl.level)) : null;
+        const boxCfg = rawBoxConfigs ? rawBoxConfigs.find((c) => String(c.level) === String(lvl.level)) : null;
+        await prisma.level.upsert({
+          where: { level: Number(lvl.level) },
+          update: {
+            name: String(lvl.name || ''),
+            minPoints: Number(lvl.minPoints) || 0,
+            reward: lvl.reward || null,
+            mysteryBoxUnlock: lock ? lock.unlock : null,
+            mysteryBoxPoints: boxCfg ? (Number(boxCfg.points) || null) : null,
+            mysteryBoxBooks: boxCfg ? (Number(boxCfg.books) || null) : null,
+          },
+          create: {
+            level: Number(lvl.level),
+            name: String(lvl.name || ''),
+            minPoints: Number(lvl.minPoints) || 0,
+            reward: lvl.reward || null,
+            mysteryBoxUnlock: lock ? lock.unlock : null,
+            mysteryBoxPoints: boxCfg ? (Number(boxCfg.points) || null) : null,
+            mysteryBoxBooks: boxCfg ? (Number(boxCfg.books) || null) : null,
+          },
+        });
+      }
     }
 
     // Return updated config
