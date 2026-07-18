@@ -12,13 +12,54 @@ router.get('/', async (req, res) => {
       select: {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
-        phoneNumber: true, address: true, createdAt: true
+        phoneNumber: true, address: true, createdAt: true,
+        status: true
       }
     });
     res.json(users);
   } catch (error) {
     console.error("Fetch users error:", error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// 1.5 GET DELIVERY PERSONNEL ONLY
+router.get('/delivery-personnel', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const deliveryPersonnel = await prisma.user.findMany({
+      where: {
+        role: 'DELIVERY_PERSONNEL',
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        role: true,
+        isActive: true,
+        level: true,
+        status: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Ensure each driver has a status (default to AVAILABLE if null)
+    const personnelWithStatus = deliveryPersonnel.map(user => ({
+      ...user,
+      status: user.status || 'AVAILABLE'
+    }));
+
+    console.log('✅ Delivery personnel found:', personnelWithStatus.length);
+    res.json(personnelWithStatus);
+  } catch (error) {
+    console.error("Fetch delivery personnel error:", error);
+    res.status(500).json({ error: 'Failed to fetch delivery personnel' });
   }
 });
 
@@ -41,7 +82,8 @@ router.post('/', async (req, res) => {
         role: role || 'END_USER',
         phoneNumber,
         address,
-        isActive: true
+        isActive: true,
+        status: 'AVAILABLE'
       }
     });
     res.status(201).json(newUser);
@@ -58,7 +100,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, points, phoneNumber, address } = req.body;
+    const { name, email, role, points, phoneNumber, address, status } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -72,6 +114,7 @@ router.patch('/:id', async (req, res) => {
         ...(points !== undefined && { points }),
         ...(phoneNumber !== undefined && { phoneNumber }),
         ...(address !== undefined && { address }),
+        ...(status !== undefined && { status }),
       }
     });
 
@@ -95,7 +138,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// 4. TOGGLE USER STATUS
+// 4. TOGGLE USER ACTIVE STATUS
 router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
@@ -125,7 +168,7 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// 4. DELETE USER PERMANENTLY
+// 5. DELETE USER PERMANENTLY
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -150,6 +193,34 @@ router.delete('/:id', async (req, res) => {
       return res.status(409).json({ error: 'Cannot delete user with existing related records. Deactivate instead.' });
     }
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// 6. UPDATE DELIVERY PERSONNEL STATUS
+router.patch('/:id/delivery-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { 
+        status: status,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("Update delivery status error:", error);
+    res.status(500).json({ error: 'Failed to update delivery status' });
   }
 });
 
