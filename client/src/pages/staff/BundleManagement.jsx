@@ -3,14 +3,23 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { collectionAPI } from '../../services/api';
 
-
-
 function BundleManagement() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingBundle, setEditingBundle] = useState(null);
+  
+  // ===== FILTER STATE =====
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  
+  // ===== STATS STATE =====
+  const [stats, setStats] = useState({
+    totalBundles: 0,
+    draftBundles: 0,
+    publishedBundles: 0
+  });
+  
   const [formData, setFormData] = useState({
     name: '',
     includes: '',
@@ -53,7 +62,6 @@ function BundleManagement() {
     try {
       const data = await collectionAPI.getAll();
       console.log('✅ Bundles loaded:', data);
-      // Map database fields to UI fields
       const mappedBundles = data.map(item => ({
         id: item.id,
         bundleId: item.slug || `#BND-${String(item.id).slice(0, 4).toUpperCase()}`,
@@ -66,9 +74,23 @@ function BundleManagement() {
           month: 'short', 
           day: '2-digit', 
           year: 'numeric' 
-        })
+        }),
+        createdAt: item.createdAt,
+        cashPrice: item.cashPrice || 0,
+        stock: item.stock || 0
       }));
       setBundles(mappedBundles);
+      
+      // ===== UPDATE STATS FROM DATABASE =====
+      const total = mappedBundles.length;
+      const draft = mappedBundles.filter(b => b.status === 'DRAFT').length;
+      const published = mappedBundles.filter(b => b.status === 'PUBLISHED').length;
+      
+      setStats({
+        totalBundles: total,
+        draftBundles: draft,
+        publishedBundles: published
+      });
     } catch (error) {
       console.error('❌ Error loading bundles:', error);
       alert('Failed to load bundles: ' + error.message);
@@ -93,6 +115,20 @@ function BundleManagement() {
     return 'SU';
   };
 
+  // ===== FILTER FUNCTION =====
+  const getFilteredBundles = () => {
+    let filtered = [...bundles];
+
+    // Status filter
+    if (statusFilter !== 'All Statuses') {
+      filtered = filtered.filter(bundle => bundle.status === statusFilter);
+    }
+
+    return filtered;
+  };
+
+  const filteredBundles = getFilteredBundles();
+
   // ===== CREATE Bundle =====
   const handleCreate = async () => {
     try {
@@ -108,7 +144,6 @@ function BundleManagement() {
       });
       console.log('✅ Bundle created:', newBundle);
       
-      // Add to local state
       const mappedBundle = {
         id: newBundle.id,
         bundleId: newBundle.slug || `#BND-${String(newBundle.id).slice(0, 4).toUpperCase()}`,
@@ -121,12 +156,16 @@ function BundleManagement() {
           month: 'short', 
           day: '2-digit', 
           year: 'numeric' 
-        })
+        }),
+        createdAt: newBundle.createdAt,
+        cashPrice: newBundle.cashPrice || 0,
+        stock: newBundle.stock || 0
       };
       
       setBundles([mappedBundle, ...bundles]);
       setShowModal(false);
       resetForm();
+      loadBundles();
       alert('Bundle created successfully!');
     } catch (error) {
       console.error('❌ Error creating bundle:', error);
@@ -160,7 +199,6 @@ function BundleManagement() {
       });
       console.log('✅ Bundle updated:', updated);
       
-      // Update local state
       const mappedBundle = {
         id: updated.id,
         bundleId: updated.slug || editingBundle.bundleId,
@@ -173,13 +211,17 @@ function BundleManagement() {
           month: 'short', 
           day: '2-digit', 
           year: 'numeric' 
-        })
+        }),
+        createdAt: updated.createdAt,
+        cashPrice: updated.cashPrice || 0,
+        stock: updated.stock || 0
       };
       
       setBundles(bundles.map(b => b.id === editingBundle.id ? mappedBundle : b));
       setShowModal(false);
       setEditingBundle(null);
       resetForm();
+      loadBundles();
       alert('Bundle updated successfully!');
     } catch (error) {
       console.error('❌ Error updating bundle:', error);
@@ -195,6 +237,7 @@ function BundleManagement() {
       await collectionAPI.delete(id);
       console.log('✅ Bundle deleted');
       setBundles(bundles.filter(b => b.id !== id));
+      loadBundles();
       alert('Bundle deleted successfully!');
     } catch (error) {
       console.error('❌ Error deleting bundle:', error);
@@ -212,10 +255,6 @@ function BundleManagement() {
     });
   };
 
-  // Calculate stats
-  const totalBundles = bundles.length;
-  const draftBundles = bundles.filter(b => b.status === 'DRAFT').length;
-
   return (
     <StaffLayout>
       <div className="content-header">
@@ -230,21 +269,27 @@ function BundleManagement() {
         </div>
       </div>
 
+      {/* ===== STATS CARDS - MATCHING STAFF DASHBOARD STYLE ===== */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>Total Active Bundles</h3>
-          <div className="stat-value">{totalBundles}</div>
+          <h3>TOTAL ACTIVE BUNDLES</h3>
+          <div className="stat-value">{stats.totalBundles}</div>
           <div className="stat-trend">{loading ? 'Loading...' : 'Live from database'}</div>
+          <div className="stat-sub">All active bundles</div>
         </div>
+
         <div className="stat-card">
-          <h3>Pending Publication</h3>
-          <div className="stat-value">{draftBundles}</div>
+          <h3>PENDING PUBLICATION</h3>
+          <div className="stat-value" style={{ color: '#ffc107' }}>{stats.draftBundles}</div>
+          <div className="stat-trend">▲ Awaiting approval</div>
           <div className="stat-sub">Requires curator approval</div>
         </div>
+
         <div className="stat-card">
-          <h3>Marketplace Revenue</h3>
-          <div className="stat-value">Rs. 1,245,000</div>
-          <div className="stat-sub">Current fiscal quarter</div>
+          <h3>PUBLISHED</h3>
+          <div className="stat-value" style={{ color: '#28a745' }}>{stats.publishedBundles}</div>
+          <div className="stat-trend">✓ Available</div>
+          <div className="stat-sub">Available in marketplace</div>
         </div>
       </div>
 
@@ -252,8 +297,24 @@ function BundleManagement() {
         <div className="table-header">
           <h3>Bundle Inventory</h3>
           <div className="table-controls">
-            <button className="filter-btn">All Statuses ▼</button>
-            <button className="filter-btn">Sort by: Date Created ▼</button>
+            <select 
+              className="filter-btn" 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ 
+                padding: '8px 16px', 
+                border: '1px solid #e5e5e5', 
+                borderRadius: '8px', 
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              <option value="All Statuses">All Statuses ▼</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+            </select>
+
             <button className="new-donation-btn" onClick={() => { resetForm(); setEditingBundle(null); setShowModal(true); }}>
               + New Bundle
             </button>
@@ -262,9 +323,9 @@ function BundleManagement() {
 
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading bundles...</div>
-        ) : bundles.length === 0 ? (
+        ) : filteredBundles.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            No bundles yet. Click "New Bundle" to create one!
+            No bundles found. Click "New Bundle" to create one!
           </div>
         ) : (
           <div className="data-table">
@@ -281,7 +342,7 @@ function BundleManagement() {
                 </tr>
               </thead>
               <tbody>
-                {bundles.map((bundle) => (
+                {filteredBundles.map((bundle) => (
                   <tr key={bundle.id}>
                     <td className="bundle-id">{bundle.bundleId}</td>
                     <td>
@@ -310,7 +371,7 @@ function BundleManagement() {
         )}
 
         <div className="table-footer">
-          <span>Showing {bundles.length} of {bundles.length} bundles</span>
+          <span>Showing {filteredBundles.length} of {bundles.length} bundles</span>
         </div>
       </div>
 
@@ -380,7 +441,6 @@ function BundleManagement() {
               >
                 <option value="DRAFT">Draft</option>
                 <option value="PUBLISHED">Published</option>
-                <option value="SOLD">Sold</option>
               </select>
             </div>
 

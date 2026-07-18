@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import '../../styles/HomePage.css';
@@ -6,29 +6,68 @@ import '../../styles/HomePage.css';
 const Home = () => {
   const pageRef = useRef(null);
 
-  useEffect(() => {
-    // Initialize Demo Data
-    if (!localStorage.getItem('ss_users')) {
-      const initialUsers = [
-        { name: 'Arjun Sharma', email: 'user@example.com', password: 'user123', role: 'user', points: 450 },
-        { name: 'Staff Member', email: 'staff@projenius.com', password: 'staff123', role: 'staff', points: 0 },
-        { name: 'Admin User', email: 'admin@projenius.com', password: 'admin123', role: 'admin', points: 0 }
-      ];
-      const initialBundles = [
-        { id: 1, title: 'Timeless Literature', curator: 'Staff Pick', genre: 'Fiction', price: 250, stock: 12, image: '📚' },
-        { id: 2, title: 'Science for Kids', curator: 'Educator Choice', genre: 'Academic', price: 180, stock: 8, image: '🧪' },
-        { id: 3, title: 'The Mystery Files', curator: 'Detective Club', genre: 'Mystery', price: 320, stock: 5, image: '🕵️' }
-      ];
-      const initialCrafts = [
-        { id: 1, title: 'Origami Crane Set', curator: 'Akira', genre: 'Crafts', price: 75, stock: 15, image: '🦢' },
-        { id: 2, title: 'Recycled Notebook', curator: 'Eco-Art', genre: 'Crafts', price: 120, stock: 10, image: '📔' }
-      ];
-      
-      localStorage.setItem('ss_users', JSON.stringify(initialUsers));
-      localStorage.setItem('ss_bundles', JSON.stringify(initialBundles));
-      localStorage.setItem('ss_crafts', JSON.stringify(initialCrafts));
-    }
+  // ── Stats state ──
+  const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef(null);
 
+  // ── Animated counter hook ──
+  const useCountUp = (target, duration = 2000, start = false) => {
+    const [value, setValue] = useState(0);
+    const frameRef = useRef(null);
+
+    useEffect(() => {
+      if (!start || target <= 0) return;
+      const startTime = performance.now();
+      const animate = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.floor(eased * target));
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(animate);
+        }
+      };
+      frameRef.current = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(frameRef.current);
+    }, [target, duration, start]);
+
+    return value;
+  };
+
+  // ── Fetch real stats from API ──
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_URL}/stats`)
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(() => {});
+  }, []);
+
+  // ── IntersectionObserver to trigger counter animation ──
+  useEffect(() => {
+    if (!statsRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },
+      { threshold: 0.3 }
+    );
+    observer.observe(statsRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const animatedBooks = useCountUp(stats.booksDonated, 2200, statsVisible);
+  const animatedMembers = useCountUp(stats.activeMembers, 2200, statsVisible);
+  const animatedPoints = useCountUp(stats.pointsEarned, 2200, statsVisible);
+
+  // ── Format numbers for display ──
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return num.toLocaleString();
+    return num.toString();
+  };
+
+  useEffect(() => {
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
@@ -446,17 +485,17 @@ const Home = () => {
 
       {/* ============ STATS BAR ============ */}
       <section style={styles.statsBar}>
-        <div className="reveal-stagger" style={styles.statsGrid}>
+        <div ref={statsRef} className="reveal-stagger" style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>📦 12,450+</span>
+            <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>👥 3,800+</span>
+            <span className="stat-glow" style={styles.statNumber}>👥 {formatNumber(animatedMembers)}+</span>
             <span style={styles.statLabel}>Active Members</span>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <span className="stat-glow" style={styles.statNumber}>🪙 1.2M+</span>
+            <span className="stat-glow" style={styles.statNumber}>🪙 {formatNumber(animatedPoints)}+</span>
             <span style={styles.statLabel}>Points Earned</span>
           </div>
         </div>
@@ -731,8 +770,8 @@ const Home = () => {
           <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Staff & Admin</h4>
             <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><Link to="/staff-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Portal</Link></li>
-              <li style={{ marginBottom: 8 }}><Link to="/admin-login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Dashboard</Link></li>
+              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Login</Link></li>
+              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Login</Link></li>
               <li style={{ marginBottom: 8 }}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Documentation</a></li>
             </ul>
           </div>
