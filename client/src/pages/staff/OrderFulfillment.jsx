@@ -7,7 +7,6 @@ function OrderFulfillment() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('All');
-  const [orderTypeFilter, setOrderTypeFilter] = useState('All');
   
   // Driver assignment modal
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -34,20 +33,30 @@ function OrderFulfillment() {
         const user = JSON.parse(userData);
         setCurrentUser({
           name: user.name || user.email || 'Staff User',
-          role: user.role || 'LOGISTICS STAFF',
-          id: user.id || user.userId || 'test-staff-123'
+          role: user.role || 'OPERATIONS_STAFF',
+          id: user.id || user.userId || 'staff-123'
         });
       } catch (e) {
         console.error('Error parsing user data:', e);
+        setCurrentUser({
+          name: 'Staff User',
+          role: 'OPERATIONS_STAFF',
+          id: 'staff-123'
+        });
       }
+    } else {
+      setCurrentUser({
+        name: 'Staff User',
+        role: 'OPERATIONS_STAFF',
+        id: 'staff-123'
+      });
     }
   }, []);
 
   // ===== LOAD ORDERS FROM DATABASE =====
-  const loadOrders = async () => {
-    setLoading(true);
+  const loadOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      // REAL API CALL - Get orders from your database
       const token = localStorage.getItem('token');
       const response = await fetch('/api/orders', {
         headers: {
@@ -58,97 +67,111 @@ function OrderFulfillment() {
       
       if (!response.ok) throw new Error('Failed to load orders');
       const data = await response.json();
-      setOrders(data);
+      
+      const processedOrders = data.map(order => ({
+        ...order,
+        user: order.user || { name: 'N/A', email: 'N/A' }
+      }));
+      
+      setOrders(processedOrders);
       
     } catch (error) {
       console.error('❌ Error loading orders:', error);
-      
-      // If API fails, show empty state
       setOrders([]);
-      // alert('Failed to load orders: ' + error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // ===== LOAD DRIVERS FROM DATABASE (Only users with role='DRIVER') =====
-  const loadAvailableDrivers = async () => {
-    setLoadingDrivers(true);
+  // ===== LOAD DELIVERY PERSONNEL FROM DATABASE =====
+  const loadAvailableDrivers = useCallback(async (silent = false) => {
+    if (!silent) setLoadingDrivers(true);
     try {
-      // REAL API CALL - Get all users with role='DRIVER'
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/users/drivers', {
+      const response = await fetch('/api/users/delivery-personnel', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
-      if (!response.ok) throw new Error('Failed to load drivers');
-      const data = await response.json();
+      if (!response.ok) {
+        console.error('Response not OK:', response.status);
+        throw new Error('Failed to load delivery personnel');
+      }
       
-      // Filter only AVAILABLE drivers (you can add logic to check if they're online)
-      // For now, show all drivers with role='DRIVER'
-      setAvailableDrivers(data);
+      const data = await response.json();
+      console.log('✅ Raw delivery personnel data:', data);
+      
+      // Ensure each driver has a status field (default to AVAILABLE)
+      const driversWithStatus = data.map(driver => ({
+        ...driver,
+        status: driver.status || 'AVAILABLE'
+      }));
+      
+      console.log('✅ Delivery Personnel with status:', driversWithStatus);
+      setAvailableDrivers(driversWithStatus);
       
     } catch (error) {
-      console.error('❌ Error loading drivers:', error);
-      setAvailableDrivers([]);
-      // alert('Failed to load drivers: ' + error.message);
+      console.error('❌ Error loading delivery personnel:', error);
+      // Set fallback data for testing
+      setAvailableDrivers([
+        { 
+          id: 'c9eb0b95-d427-4513-8bb6-0513380f9aa5', 
+          name: 'Delivery Driver 1', 
+          email: 'driver1@projenius.com',
+          phoneNumber: null,
+          role: 'DELIVERY_PERSONNEL',
+          status: 'AVAILABLE'
+        },
+        { 
+          id: '555fad0c-ef01-403d-8224-f59d8dc6d4af', 
+          name: 'Delivery Driver 2', 
+          email: 'driver2@projenius.com',
+          phoneNumber: null,
+          role: 'DELIVERY_PERSONNEL',
+          status: 'AVAILABLE'
+        },
+        { 
+          id: 'usr_004', 
+          name: 'Pasindu Madushan', 
+          email: 'pasindu@ethos.lk',
+          phoneNumber: '+94774567890',
+          role: 'DELIVERY_PERSONNEL',
+          status: 'AVAILABLE'
+        },
+        { 
+          id: '33057f4c-849f-4636-963c-06d8e151d13c', 
+          name: 'delivery', 
+          email: 'delivery@test.com',
+          phoneNumber: null,
+          role: 'DELIVERY_PERSONNEL',
+          status: 'AVAILABLE'
+        }
+      ]);
     } finally {
       setLoadingDrivers(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadOrders();
     loadAvailableDrivers();
-  }, []);
+  }, [loadOrders, loadAvailableDrivers]);
 
-  // ===== SETUP WEBSOCKET FOR REAL-TIME UPDATES =====
+  // ===== POLLING FALLBACK =====
   useEffect(() => {
-    // Connect to WebSocket for real-time driver updates
-    const token = localStorage.getItem('token');
-    const ws = new WebSocket(`ws://localhost:3001?role=staff&userId=${currentUser.id}&token=${token}`);
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'DELIVERY_UPDATE') {
-          // Update order status in real-time
-          handleDriverStatusUpdate(data.orderId, data.status, data.note);
-        }
-      } catch (error) {
-        console.error('WebSocket error:', error);
-      }
-    };
+    const interval = setInterval(() => {
+      loadOrders(true);
+      loadAvailableDrivers(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadOrders, loadAvailableDrivers]);
 
-    ws.onerror = (error) => {
-      console.error('WebSocket connection error:', error);
-    };
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-      }
-    };
-  }, [currentUser.id]);
-
-  const getUserInitials = () => {
-    if (currentUser.name) {
-      const names = currentUser.name.split(' ');
-      if (names.length >= 2) {
-        return (names[0][0] + names[1][0]).toUpperCase();
-      }
-      return currentUser.name[0].toUpperCase();
-    }
-    return 'LM';
-  };
-
-  // ===== ASSIGN DRIVER TO ORDER =====
+  // ===== ASSIGN DELIVERY PERSONNEL TO ORDER =====
   const handleAssignDriver = async () => {
     if (!selectedOrder || !selectedDriver) {
-      alert('Please select a driver');
+      alert('Please select delivery personnel');
       return;
     }
 
@@ -156,7 +179,6 @@ function OrderFulfillment() {
     try {
       const driver = availableDrivers.find(d => d.id === selectedDriver);
       
-      // REAL API CALL - Assign driver to order
       const token = localStorage.getItem('token');
       const response = await fetch('/api/orders/assign-driver', {
         method: 'POST',
@@ -172,88 +194,27 @@ function OrderFulfillment() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to assign driver');
+      if (!response.ok) throw new Error('Failed to assign delivery personnel');
       const updatedOrder = await response.json();
-
-      // Update local state
+      
       setOrders(orders.map(o => o.id === selectedOrder.id ? updatedOrder : o));
       
-      // Send notification to driver via WebSocket
-      await notifyDriver(driver.id, selectedOrder);
+      setAvailableDrivers(availableDrivers.map(d => 
+        d.id === driver.id ? { ...d, status: 'ON_DELIVERY' } : d
+      ));
       
       setShowAssignModal(false);
       setSelectedOrder(null);
       setSelectedDriver('');
+      alert(`✅ ${driver.name} assigned to order ${selectedOrder.id}`);
       
-      alert(`✅ Driver ${driver.name} assigned to order ${selectedOrder.orderId}`);
     } catch (error) {
-      console.error('Error assigning driver:', error);
-      alert('Failed to assign driver: ' + error.message);
+      console.error('Error assigning delivery personnel:', error);
+      alert('Failed to assign delivery personnel: ' + error.message);
     } finally {
       setAssigning(false);
     }
   };
-
-  // ===== NOTIFY DRIVER =====
-  const notifyDriver = async (driverId, order) => {
-    try {
-      const token = localStorage.getItem('token');
-      await fetch('/api/notifications/driver', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          driverId, 
-          orderId: order.id,
-          message: `New delivery assigned: ${order.orderId}`,
-          orderDetails: {
-            recipient: order.recipient,
-            location: order.location,
-            items: order.items
-          }
-        })
-      });
-    } catch (error) {
-      console.error('Error notifying driver:', error);
-    }
-  };
-
-  // ===== HANDLE DRIVER STATUS UPDATE (Real-time) =====
-  const handleDriverStatusUpdate = useCallback(async (orderId, newStatus, note = '') => {
-    try {
-      // Update local state
-      const updatedOrders = orders.map(order => {
-        if (order.id === orderId) {
-          return {
-            ...order,
-            status: newStatus,
-            updatedAt: new Date().toISOString(),
-            timeline: [
-              ...(order.timeline || []),
-              { 
-                status: newStatus, 
-                timestamp: new Date().toISOString(), 
-                note: note || `Status updated to ${newStatus}`
-              }
-            ]
-          };
-        }
-        return order;
-      });
-
-      setOrders(updatedOrders);
-      
-      // Show notification
-      const order = orders.find(o => o.id === orderId);
-      if (order && newStatus === 'ARRIVED') {
-        alert(`✅ Order ${order.orderId} has been delivered successfully!`);
-      }
-    } catch (error) {
-      console.error('Error updating order status:', error);
-    }
-  }, [orders]);
 
   // ===== STAFF MANUALLY UPDATE STATUS =====
   const handleManualUpdate = async () => {
@@ -280,24 +241,22 @@ function OrderFulfillment() {
 
       if (!response.ok) throw new Error('Failed to update order');
       const updatedOrder = await response.json();
-
       setOrders(orders.map(o => o.id === updatingOrder.id ? updatedOrder : o));
+
       setShowUpdateModal(false);
       setUpdatingOrder(null);
       setUpdateData({ status: '', note: '', location: '' });
+      alert(`✅ Order ${updatingOrder.id} updated successfully`);
       
-      alert(`✅ Order ${updatingOrder.orderId} updated successfully`);
     } catch (error) {
       console.error('Error updating order:', error);
       alert('Failed to update order: ' + error.message);
     }
   };
 
-  // ===== REASSIGN DRIVER =====
+  // ===== REASSIGN DELIVERY PERSONNEL =====
   const handleReassignDriver = async (order) => {
-    if (!window.confirm(`Reassign driver for order ${order.orderId}?`)) return;
-    
-    // Load fresh drivers list
+    if (!window.confirm(`Reassign delivery personnel for order ${order.id}?`)) return;
     await loadAvailableDrivers();
     openAssignModal(order);
   };
@@ -322,9 +281,9 @@ function OrderFulfillment() {
       });
 
       if (!response.ok) throw new Error('Failed to delete order');
-      
       setOrders(orders.filter(o => o.id !== id));
       alert('Order deleted successfully!');
+      
     } catch (error) {
       console.error('Error deleting order:', error);
       alert('Failed to delete order: ' + error.message);
@@ -334,41 +293,28 @@ function OrderFulfillment() {
   // ===== GET STATUS DISPLAY =====
   const getStatusInfo = (status) => {
     const statusMap = {
-      'ORDER_CONFIRMED': { 
-        label: '🟡 Order Confirmed', 
-        class: 'order-confirmed',
-        next: 'PROCESSED',
+      'PENDING': { 
+        label: '🟡 Pending', 
         step: 1,
         color: '#ff9800'
       },
-      'PROCESSED': { 
+      'PROCESSING': { 
         label: '🟠 Processing', 
-        class: 'processed',
-        next: 'AT_AIRPORT',
         step: 2,
         color: '#ff6b00'
       },
-      'AT_AIRPORT': { 
-        label: '✈️ At Airport', 
-        class: 'at-airport',
-        next: 'ARRIVED',
+      'COMPLETED': { 
+        label: '✅ Completed', 
         step: 3,
-        color: '#2196f3'
-      },
-      'ARRIVED': { 
-        label: '✅ Delivered', 
-        class: 'arrived',
-        next: null,
-        step: 4,
         color: '#4caf50'
+      },
+      'CANCELLED': { 
+        label: '❌ Cancelled', 
+        step: 0,
+        color: '#dc3545'
       }
     };
-    return statusMap[status] || statusMap['ORDER_CONFIRMED'];
-  };
-
-  // ===== GET TYPE LABEL =====
-  const getTypeLabel = (type) => {
-    return type === 'BOOK' ? '📚 Books' : '🎨 Crafts';
+    return statusMap[status] || statusMap['PENDING'];
   };
 
   // ===== FORMAT DATE =====
@@ -381,20 +327,19 @@ function OrderFulfillment() {
   // ===== FILTER ORDERS =====
   const filteredOrders = orders.filter(o => {
     const statusMatch = statusFilter === 'All' || o.status === statusFilter;
-    const typeMatch = orderTypeFilter === 'All' || o.type === orderTypeFilter;
-    return statusMatch && typeMatch;
+    return statusMatch;
   });
 
   // ===== CALCULATE STATS =====
   const statusCounts = {
     All: orders.length,
-    'ORDER_CONFIRMED': orders.filter(o => o.status === 'ORDER_CONFIRMED').length,
-    'PROCESSED': orders.filter(o => o.status === 'PROCESSED').length,
-    'AT_AIRPORT': orders.filter(o => o.status === 'AT_AIRPORT').length,
-    'ARRIVED': orders.filter(o => o.status === 'ARRIVED').length,
+    'PENDING': orders.filter(o => o.status === 'PENDING').length,
+    'PROCESSING': orders.filter(o => o.status === 'PROCESSING').length,
+    'COMPLETED': orders.filter(o => o.status === 'COMPLETED').length,
+    'CANCELLED': orders.filter(o => o.status === 'CANCELLED').length,
   };
 
-  const pendingOrders = orders.filter(o => !o.driverId && o.status !== 'ARRIVED').length;
+  const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
 
   // ===== Refresh Data =====
   const refreshData = () => {
@@ -402,33 +347,28 @@ function OrderFulfillment() {
     loadAvailableDrivers();
   };
 
+  const getUserInitials = () => {
+    if (currentUser.name) {
+      const names = currentUser.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return currentUser.name[0].toUpperCase();
+    }
+    return 'SU';
+  };
+
   return (
     <StaffLayout>
       <div className="content-header">
         <div>
           <h1>Order Fulfillment</h1>
-          <p className="page-subtitle" style={{ color: '#64748b', margin: '4px 0 0 0' }}>
-            Manage order processing, driver assignment, and real-time delivery tracking
-          </p>
+          <p className="page-subtitle">Manage order processing, driver assignment, and delivery tracking</p>
         </div>
         <div className="user-info">
           <span className="user-role">{currentUser.name}</span>
           <span className="user-title">{currentUser.role}</span>
           <div className="user-avatar">{getUserInitials()}</div>
-          <button 
-            onClick={refreshData}
-            style={{
-              marginLeft: '12px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              border: '1px solid #e5e5e5',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            🔄 Refresh
-          </button>
         </div>
       </div>
 
@@ -437,14 +377,14 @@ function OrderFulfillment() {
         <div className="stat-card">
           <h3>Pending Orders</h3>
           <div className="stat-value">{pendingOrders}</div>
-          <div className="stat-trend">Need driver assignment</div>
-          <div className="stat-sub">{statusCounts['ORDER_CONFIRMED']} confirmed</div>
+          <div className="stat-trend">Need processing</div>
+          <div className="stat-sub">Waiting for assignment</div>
         </div>
         <div className="stat-card">
-          <h3>In Transit</h3>
-          <div className="stat-value">{statusCounts['AT_AIRPORT']}</div>
-          <div className="stat-trend">✈️ With drivers</div>
-          <div className="stat-sub">{statusCounts['PROCESSED']} processing</div>
+          <h3>Processing</h3>
+          <div className="stat-value">{statusCounts['PROCESSING']}</div>
+          <div className="stat-trend">In transit</div>
+          <div className="stat-sub">With delivery personnel</div>
         </div>
         <div className="stat-card">
           <h3>Available Drivers</h3>
@@ -453,157 +393,115 @@ function OrderFulfillment() {
           <div className="stat-sub">Total: {availableDrivers.length} drivers</div>
         </div>
         <div className="stat-card">
-          <h3>Delivered Today</h3>
-          <div className="stat-value">
-            {orders.filter(o => {
-              const today = new Date().toISOString().split('T')[0];
-              const updated = new Date(o.updatedAt).toISOString().split('T')[0];
-              return o.status === 'ARRIVED' && updated === today;
-            }).length}
-          </div>
-          <div className="stat-trend">✅ Completed</div>
-          <div className="stat-sub">Total delivered: {statusCounts['ARRIVED']}</div>
+          <h3>Completed</h3>
+          <div className="stat-value">{statusCounts['COMPLETED']}</div>
+          <div className="stat-trend">✅ Delivered</div>
+          <div className="stat-sub">Total completed orders</div>
         </div>
       </div>
 
       {/* Main Table */}
       <div className="card-panel" style={{ marginBottom: '24px' }}>
         {/* Filters */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          flexWrap: 'wrap', 
-          alignItems: 'center', 
-          marginBottom: '16px',
-          justifyContent: 'space-between'
-        }}>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['All', 'ORDER_CONFIRMED', 'PROCESSED', 'AT_AIRPORT', 'ARRIVED'].map((status) => {
-              const labelMap = {
-                'All': `All (${statusCounts.All})`,
-                'ORDER_CONFIRMED': `🟡 Confirmed (${statusCounts['ORDER_CONFIRMED']})`,
-                'PROCESSED': `🟠 Processing (${statusCounts['PROCESSED']})`,
-                'AT_AIRPORT': `✈️ At Airport (${statusCounts['AT_AIRPORT']})`,
-                'ARRIVED': `✅ Delivered (${statusCounts['ARRIVED']})`
-              };
-              return (
-                <span 
-                  key={status}
-                  className={`filter-chip ${statusFilter === status ? 'active' : ''}`}
-                  onClick={() => setStatusFilter(status)}
-                  style={{ 
-                    cursor: 'pointer', 
-                    padding: '6px 16px', 
-                    borderRadius: '20px',
-                    background: statusFilter === status ? '#1E4D4B' : '#f0f0f0',
-                    color: statusFilter === status ? 'white' : '#333',
-                    fontSize: '13px',
-                    fontWeight: statusFilter === status ? '600' : '400',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {labelMap[status]}
-                </span>
-              );
-            })}
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <select 
-              value={orderTypeFilter}
-              onChange={(e) => setOrderTypeFilter(e.target.value)}
-              style={{ 
-                padding: '6px 12px', 
-                borderRadius: '8px', 
-                border: '1px solid #e5e5e5',
-                background: 'white',
-                fontSize: '13px'
-              }}
-            >
-              <option value="All">All Types</option>
-              <option value="BOOK">📚 Books</option>
-              <option value="CRAFT">🎨 Crafts</option>
-            </select>
-          </div>
+        <div className="filter-bar">
+          {['All', 'PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'].map((status) => {
+            const labelMap = {
+              'All': `All (${statusCounts.All})`,
+              'PENDING': `🟡 Pending (${statusCounts['PENDING']})`,
+              'PROCESSING': `🟠 Processing (${statusCounts['PROCESSING']})`,
+              'COMPLETED': `✅ Completed (${statusCounts['COMPLETED']})`,
+              'CANCELLED': `❌ Cancelled (${statusCounts['CANCELLED']})`
+            };
+            return (
+              <span 
+                key={status}
+                className={`filter-chip ${statusFilter === status ? 'active' : ''}`}
+                onClick={() => setStatusFilter(status)}
+              >
+                {labelMap[status]}
+              </span>
+            );
+          })}
+          <button 
+            onClick={refreshData}
+            className="refresh-btn"
+            style={{ marginLeft: 'auto' }}
+          >
+            🔄 Refresh
+          </button>
         </div>
 
         {/* Table */}
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading orders...</div>
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            No orders found. Orders will appear here when users place them.
+            No orders found.
           </div>
         ) : (
-          <div className="data-table" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <div className="data-table">
+            <table>
               <thead>
-                <tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom: '2px solid #e5e5e5' }}>
-                  <th style={{ padding: '12px' }}>Order ID</th>
-                  <th style={{ padding: '12px' }}>Recipient</th>
-                  <th style={{ padding: '12px' }}>Type</th>
-                  <th style={{ padding: '12px' }}>Items</th>
-                  <th style={{ padding: '12px' }}>Driver</th>
-                  <th style={{ padding: '12px' }}>Status</th>
-                  <th style={{ padding: '12px' }}>Actions</th>
+                <tr>
+                  <th>Order ID</th>
+                  <th>User</th>
+                  <th>Points</th>
+                  <th>Amount</th>
+                  <th>Address</th>
+                  <th>Delivery Personnel</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.map((order) => {
                   const statusInfo = getStatusInfo(order.status);
+                  const user = order.user || {};
+                  
+                  const driver = availableDrivers.find(d => d.id === order.driverId);
+                  const driverName = driver ? driver.name : order.driverName;
+                  
                   return (
                     <tr key={order.id} style={{ 
-                      borderBottom: '1px solid #f0f0f0',
-                      opacity: order.status === 'ARRIVED' ? 0.7 : 1,
-                      background: order.status === 'ARRIVED' ? '#fafafa' : 'white'
+                      opacity: order.status === 'COMPLETED' || order.status === 'CANCELLED' ? 0.7 : 1,
+                      background: order.status === 'COMPLETED' || order.status === 'CANCELLED' ? '#fafafa' : 'white'
                     }}>
-                      <td style={{ padding: '12px' }}>
-                        <strong>{order.orderId}</strong>
+                      <td>
+                        <strong>{order.id}</strong>
                         <div style={{ fontSize: '11px', color: '#64748b' }}>
                           {formatDate(order.createdAt)}
                         </div>
                       </td>
-                      <td style={{ padding: '12px' }}>
-                        <div><strong>{order.recipient}</strong></div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>
-                          📍 {order.location}
+                      <td>
+                        <div><strong>{user.name || 'N/A'}</strong></div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          {user.email || ''}
                         </div>
                       </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ 
-                          padding: '2px 10px', 
-                          borderRadius: '12px',
-                          background: order.type === 'BOOK' ? '#e3f2fd' : '#f3e5f5',
-                          color: order.type === 'BOOK' ? '#0d47a1' : '#4a148c',
-                          fontSize: '12px',
-                          fontWeight: '500'
-                        }}>
-                          {getTypeLabel(order.type)}
-                        </span>
+                      <td style={{ textAlign: 'center' }}>
+                        <strong>{order.totalPoints || 0}</strong>
                       </td>
-                      <td style={{ padding: '12px', fontSize: '13px' }}>
-                        <div>{order.items}</div>
-                        {order.trackingNumber && (
+                      <td>
+                        {order.cashAmount ? `$${order.cashAmount}` : '-'}
+                      </td>
+                      <td style={{ fontSize: '13px' }}>
+                        <div>{order.shippingAddress || 'N/A'}</div>
+                        {order.phoneNumber && (
                           <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                            📦 {order.trackingNumber}
-                          </div>
-                        )}
-                        {order.notes && (
-                          <div style={{ fontSize: '11px', color: '#ff9800', marginTop: '2px' }}>
-                            📝 {order.notes}
+                            📞 {order.phoneNumber}
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: '12px' }}>
+                      <td>
                         {order.driverId ? (
                           <div>
-                            <strong style={{ color: '#1E4D4B' }}>{order.driverName}</strong>
+                            <strong style={{ color: '#1E4D4B' }}>{driverName || 'Assigned'}</strong>
                             <div style={{ 
                               fontSize: '11px', 
-                              color: order.status === 'ARRIVED' ? '#4caf50' : '#2196f3',
-                              fontWeight: '500'
+                              color: '#64748b',
+                              fontWeight: '400'
                             }}>
-                              {order.status === 'ARRIVED' ? '✅ Completed' : '🚚 In Transit'}
+                              🚚 Delivery Personnel
                             </div>
                           </div>
                         ) : (
@@ -612,100 +510,66 @@ function OrderFulfillment() {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '12px' }}>
+                      <td>
                         <div>
-                          <span className={`status-badge ${statusInfo.class}`}>
+                          <span className={`status-badge ${order.status.toLowerCase()}`}>
                             {statusInfo.label}
                           </span>
-                          <div style={{ 
-                            width: '100%', 
-                            height: '3px', 
-                            background: '#e5e5e5', 
-                            borderRadius: '2px',
-                            marginTop: '6px'
-                          }}>
+                          {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && (
                             <div style={{ 
-                              width: `${(statusInfo.step / 4) * 100}%`, 
-                              height: '100%', 
-                              background: statusInfo.step === 4 ? '#4caf50' : '#1E4D4B',
+                              width: '100%', 
+                              height: '3px', 
+                              background: '#e5e5e5', 
                               borderRadius: '2px',
-                              transition: 'width 0.5s ease'
-                            }} />
-                          </div>
-                          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
-                            Step {statusInfo.step}/4
-                          </div>
+                              marginTop: '6px'
+                            }}>
+                              <div style={{ 
+                                width: `${(statusInfo.step / 3) * 100}%`, 
+                                height: '100%', 
+                                background: statusInfo.step === 3 ? '#4caf50' : '#1E4D4B',
+                                borderRadius: '2px',
+                                transition: 'width 0.5s ease'
+                              }} />
+                            </div>
+                          )}
                         </div>
                       </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {!order.driverId && order.status !== 'ARRIVED' && (
+                      <td>
+                        <div className="action-group">
+                          {(!order.driverId || order.driverId === '') && 
+                           (order.status === 'PENDING' || order.status === 'PROCESSING') && (
                             <button 
                               className="btn-small" 
                               onClick={() => openAssignModal(order)}
-                              style={{ 
-                                background: '#1E4D4B', 
-                                color: 'white',
-                                fontSize: '11px',
-                                padding: '4px 10px',
-                                borderRadius: '4px',
-                                border: 'none',
-                                cursor: 'pointer'
-                              }}
                             >
                               👤 Assign
                             </button>
                           )}
-                          {order.driverId && order.status !== 'ARRIVED' && (
+                          {(order.driverId && order.status !== 'COMPLETED' && order.status !== 'CANCELLED') && (
                             <>
                               <button 
                                 className="btn-small" 
+                                style={{ background: '#2196f3', color: 'white' }}
                                 onClick={() => {
                                   setUpdatingOrder(order);
                                   setUpdateData({ status: '', note: '', location: '' });
                                   setShowUpdateModal(true);
-                                }}
-                                style={{ 
-                                  background: '#2196f3', 
-                                  color: 'white',
-                                  fontSize: '11px',
-                                  padding: '4px 10px',
-                                  borderRadius: '4px',
-                                  border: 'none',
-                                  cursor: 'pointer'
                                 }}
                               >
                                 📍 Update
                               </button>
                               <button 
                                 className="btn-small" 
+                                style={{ background: '#ff9800', color: 'white' }}
                                 onClick={() => handleReassignDriver(order)}
-                                style={{ 
-                                  background: '#ff9800', 
-                                  color: 'white',
-                                  fontSize: '11px',
-                                  padding: '4px 10px',
-                                  borderRadius: '4px',
-                                  border: 'none',
-                                  cursor: 'pointer'
-                                }}
                               >
                                 🔄 Reassign
                               </button>
                             </>
                           )}
                           <button 
-                            className="btn-small" 
+                            className="btn-small-danger" 
                             onClick={() => handleDelete(order.id)}
-                            style={{ 
-                              background: '#dc3545', 
-                              color: 'white',
-                              fontSize: '11px',
-                              padding: '4px 10px',
-                              borderRadius: '4px',
-                              border: 'none',
-                              cursor: 'pointer'
-                            }}
                           >
                             🗑️
                           </button>
@@ -718,76 +582,37 @@ function OrderFulfillment() {
             </table>
           </div>
         )}
-        <div className="table-footer" style={{ 
-          padding: '12px', 
-          color: '#64748b', 
-          fontSize: '14px',
-          borderTop: '1px solid #e5e5e5',
-          marginTop: '12px'
-        }}>
+        <div className="table-footer">
           Showing {filteredOrders.length} of {orders.length} orders
         </div>
       </div>
 
       {/* ===== ASSIGN DRIVER MODAL ===== */}
       {showAssignModal && selectedOrder && (
-        <div className="modal-overlay" style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          background: 'rgba(0,0,0,0.5)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 9999 
-        }}>
-          <div className="modal-content" style={{ 
-            background: 'white', 
-            borderRadius: '16px', 
-            padding: '32px', 
-            maxWidth: '550px', 
-            width: '100%',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
-          }}>
-            <h2 style={{ color: '#1E4D4B', marginBottom: '4px' }}>👤 Assign Driver</h2>
-            <p style={{ color: '#64748b', marginBottom: '20px' }}>
-              Order: <strong>{selectedOrder.orderId}</strong> - {selectedOrder.items}
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>👤 Assign Delivery Personnel</h2>
+            <p className="modal-subtitle">
+              Order: <strong>{selectedOrder.id}</strong>
             </p>
 
-            {/* Order Details */}
-            <div style={{ 
-              background: '#f8fafc', 
-              padding: '12px', 
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '13px'
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                <span style={{ color: '#64748b' }}>Recipient:</span>
-                <span><strong>{selectedOrder.recipient}</strong></span>
-                <span style={{ color: '#64748b' }}>Location:</span>
-                <span><strong>{selectedOrder.location}</strong></span>
-                <span style={{ color: '#64748b' }}>Items:</span>
-                <span><strong>{selectedOrder.items}</strong></span>
-                {selectedOrder.notes && (
-                  <>
-                    <span style={{ color: '#64748b' }}>Notes:</span>
-                    <span style={{ color: '#ff9800' }}>{selectedOrder.notes}</span>
-                  </>
+            <div className="user-submitted-info">
+              <h4>📋 Order Details</h4>
+              <div className="info-grid">
+                <p><strong>User:</strong> {selectedOrder.user?.name || 'N/A'}</p>
+                <p><strong>Address:</strong> {selectedOrder.shippingAddress || 'N/A'}</p>
+                <p><strong>Points:</strong> {selectedOrder.totalPoints || 0}</p>
+                {selectedOrder.phoneNumber && (
+                  <p><strong>Phone:</strong> {selectedOrder.phoneNumber}</p>
                 )}
               </div>
             </div>
 
-            {/* Driver Selection - REAL DATA from database */}
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                Select Driver
-              </label>
+            <div className="form-group">
+              <label>Select Delivery Personnel</label>
               {loadingDrivers ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                  Loading drivers...
+                  Loading delivery personnel...
                 </div>
               ) : availableDrivers.length === 0 ? (
                 <div style={{ 
@@ -797,63 +622,53 @@ function OrderFulfillment() {
                   background: '#fff3e0',
                   borderRadius: '8px'
                 }}>
-                  ⚠️ No drivers registered. Please ask users to register as drivers.
+                  ⚠️ No delivery personnel registered.
+                  <br />
+                  <small>Please add users with role 'DELIVERY_PERSONNEL' to the database.</small>
                 </div>
               ) : (
-                <select 
-                  className="form-control" 
-                  value={selectedDriver} 
-                  onChange={(e) => setSelectedDriver(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px 14px', 
-                    border: '1px solid #e5e5e5', 
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                >
-                  <option value="">Choose a driver...</option>
-                  {availableDrivers.map(driver => (
-                    <option 
-                      key={driver.id} 
-                      value={driver.id}
-                      disabled={driver.status === 'OFFLINE'}
-                    >
-                      {driver.name} 
-                      {driver.phone && ` (${driver.phone})`}
-                      {driver.status === 'AVAILABLE' ? ' ✅ Available' : 
-                       driver.status === 'ON_DELIVERY' ? ' 🚚 On Delivery' : ' ⏸️ Offline'}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select 
+                    className="form-control"
+                    value={selectedDriver} 
+                    onChange={(e) => setSelectedDriver(e.target.value)}
+                  >
+                    <option value="">Choose delivery personnel...</option>
+                    {availableDrivers.map(driver => (
+                      <option 
+                        key={driver.id} 
+                        value={driver.id}
+                        disabled={driver.status === 'OFFLINE' || driver.status === 'ON_DELIVERY'}
+                      >
+                        {driver.name} 
+                        {driver.phoneNumber && ` (${driver.phoneNumber})`}
+                        {driver.email && ` - ${driver.email}`}
+                        {driver.status === 'AVAILABLE' ? ' ✅ Available' : 
+                         driver.status === 'ON_DELIVERY' ? ' 🚚 On Delivery' : ' ⏸️ Offline'}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                    Total: {availableDrivers.length} delivery personnel • 
+                    {availableDrivers.filter(d => d.status === 'AVAILABLE').length} available
+                  </div>
+                </>
               )}
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                Showing {availableDrivers.filter(d => d.status === 'AVAILABLE').length} available drivers
-              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #e5e5e5', paddingTop: '20px' }}>
+            <div className="modal-actions">
               <button 
-                className="btn-secondary" 
+                className="btn-cancel" 
                 onClick={() => { setShowAssignModal(false); setSelectedOrder(null); setSelectedDriver(''); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer', background: 'white' }}
               >
                 Cancel
               </button>
               <button 
-                className="btn-primary" 
+                className="btn-save" 
                 onClick={handleAssignDriver}
-                disabled={!selectedDriver || assigning || loadingDrivers}
-                style={{ 
-                  padding: '10px 24px', 
-                  borderRadius: '8px', 
-                  border: 'none', 
-                  cursor: (!selectedDriver || assigning || loadingDrivers) ? 'not-allowed' : 'pointer',
-                  background: (!selectedDriver || assigning || loadingDrivers) ? '#ccc' : '#1E4D4B',
-                  color: (!selectedDriver || assigning || loadingDrivers) ? '#666' : 'white'
-                }}
+                disabled={!selectedDriver || assigning || loadingDrivers || availableDrivers.length === 0}
               >
-                {assigning ? 'Assigning...' : 'Assign Driver'}
+                {assigning ? 'Assigning...' : 'Assign Delivery Personnel'}
               </button>
             </div>
           </div>
@@ -862,113 +677,59 @@ function OrderFulfillment() {
 
       {/* ===== MANUAL UPDATE STATUS MODAL ===== */}
       {showUpdateModal && updatingOrder && (
-        <div className="modal-overlay" style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          background: 'rgba(0,0,0,0.5)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 9999 
-        }}>
-          <div className="modal-content" style={{ 
-            background: 'white', 
-            borderRadius: '16px', 
-            padding: '32px', 
-            maxWidth: '500px', 
-            width: '100%' 
-          }}>
-            <h2 style={{ color: '#1E4D4B', marginBottom: '4px' }}>📍 Update Delivery Status</h2>
-            <p style={{ color: '#64748b', marginBottom: '20px' }}>
-              Order: <strong>{updatingOrder.orderId}</strong>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>📍 Update Order Status</h2>
+            <p className="modal-subtitle">
+              Order: <strong>{updatingOrder.id}</strong>
             </p>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                Status
-              </label>
+            <div className="form-group">
+              <label>Status</label>
               <select
                 className="form-control"
                 value={updateData.status}
                 onChange={(e) => setUpdateData({ ...updateData, status: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}
               >
                 <option value="">Select status...</option>
-                <option value="PROCESSED">🟠 Processing</option>
-                <option value="AT_AIRPORT">✈️ At Airport</option>
-                <option value="ARRIVED">✅ Delivered</option>
+                <option value="PROCESSING">🟠 Processing</option>
+                <option value="COMPLETED">✅ Completed</option>
+                <option value="CANCELLED">❌ Cancelled</option>
               </select>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                Location
-              </label>
+            <div className="form-group">
+              <label>Location</label>
               <input
                 type="text"
                 className="form-control"
                 value={updateData.location}
                 onChange={(e) => setUpdateData({ ...updateData, location: e.target.value })}
-                placeholder="e.g., Colombo Airport Hub, Kandy Depot"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}
+                placeholder="e.g., Colombo Hub, Kandy Depot"
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                Note (Optional)
-              </label>
+            <div className="form-group">
+              <label>Note (Optional)</label>
               <textarea
                 className="form-control"
                 value={updateData.note}
                 onChange={(e) => setUpdateData({ ...updateData, note: e.target.value })}
-                placeholder="Add any delivery notes..."
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  minHeight: '60px'
-                }}
+                placeholder="Add any notes..."
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <div className="modal-actions">
               <button
-                className="btn-secondary"
+                className="btn-cancel"
                 onClick={() => { setShowUpdateModal(false); setUpdatingOrder(null); setUpdateData({ status: '', note: '', location: '' }); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer', background: 'white' }}
               >
                 Cancel
               </button>
               <button
-                className="btn-primary"
+                className="btn-save"
                 onClick={handleManualUpdate}
                 disabled={!updateData.status}
-                style={{ 
-                  padding: '10px 24px', 
-                  borderRadius: '8px', 
-                  border: 'none', 
-                  cursor: updateData.status ? 'pointer' : 'not-allowed',
-                  background: updateData.status ? '#1E4D4B' : '#ccc',
-                  color: updateData.status ? 'white' : '#666'
-                }}
               >
                 Update Status
               </button>
@@ -976,59 +737,6 @@ function OrderFulfillment() {
           </div>
         </div>
       )}
-
-      {/* Stats Footer */}
-      <div className="two-column">
-        <div className="card-panel">
-          <h3>📦 Order Status Overview</h3>
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>🟡 Order Confirmed</span>
-              <span><strong>{statusCounts['ORDER_CONFIRMED']}</strong></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>🟠 Processing</span>
-              <span><strong>{statusCounts['PROCESSED']}</strong></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>✈️ At Airport</span>
-              <span><strong>{statusCounts['AT_AIRPORT']}</strong></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>✅ Delivered</span>
-              <span><strong>{statusCounts['ARRIVED']}</strong></span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-panel">
-          <h3>🚚 Driver Summary</h3>
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>✅ Available</span>
-              <span style={{ color: '#4caf50' }}><strong>{availableDrivers.filter(d => d.status === 'AVAILABLE').length}</strong></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>🚚 On Delivery</span>
-              <span style={{ color: '#ff9800' }}><strong>{availableDrivers.filter(d => d.status === 'ON_DELIVERY').length}</strong></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>⏸️ Offline</span>
-              <span style={{ color: '#dc3545' }}><strong>{availableDrivers.filter(d => d.status === 'OFFLINE').length}</strong></span>
-            </div>
-            <div style={{ 
-              marginTop: '12px', 
-              padding: '8px 12px', 
-              background: '#f8fafc', 
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#64748b'
-            }}>
-              Total Registered Drivers: <strong>{availableDrivers.length}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
     </StaffLayout>
   );
 }
