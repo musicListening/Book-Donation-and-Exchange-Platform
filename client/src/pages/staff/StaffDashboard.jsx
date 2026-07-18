@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { taskAPI } from '../../services/api';
 
-
 function StaffDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [tasks, setTasks] = useState([]);
@@ -82,6 +81,7 @@ function StaffDashboard() {
       setTasks([newTask, ...tasks]);
       setShowModal(false);
       resetForm();
+      alert('Task created successfully!');
     } catch (error) {
       console.error('❌ Error creating task:', error);
       alert('Failed to create task: ' + error.message);
@@ -108,6 +108,7 @@ function StaffDashboard() {
       setShowModal(false);
       setEditingTask(null);
       resetForm();
+      alert('Task updated successfully!');
     } catch (error) {
       console.error('❌ Error updating task:', error);
       alert('Failed to update task: ' + error.message);
@@ -120,20 +121,10 @@ function StaffDashboard() {
     try {
       await taskAPI.delete(id);
       setTasks(tasks.filter(task => task.id !== id));
+      alert('Task deleted successfully!');
     } catch (error) {
       console.error('❌ Error deleting task:', error);
       alert('Failed to delete task: ' + error.message);
-    }
-  };
-
-  // ===== UPDATE Status (dropdown) =====
-  const handleStatusUpdate = async (id, newStatus) => {
-    try {
-      const updated = await taskAPI.updateStatus(id, newStatus);
-      setTasks(tasks.map(task => task.id === updated.id ? updated : task));
-    } catch (error) {
-      console.error('❌ Error updating status:', error);
-      alert('Failed to update status: ' + error.message);
     }
   };
 
@@ -144,10 +135,29 @@ function StaffDashboard() {
   const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Review').length;
   const completedTasks = tasks.filter(t => t.status === 'Approved' || t.status === 'Rejected').length;
 
+  // ===== GET STATUS BADGE CLASS =====
+  const getStatusBadgeClass = (status) => {
+    switch(status) {
+      case 'Pending':
+        return 'status-pending';
+      case 'In Review':
+        return 'status-review';
+      case 'Approved':
+        return 'status-approved';
+      case 'Rejected':
+        return 'status-rejected';
+      default:
+        return 'status-pending';
+    }
+  };
+
   return (
     <StaffLayout>
       <div className="content-header">
-        <h1>Operations Overview - Sri Lanka</h1>
+        <div>
+          <h1>Operations Overview </h1>
+          
+        </div>
         <div className="user-info">
           <span className="user-role">{currentUser.name}</span>
           <span className="user-title">{currentUser.role}</span>
@@ -155,16 +165,10 @@ function StaffDashboard() {
         </div>
       </div>
 
-      <p className="welcome-text">Welcome back, {getFirstName()}! Here is what needs your attention today across Sri Lanka.</p>
+    
 
+      {/* ===== STATS CARDS WITH BUNDLE MANAGEMENT COLORS ===== */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <h3>PENDING VERIFICATIONS</h3>
-          <div className="stat-value">{pendingTasks}</div>
-          <div className="stat-trend">▲ Awaiting action</div>
-          <div className="stat-sub">Books awaiting condition assessment</div>
-        </div>
-
         <div className="stat-card">
           <h3>TOTAL TASKS</h3>
           <div className="stat-value">{tasks.length}</div>
@@ -173,8 +177,16 @@ function StaffDashboard() {
         </div>
 
         <div className="stat-card">
+          <h3>PENDING VERIFICATIONS</h3>
+          <div className="stat-value" style={{ color: '#ffc107' }}>{pendingTasks}</div>
+          <div className="stat-trend" style={{ color: '#ffc107' }}>▲ Awaiting action</div>
+          <div className="stat-sub">Books awaiting condition assessment</div>
+        </div>
+
+        <div className="stat-card">
           <h3>COMPLETED</h3>
-          <div className="stat-value">{completedTasks}</div>
+          <div className="stat-value" style={{ color: '#28a745' }}>{completedTasks}</div>
+          <div className="stat-trend" style={{ color: '#28a745' }}>✓ Reviewed</div>
           <div className="stat-sub">Reviewed tasks</div>
         </div>
       </div>
@@ -216,21 +228,9 @@ function StaffDashboard() {
                     <td>{task.volume}</td>
                     <td>{task.date}</td>
                     <td>
-                      <select
-                        className={`status-badge ${
-                          task.status === 'In Review' ? 'in-review' :
-                          task.status === 'Approved' ? 'published' :
-                          task.status === 'Rejected' ? 'delayed' : 'draft'
-                        }`}
-                        value={task.status}
-                        onChange={(e) => handleStatusUpdate(task.id, e.target.value)}
-                        style={{ border: 'none', cursor: 'pointer', padding: '4px 12px', borderRadius: '30px', fontSize: '12px', fontWeight: '500' }}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="In Review">In Review</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
+                      <span className={`status-badge ${getStatusBadgeClass(task.status)}`}>
+                        {task.status}
+                      </span>
                     </td>
                     <td>
                       <div className="action-group">
@@ -324,26 +324,6 @@ function StaffDashboard() {
         </div>
       )}
 
-      <div className="inventory-flow">
-        <h3>Inventory Flow (Weekly) - National Overview</h3>
-        <div className="flow-chart">
-          <div className="flow-bar">
-            <span className="flow-label">Donations Received</span>
-            <div className="flow-progress donations" style={{ width: '72%' }}></div>
-            <span className="flow-percent">↑ 28% from last week</span>
-          </div>
-          <div className="flow-bar">
-            <span className="flow-label">Distributions</span>
-            <div className="flow-progress distributions" style={{ width: '56%' }}></div>
-            <span className="flow-percent">→ 2,150 books delivered</span>
-          </div>
-          <div className="flow-bar">
-            <span className="flow-label">In Processing</span>
-            <div className="flow-progress" style={{ width: '34%', background: '#E9C46A' }}></div>
-            <span className="flow-percent">→ 1,280 books in queue</span>
-          </div>
-        </div>
-      </div>
     </StaffLayout>
   );
 }
