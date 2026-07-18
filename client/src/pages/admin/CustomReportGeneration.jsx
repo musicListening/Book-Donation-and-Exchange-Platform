@@ -1,80 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import AdminLayout from "../../components/AdminLayout";
+import { adminAPI } from "../../services/api";
 import "../../styles/CustomReportGeneration.css";
-
-const reportDataTemplates = {
-  "Total Points Provided": {
-    title: "Points Distribution & Redemption Report",
-    subtitle: "Summary of points issued, redeemed, and remaining platform balances",
-    headers: ["Category", "Points Issued", "Points Redeemed", "Net Balance"],
-    rows: [
-      { col1: "Single Book Donations", col2: "12,500", col3: "0", col4: "+12,500" },
-      { col1: "Collection Donations (w/ Bonus)", col2: "45,200", col3: "0", col4: "+45,200" },
-      { col1: "Book Marketplace Purchases", col2: "0", col3: "18,400", col4: "-18,400" },
-      { col1: "Craft Marketplace Purchases", col2: "0", col3: "8,500", col4: "-8,500" },
-      { col1: "Total Platform Points", col2: "57,700", col3: "26,900", col4: "30,800" },
-    ],
-    chartData: [
-      { label: "Issued", val: 85, color: "#1E4D4B" },
-      { label: "Redeemed", val: 45, color: "#E9C46A" },
-      { label: "Pending", val: 40, color: "#643C29" },
-    ]
-  },
-  "Total Deliveries": {
-    title: "Delivery & Fulfillment Status Report",
-    subtitle: "Real-time tracking of book and craft shipments across all stages",
-    headers: ["Status Stage", "Book Orders", "Craft Orders", "Total"],
-    rows: [
-      { col1: "Order Confirmed", col2: "45", col3: "12", col4: "57" },
-      { col1: "Processed & Packed", col2: "38", col3: "10", col4: "48" },
-      { col1: "At Airport / Courier", col2: "22", col3: "5", col4: "27" },
-      { col1: "Arrived at Destination", col2: "115", col3: "28", col4: "143" },
-      { col1: "Total Deliveries", col2: "220", col3: "55", col4: "275" },
-    ],
-    chartData: [
-      { label: "Confirmed", val: 20, color: "#767777" },
-      { label: "Processed", val: 35, color: "#E9C46A" },
-      { label: "In Transit", val: 50, color: "#643C29" },
-      { label: "Delivered", val: 85, color: "#1E4D4B" },
-    ]
-  },
-  "Most Popular Collections": {
-    title: "Top Performing Book Collections",
-    subtitle: "Most requested and curated book bundles by genre",
-    headers: ["Collection Name", "Category", "Units Sold", "Demand Trend"],
-    rows: [
-      { col1: "O/L Science Past Papers 2018-2024", col2: "Education", col3: "142", col4: "High" },
-      { col1: "Harry Potter Full Series", col2: "Fiction", col3: "98", col4: "High" },
-      { col1: "Classic Victorian Novels Set", col2: "Literature", col3: "76", col4: "Medium" },
-      { col1: "A/L Mathematics Revision", col2: "Education", col3: "65", col4: "Medium" },
-      { col1: "Children's Storybook Bundle", col2: "Kids", col3: "54", col4: "Low" },
-    ],
-    chartData: [
-      { label: "Education", val: 90, color: "#1E4D4B" },
-      { label: "Fiction", val: 75, color: "#E9C46A" },
-      { label: "Literature", val: 60, color: "#643C29" },
-      { label: "Kids", val: 40, color: "#767777" },
-    ]
-  },
-  "Top Users Who Level Up": {
-    title: "Top Users & Level Progression Report",
-    subtitle: "Leaderboard of most active donors and their unlocked tier benefits",
-    headers: ["User Identity", "Total Donated", "Current Level", "Next Unlock"],
-    rows: [
-      { col1: "sarah.jenkins@ethos.com", col2: "342 Books", col3: "Level 5 (Expert)", col4: "Mystery Box" },
-      { col1: "marcus.thorne@ethos.com", col2: "215 Books", col3: "Level 4 (Advocate)", col4: "Rare Collection" },
-      { col1: "elena.rodriguez@ethos.com", col2: "180 Books", col3: "Level 4 (Advocate)", col4: "Rare Collection" },
-      { col1: "david.kim@ethos.com", col2: "120 Books", col3: "Level 3 (Supporter)", col4: "Level 4 Badge" },
-      { col1: "amasha.fernando@ethos.com", col2: "95 Books", col3: "Level 3 (Supporter)", col4: "Level 4 Badge" },
-    ],
-    chartData: [
-      { label: "Lvl 5", val: 15, color: "#1E4D4B" },
-      { label: "Lvl 4", val: 35, color: "#E9C46A" },
-      { label: "Lvl 3", val: 50, color: "#643C29" },
-      { label: "Lvl 1-2", val: 80, color: "#767777" },
-    ]
-  }
-};
 
 export default function CustomReportGeneration() {
   const [reportType, setReportType] = useState("Total Points Provided");
@@ -86,38 +13,36 @@ export default function CustomReportGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentReport, setCurrentReport] = useState(null);
   const [notification, setNotification] = useState("");
+  const [error, setError] = useState("");
 
-  // Setup initial report preview
-  useEffect(() => {
-    setCurrentReport(reportDataTemplates[reportType]);
-  }, [reportType]);
-
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-      // Generate standard notification toast
+    setError("");
+    setNotification("");
+    try {
+      const data = await adminAPI.getReport(reportType, startDate, endDate);
+      setCurrentReport(data);
       setNotification(`Report generated successfully as ${exportFormat}!`);
       setTimeout(() => setNotification(""), 4000);
-    }, 1200);
+    } catch (err) {
+      setError("Failed to generate report. Please try again.");
+      console.error("Report error:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const maskUserIdentity = (text) => {
-    if (!anonymizeUsers) return text;
+    if (!anonymizeUsers || typeof text !== "string") return text;
     if (text.includes("@")) {
       const [name, domain] = text.split("@");
       if (name.length <= 3) return `***@${domain}`;
       return `${name.substring(0, 2)}***@${domain}`;
     }
-    // Handle standard user IDs or incident/txn codes
-    if (text.startsWith("SEC-")) return "SEC-***";
-    if (text.startsWith("sarah") || text.startsWith("marcus") || text.startsWith("elena") || text.startsWith("david") || text.startsWith("amasha")) {
-      return text.substring(0, 2) + "***";
-    }
     return text;
   };
 
-  const report = currentReport || reportDataTemplates["Total Points Provided"];
+  const report = currentReport;
 
   return (
     <AdminLayout title="Custom Reports" hideHeaderLabel={true} hideNotifications={true}>
@@ -132,6 +57,12 @@ export default function CustomReportGeneration() {
           <h2 className="report-title">Custom Report Generation</h2>
           <p className="report-subtitle">Configure and visualize data exports for platform analytics and auditing.</p>
         </header>
+
+        {error && (
+          <div style={{ backgroundColor: '#FDF2F2', color: '#C02B2B', border: '1px solid #FECACA', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: 500 }}>
+            ⚠ {error}
+          </div>
+        )}
 
         <div className="report-layout-grid">
           {/* Left Panel: Configuration Form */}
@@ -247,92 +178,101 @@ export default function CustomReportGeneration() {
           {/* Right Panel: Live Preview */}
           <section className="preview-canvas-column">
             <div className="document-preview-card">
-              {/* Document Header */}
-              <div className="doc-preview-header">
-                <div className="doc-header-details">
-                  <h4 className="doc-main-title">{report.title}</h4>
-                  <p className="doc-sub-title">{report.subtitle}</p>
+              {!report ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-neutral)', fontSize: '0.95rem' }}>
+                  {isGenerating ? '' : 'Click "Generate Report" to view live data'}
                 </div>
-                <div className="doc-badge-pill">
-                  {exportFormat} FORMAT
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Document Header */}
+                  <div className="doc-preview-header">
+                    <div className="doc-header-details">
+                      <h4 className="doc-main-title">{report.title}</h4>
+                      <p className="doc-sub-title">{report.subtitle}</p>
+                    </div>
+                    <div className="doc-badge-pill">
+                      {exportFormat} FORMAT
+                    </div>
+                  </div>
 
-              {/* Document Metadata Details (If checked) */}
-              {includeMetadata && (
-                <div className="doc-metadata-bar">
-                  <span><strong>Date Span:</strong> {startDate || "N/A"} to {endDate || "N/A"}</span>
-                  <span><strong>Security Hash:</strong> SHA-256/ETHOS-99</span>
-                </div>
+                  {/* Document Metadata Details (If checked) */}
+                  {includeMetadata && (
+                    <div className="doc-metadata-bar">
+                      <span><strong>Date Span:</strong> {startDate || "N/A"} to {endDate || "N/A"}</span>
+                      <span><strong>Security Hash:</strong> SHA-256/ETHOS-99</span>
+                    </div>
+                  )}
+
+                  {/* Document Main Data Table */}
+                  <div className="doc-table-wrapper">
+                    <table className="doc-preview-table">
+                      <thead>
+                        <tr>
+                          {report.headers.map((h, i) => (
+                            <th key={i}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.rows.map((row, index) => (
+                          <tr key={index}>
+                            <td className="font-mono">{maskUserIdentity(row.col1)}</td>
+                            <td>{maskUserIdentity(row.col2)}</td>
+                            <td>
+                              {row.col3 === "High" || (typeof row.col3 === 'string' && (row.col3.includes("Level 5") || row.col3.includes("Expert"))) ? (
+                                <span className="pill-status success">{row.col3}</span>
+                              ) : row.col3 === "Medium" || (typeof row.col3 === 'string' && (row.col3.includes("Level 4") || row.col3.includes("Level 3"))) ? (
+                                <span className="pill-status warning">{row.col3}</span>
+                              ) : (
+                                row.col3
+                              )}
+                            </td>
+                            <td>{row.col4}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Visual CSS-based Chart */}
+                  <div className="doc-chart-wrapper">
+                    <h5 className="chart-label-title">Visualized Trends</h5>
+                    <div className="doc-chart-canvas">
+                      {report.chartData.map((bar, index) => (
+                        <div key={index} className="doc-chart-bar-group">
+                          <div className="doc-chart-bar-container">
+                            <div 
+                              className="doc-chart-bar-fill"
+                              style={{ 
+                                height: `${bar.val}%`, 
+                                backgroundColor: bar.color 
+                              }}
+                            >
+                              <span className="bar-tooltip-val">{bar.val}%</span>
+                            </div>
+                          </div>
+                          <span className="doc-chart-bar-label">{bar.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="doc-preview-footer">
+                    <span className="footer-doc-stamp">Ethos Auditing & Compliance System</span>
+                    <span className="footer-doc-page">Page 1 of 1</span>
+                  </div>
+                </>
               )}
 
-              {/* Document Main Data Table */}
-              <div className="doc-table-wrapper">
-                <table className="doc-preview-table">
-                  <thead>
-                    <tr>
-                      {report.headers.map((h, i) => (
-                        <th key={i}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.rows.map((row, index) => (
-                      <tr key={index}>
-                        <td className="font-mono">{maskUserIdentity(row.col1)}</td>
-                        <td>{maskUserIdentity(row.col2)}</td>
-                        <td>
-                          {row.col3 === "High" || row.col3.includes("Level 5") || row.col3.includes("Expert") ? (
-                            <span className="pill-status success">{row.col3}</span>
-                          ) : row.col3 === "Medium" || row.col3.includes("Level 4") || row.col3.includes("Level 3") ? (
-                            <span className="pill-status warning">{row.col3}</span>
-                          ) : (
-                            row.col3
-                          )}
-                        </td>
-                        <td>{row.col4}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Visual CSS-based Chart */}
-              <div className="doc-chart-wrapper">
-                <h5 className="chart-label-title">Visualized Trends</h5>
-                <div className="doc-chart-canvas">
-                  {report.chartData.map((bar, index) => (
-                    <div key={index} className="doc-chart-bar-group">
-                      <div className="doc-chart-bar-container">
-                        <div 
-                          className="doc-chart-bar-fill"
-                          style={{ 
-                            height: `${bar.val}%`, 
-                            backgroundColor: bar.color 
-                          }}
-                        >
-                          <span className="bar-tooltip-val">{bar.val}%</span>
-                        </div>
-                      </div>
-                      <span className="doc-chart-bar-label">{bar.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Skeletons/Indicators Footer */}
-              <div className="doc-preview-footer">
-                <span className="footer-doc-stamp">Ethos Auditing & Compliance System</span>
-                <span className="footer-doc-page">Page 1 of 1</span>
-              </div>
-
               {/* Live Preview Mode Overlay (Absolute position) */}
-              {isGenerating ? (
+              {isGenerating && (
                 <div className="loading-report-overlay">
                   <div className="spinner-loader"></div>
                   <p className="loading-text">Compiling database rows...</p>
                 </div>
-              ) : (
+              )}
+              {!isGenerating && report && (
                 <div className="live-preview-indicator-overlay">
                   <div className="indicator-badge">
                     <span className="pulsing-eye">👁</span>
