@@ -2737,3 +2737,138 @@ textarea.form-control {
     padding: 4px 10px;
   }
 }
+
+
+/* Verify Donation Specific Styles */
+.donation-card {
+  transition: all 0.2s ease;
+}
+
+.donation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.donation-card .donor-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E4D4B;
+}
+
+.donation-card .donor-email {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.donation-card .donation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 14px;
+  color: #555;
+}
+
+.donation-card .donation-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Status badges for verify page */
+.status-badge.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.verified {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.rejected {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+/* Filter tabs */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  background: #f0f0f0;
+  color: #333;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+}
+
+.filter-tab:hover {
+  background: #e0e0e0;
+}
+
+.filter-tab.active {
+  background: #1E4D4B;
+  color: white;
+}
+
+.filter-tab.active-pending {
+  background: #ff9800;
+  color: white;
+}
+
+.filter-tab.active-verified {
+  background: #4caf50;
+  color: white;
+}
+
+.filter-tab.active-rejected {
+  background: #dc3545;
+  color: white;
+}
+
+/* Points preview */
+.points-preview {
+  padding: 12px 16px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.points-preview .points-label {
+  font-weight: 500;
+}
+
+.points-preview .points-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1E4D4B;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .donation-card .donation-meta {
+    gap: 8px;
+    font-size: 13px;
+  }
+  
+  .points-preview {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+  
+  .points-preview .points-value {
+    font-size: 20px;
+  }
+}
