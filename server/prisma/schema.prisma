@@ -20,6 +20,7 @@ model User {
   level                                           Int                @default(1)
   phoneNumber                                     String?
   isActive                                        Boolean            @default(true)
+  status                                          String?            @default("AVAILABLE")
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
@@ -134,6 +135,8 @@ model Order {
   deliveredAt      DateTime?
   shippingAddress  String?
   phoneNumber      String?
+  driverId         String?
+  driverName       String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   deliveryUpdates  DeliveryUpdate[]
