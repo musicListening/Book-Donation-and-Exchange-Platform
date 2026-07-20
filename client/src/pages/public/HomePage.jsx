@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
+import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
 const Home = () => {
   const pageRef = useRef(null);
+  const navigate = useNavigate();
 
   // ── Stats state ──
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
@@ -60,6 +62,27 @@ const Home = () => {
   const animatedMembers = useCountUp(stats.activeMembers, 2200, statsVisible);
   const animatedPoints = useCountUp(stats.pointsEarned, 2200, statsVisible);
 
+  // navigation helper
+  const navTo = useCallback((path) => navigate(path), [navigate]);
+
+  // Auth modal state
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authRedirect, setAuthRedirect] = useState(null);
+  const [authMode, setAuthMode] = useState('login');
+
+  const openAuthModal = (mode = 'login', redirect = null) => {
+    const token = localStorage.getItem('token');
+    if (token && redirect) {
+      navigate(redirect);
+      return;
+    }
+    setAuthMode(mode || 'login');
+    setAuthRedirect(redirect);
+    setAuthOpen(true);
+  };
+
+  const handleProtectedAction = (path) => openAuthModal('login', path);
+
   // ── Format numbers for display ──
   const formatNumber = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -68,6 +91,12 @@ const Home = () => {
   };
 
   useEffect(() => {
+    if (window.location.pathname === '/login') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectPath = urlParams.get('redirect');
+      openAuthModal('login', redirectPath);
+    }
+    
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
@@ -397,7 +426,7 @@ const Home = () => {
         <div style={styles.hero}>
           <div style={styles.heroContent}>
             <div className="hero-badge-shimmer hero-enter hero-enter--delay-1" style={styles.heroBadge}>
-              <i className="fa-solid fa-book"></i> Projenius Book Exchange
+              <i className="fa-solid fa-book"></i> ShareShelf Book Exchange
             </div>
             <h1 className="hero-enter hero-enter--delay-2" style={styles.heroTitle}>
               Turn Your Shelves Into Points.<br /><span style={styles.heroTitleSpan}>Turn Points Into Treasures.</span>
@@ -408,12 +437,22 @@ const Home = () => {
               reading revolution.
             </p>
             <div className="hero-enter hero-enter--delay-4" style={styles.heroButtons}>
-              <Link to="/donate" className="hero-btn-primary" style={{ ...styles.btn, backgroundColor: '#ffffff', color: '#1E4D4B', border: 'none', boxShadow: '0 4px 14px rgba(255, 255, 255, 0.15)' }}>
+              <button
+                type="button"
+                className="hero-btn-primary"
+                onClick={() => openAuthModal('login', '/donate')}
+                style={{ ...styles.btn, backgroundColor: '#ffffff', color: '#1E4D4B', border: 'none', boxShadow: '0 4px 14px rgba(255, 255, 255, 0.15)', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', cursor: 'pointer' }}
+              >
                 <i className="fa-solid fa-hand-holding-heart"></i> Start Donating
-              </Link>
-              <Link to="/marketplace" className="hero-btn-secondary" style={{ ...styles.btn, backgroundColor: 'transparent', color: '#ffffff', border: '2px solid rgba(255, 255, 255, 0.4)' }}>
+              </button>
+              <button
+                type="button"
+                className="hero-btn-secondary"
+                onClick={() => openAuthModal('login', '/marketplace')}
+                style={{ ...styles.btn, backgroundColor: 'transparent', color: '#ffffff', border: '2px solid rgba(255, 255, 255, 0.4)', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, fontWeight: 600, borderRadius: 12 }}
+              >
                 <i className="fa-solid fa-store"></i> Explore Marketplace
-              </Link>
+              </button>
             </div>
             <div className="hero-enter hero-enter--delay-5" style={styles.heroTrust}>
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> Free to join</span>
@@ -508,32 +547,32 @@ const Home = () => {
           <p className="reveal" style={styles.sectionSubtitle}>Browse thousands of books across every category imaginable.</p>
         </div>
         <div className="reveal-stagger" style={styles.categoryGrid}>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Fiction')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(231,111,81,0.15)', color: '#E76F51' }}><i className="fa-solid fa-dragon"></i></div>
             <div><h4>Fiction</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Novels, Fantasy & more</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
           </div>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Non-Fiction')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(42,157,143,0.15)', color: '#2A9D8F' }}><i className="fa-solid fa-globe"></i></div>
             <div><h4>Non-Fiction</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Biographies, History & Essays</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
           </div>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Academic')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(30,77,75,0.12)', color: '#1E4D4B' }}><i className="fa-solid fa-graduation-cap"></i></div>
             <div><h4>Academic</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Textbooks & Reference</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
           </div>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Childrens')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(233,196,106,0.2)', color: '#C4941A' }}><i className="fa-solid fa-crayon"></i></div>
             <div><h4>Children's</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Picture books & YA</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
           </div>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Comics')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(244,162,97,0.2)', color: '#F4A261' }}><i className="fa-solid fa-mask"></i></div>
             <div><h4>Comics</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Manga & Graphic Novels</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
           </div>
-          <div className="card-hover-lift" style={styles.categoryCard}>
+          <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Rare Finds')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(230,57,70,0.1)', color: '#E63946' }}><i className="fa-solid fa-gem"></i></div>
             <div><h4>Rare Finds</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Collectibles & Special Editions</span></div>
             <i className="fa-solid fa-arrow-right category-arrow"></i>
@@ -551,63 +590,7 @@ const Home = () => {
           <a href="#" style={styles.viewAll}>View All <i className="fa-solid fa-arrow-right"></i></a>
         </div>
         <div className="reveal-stagger" style={styles.bundlesScroll}>
-          <div className="card-hover-lift" style={styles.bundleCard}>
-            <div className="bundle-img-zoom" style={styles.bundleImage}>
-              📚
-              <span style={styles.bundleGenreBadge}>Romance</span>
-              <span style={styles.bundleStock}>Only 3 left</span>
-            </div>
-            <div style={styles.bundleDetails}>
-              <h4>Cozy Winter Reads</h4>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Anika</p>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 250</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
-              </div>
-            </div>
-          </div>
-          <div className="card-hover-lift" style={styles.bundleCard}>
-            <div className="bundle-img-zoom" style={{ ...styles.bundleImage, background: 'linear-gradient(135deg, #E8F4F8, #D5E8E0)' }}>
-              🖋️
-              <span style={styles.bundleGenreBadge}>Self-Help</span>
-            </div>
-            <div style={styles.bundleDetails}>
-              <h4>Mindfulness Collection</h4>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Raj</p>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 180</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
-              </div>
-            </div>
-          </div>
-          <div className="card-hover-lift" style={styles.bundleCard}>
-            <div className="bundle-img-zoom" style={{ ...styles.bundleImage, background: 'linear-gradient(135deg, #FFF0E0, #FFE0D0)' }}>
-              🔬
-              <span style={styles.bundleGenreBadge}>Educational</span>
-            </div>
-            <div style={styles.bundleDetails}>
-              <h4>Science Explorers Pack</h4>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: Priya</p>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 320</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
-              </div>
-            </div>
-          </div>
-          <div className="card-hover-lift" style={styles.bundleCard}>
-            <div className="bundle-img-zoom" style={{ ...styles.bundleImage, background: 'linear-gradient(135deg, #F0F0F8, #E0E0F0)' }}>
-              🎭
-              <span style={styles.bundleGenreBadge}>Classics</span>
-            </div>
-            <div style={styles.bundleDetails}>
-              <h4>Timeless Literature</h4>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 8 }}>Curated by: David</p>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 400</span>
-                <a href="#" style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}>Add to Cart</a>
-              </div>
-            </div>
-          </div>
+          {/* Bundles will be loaded dynamically from the database */}
         </div>
       </section>
 
@@ -618,39 +601,7 @@ const Home = () => {
           <p className="reveal" style={styles.sectionSubtitle}>Unique crafts made by talented community members.</p>
         </div>
         <div className="reveal-stagger" style={styles.craftsGrid}>
-          <div className="card-hover-lift" style={styles.craftCard}>
-            <div className="bundle-img-zoom" style={styles.craftImage}>📖</div>
-            <div style={styles.craftDetails}>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 4 }}>by Priya S.</p>
-              <h4>Hand-Painted Bookmarks (Set of 5)</h4>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 75</span>
-                <button className="wishlist-heart" style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
-              </div>
-            </div>
-          </div>
-          <div className="card-hover-lift" style={styles.craftCard}>
-            <div className="bundle-img-zoom" style={styles.craftImage}>🎴</div>
-            <div style={styles.craftDetails}>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 4 }}>by Arjun K.</p>
-              <h4>Origami Wall Art Set</h4>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 120</span>
-                <button className="wishlist-heart" style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
-              </div>
-            </div>
-          </div>
-          <div className="card-hover-lift" style={styles.craftCard}>
-            <div className="bundle-img-zoom" style={styles.craftImage}>📓</div>
-            <div style={styles.craftDetails}>
-              <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 4 }}>by Meera L.</p>
-              <h4>Recycled Paper Journal</h4>
-              <div style={styles.bundlePriceRow}>
-                <span style={styles.bundlePrice}><i className="fa-solid fa-coins"></i> 90</span>
-                <button className="wishlist-heart" style={styles.wishlistBtn}><i className="fa-regular fa-heart"></i></button>
-              </div>
-            </div>
-          </div>
+          {/* Crafts will be loaded dynamically from the database */}
         </div>
       </section>
 
@@ -661,27 +612,7 @@ const Home = () => {
           <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
         </div>
         <div className="reveal-stagger" style={styles.testimonialGrid}>
-          <div className="testimonial-hover" style={styles.testimonialCard}>
-            <div style={styles.testimonialAvatar}>👩</div>
-            <div style={styles.stars}>★★★★★</div>
-            <p style={{ fontSize: 15, fontStyle: 'italic', marginBottom: 16, lineHeight: 1.6 }}>"I decluttered my shelf and got enough points to buy a rare poetry bundle. This is genius!"</p>
-            <p style={{ fontWeight: 700, fontSize: 15 }}>Ananya S.</p>
-            <p style={{ fontSize: 13, color: '#6C757D' }}>Donated 45 books</p>
-          </div>
-          <div className="testimonial-hover" style={styles.testimonialCard}>
-            <div style={styles.testimonialAvatar}>👨</div>
-            <div style={styles.stars}>★★★★★</div>
-            <p style={{ fontSize: 15, fontStyle: 'italic', marginBottom: 16, lineHeight: 1.6 }}>"Selling my paper crafts here connected me with readers who truly appreciate handmade art."</p>
-            <p style={{ fontWeight: 700, fontSize: 15 }}>Vikram R.</p>
-            <p style={{ fontSize: 13, color: '#6C757D' }}>Craft Seller</p>
-          </div>
-          <div className="testimonial-hover" style={styles.testimonialCard}>
-            <div style={styles.testimonialAvatar}>👩‍🎓</div>
-            <div style={styles.stars}>★★★★★</div>
-            <p style={{ fontSize: 15, fontStyle: 'italic', marginBottom: 16, lineHeight: 1.6 }}>"As a student, being able to exchange textbooks for points is a lifesaver. Highly recommend!"</p>
-            <p style={{ fontWeight: 700, fontSize: 15 }}>Fatima K.</p>
-            <p style={{ fontSize: 13, color: '#6C757D' }}>Student</p>
-          </div>
+          {/* Testimonials will be loaded dynamically from the database */}
         </div>
       </section>
 
@@ -724,21 +655,16 @@ const Home = () => {
             </ul>
           </div>
         </div>
-        <div className="reveal" style={{ marginTop: 48, textAlign: 'center' }}>
-          <p style={{ color: '#6C757D', marginBottom: 8, fontSize: 14 }}>📊 300 pts to Bibliophile</p>
-          <div style={{ background: '#DEE2E6', height: 8, borderRadius: 4, maxWidth: 300, margin: '0 auto', overflow: 'hidden' }}>
-            <div className="progress-animate" style={{ background: '#E9C46A', height: '100%', width: '40%', borderRadius: 4 }}></div>
-          </div>
-        </div>
+
       </section>
 
       {/* ============ CTA BANNER ============ */}
       <section className="cta-pulse" style={styles.ctaBanner}>
         <h2 className="reveal" style={{ color: 'white', fontSize: 36, marginBottom: 16, position: 'relative', zIndex: 1 }}>Ready to Give Your Books a New Story?</h2>
         <p className="reveal" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, marginBottom: 24, position: 'relative', zIndex: 1 }}>Join thousands of readers and crafters building a library without walls.</p>
-        <Link to="/signup" className="reveal" style={{ ...styles.btn, background: 'white', color: '#E76F51', borderColor: 'white', fontSize: 18, padding: '16px 36px', position: 'relative', zIndex: 1 }}>
+        <button type="button" onClick={() => openAuthModal('signup', '/user-dashboard')} className="reveal" style={{ ...styles.btn, background: 'white', color: '#E76F51', borderColor: 'white', fontSize: 18, padding: '16px 36px', position: 'relative', zIndex: 1 }}>
           <i className="fa-solid fa-gift"></i> Sign Up Free — Earn 50 Bonus Points
-        </Link>
+        </button>
         <p className="reveal" style={{ ...styles.ctaNote, position: 'relative', zIndex: 1 }}>No credit card. Just books and good vibes.</p>
       </section>
 
@@ -768,14 +694,6 @@ const Home = () => {
             </ul>
           </div>
           <div>
-            <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Staff & Admin</h4>
-            <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Staff Login</Link></li>
-              <li style={{ marginBottom: 8 }}><Link to="/login" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Admin Login</Link></li>
-              <li style={{ marginBottom: 8 }}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14 }}>Documentation</a></li>
-            </ul>
-          </div>
-          <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Contact</h4>
             <ul style={styles.footerLinks}>
               <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> hello@projenius.com</li>
@@ -788,6 +706,14 @@ const Home = () => {
           <p>&copy; 2025 Projenius. Built with ❤️ for book lovers everywhere.</p>
         </div>
       </footer>
+
+      {/* Login / Signup popup modal */}
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        initialMode={authMode}
+        redirectTo={authRedirect}
+      />
 
     </div>
   );

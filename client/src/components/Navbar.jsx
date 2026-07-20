@@ -22,7 +22,7 @@ export default function Navbar({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login' });
+  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login', redirectTo: null });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,7 +52,7 @@ export default function Navbar({
   const publicLinks = [
     { to: '/', label: 'Home' },
     { label: 'How It Works', hash: 'how-it-works' },
-    { to: '/login?redirect=/marketplace', label: 'Marketplace', requiresLogin: true },
+    { to: '/marketplace', label: 'Marketplace', requiresLogin: true },
     { label: 'About', hash: 'about' },
   ];
 
@@ -123,6 +123,14 @@ export default function Navbar({
                     key={link.label}
                     className="ss-navbar__link ss-navbar__link--btn"
                     onClick={() => scrollToSection(link.hash)}
+                  >
+                    {link.label}
+                  </button>
+                ) : link.requiresLogin ? (
+                  <button
+                    key={link.label}
+                    className="ss-navbar__link ss-navbar__link--btn"
+                    onClick={() => setAuthModal({ isOpen: true, mode: 'login', redirectTo: link.to })}
                   >
                     {link.label}
                   </button>
@@ -228,7 +236,15 @@ export default function Navbar({
                 <button
                   key={link.label}
                   className="ss-navbar__mobile-link"
-                  onClick={() => scrollToSection(link.hash)}
+                  onClick={() => { scrollToSection(link.hash); setMobileOpen(false); }}
+                >
+                  {link.label}
+                </button>
+              ) : link.requiresLogin ? (
+                <button
+                  key={link.label}
+                  className="ss-navbar__mobile-link"
+                  onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'login', redirectTo: link.to }); }}
                 >
                   {link.label}
                 </button>
@@ -249,7 +265,7 @@ export default function Navbar({
           )}
 
           <div className="ss-navbar__mobile-actions">
-            {variant === 'public' && (
+              {variant === 'public' && (
               <>
                 <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'signup' }); }} className="ss-navbar__btn ss-navbar__btn--ghost">Sign Up</button>
                 <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'login' }); }} className="ss-navbar__btn ss-navbar__btn--primary">Log In</button>
@@ -268,7 +284,8 @@ export default function Navbar({
 
       <AuthModal 
         isOpen={authModal.isOpen} 
-        initialMode={authModal.mode} 
+        initialMode={authModal.mode}
+        redirectTo={authModal.redirectTo}
         onClose={() => setAuthModal(prev => ({ ...prev, isOpen: false }))} 
       />
     </>

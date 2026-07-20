@@ -5,27 +5,56 @@ const Donate = () => {
   const [step, setStep] = useState(1);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
-    bookType: '',
-    bookCount: 1,
+    collections: [{ bookType: '', bookCount: 1 }],
     notes: '',
     selectedDate: '',
     timeSlot: '10:00 AM'
   });
+  const [myDonations, setMyDonations] = useState([]);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
-
+    
+    const storedDonations = JSON.parse(localStorage.getItem('ss_donations') || '[]');
+    // Only show donations for the current user if we had a real backend, but here we just show all stored.
+    setMyDonations(storedDonations);
   }, []);
 
 
-  const updateCount = (delta) => {
-    setFormData(prev => ({ ...prev, bookCount: Math.max(1, Math.min(100, prev.bookCount + delta)) }));
+  const updateCount = (index, delta) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[index].bookCount = Math.max(1, Math.min(100, newCols[index].bookCount + delta));
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const updateType = (index, value) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[index].bookType = value;
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const addCollection = () => {
+    setFormData(prev => ({
+      ...prev,
+      collections: [...prev.collections, { bookType: '', bookCount: 1 }]
+    }));
+  };
+
+  const removeCollection = (index) => {
+    setFormData(prev => {
+      const newCols = prev.collections.filter((_, i) => i !== index);
+      return { ...prev, collections: newCols };
+    });
   };
 
   const nextStep = () => {
-    if (step === 1 && !formData.bookType) {
-      alert('Please select a category');
+    if (step === 1 && formData.collections.some(c => !c.bookType)) {
+      alert('Please select a category for all collections');
       return;
     }
     if (step === 2 && !formData.selectedDate) {
@@ -39,18 +68,20 @@ const Donate = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const points = formData.bookCount * 10;
+    const totalBooks = formData.collections.reduce((sum, col) => sum + col.bookCount, 0);
+    const points = totalBooks * 10;
     const donations = JSON.parse(localStorage.getItem('ss_donations') || '[]');
     const newDonation = {
       id: 'DON-' + Math.floor(100 + Math.random() * 900),
       user: user.name,
-      type: formData.bookType,
-      count: formData.bookCount,
+      type: formData.collections.length > 1 ? 'Multiple Categories' : formData.collections[0].bookType,
+      count: totalBooks,
       date: formData.selectedDate,
       time: formData.timeSlot,
-      status: 'Pending'
+      status: 'Pending',
+      details: formData.collections
     };
-    donations.push(newDonation);
+    donations.unshift(newDonation);
     localStorage.setItem('ss_donations', JSON.stringify(donations));
     document.getElementById('successModal').style.display = 'flex';
     document.getElementById('finalPoints').innerText = points;
@@ -80,10 +111,17 @@ const Donate = () => {
     btnSubmit: { background: '#E76F51', color: 'white' },
     modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'none', alignItems: 'center', justifyContent: 'center' },
     modal: { background: 'white', padding: 40, borderRadius: 16, maxWidth: 500, width: '90%', textAlign: 'center' },
-    pointsBox: { background: '#F1F3F5', padding: 20, borderRadius: 12, margin: '24px 0', border: '2px dashed #E9C46A' }
+    pointsBox: { background: '#F1F3F5', padding: 20, borderRadius: 12, margin: '24px 0', border: '2px dashed #E9C46A' },
+    donationsSection: { marginTop: 60 },
+    donationsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20, marginTop: 20 },
+    donationCard: { background: 'white', padding: 24, borderRadius: 12, border: '1px solid #DEE2E6', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+    statusBadge: { display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, backgroundColor: '#E9ECEF', color: '#495057' },
+    statusPending: { backgroundColor: '#FFF3CD', color: '#856404' },
+    statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' }
   };
 
-  const points = formData.bookCount * 10;
+  const totalBooks = formData.collections.reduce((sum, col) => sum + col.bookCount, 0);
+  const points = totalBooks * 10;
 
   return (
     <div style={styles.body}>
@@ -106,26 +144,41 @@ const Donate = () => {
             {step === 1 && (
               <div>
                 <h3 style={{ marginBottom: 20 }}>Step 1: What are you donating?</h3>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Collection Type</label>
-                  <select style={styles.formControl} value={formData.bookType} onChange={(e) => setFormData(prev => ({ ...prev, bookType: e.target.value }))} required>
-                    <option value="">Select a category...</option>
-                    <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
-                    <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
-                    <option value="Academic">Academic (Textbooks, Reference)</option>
-                    <option value="Children">Children's Books</option>
-                    <option value="Comics">Comics & Manga</option>
-                    <option value="Mixed">Mixed Collection</option>
-                  </select>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Approximate Number of Books</label>
-                  <div style={styles.numberInput}>
-                    <button type="button" style={styles.numBtn} onClick={() => updateCount(-1)}>-</button>
-                    <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={formData.bookCount} onChange={(e) => setFormData(prev => ({ ...prev, bookCount: parseInt(e.target.value) || 1 }))} min="1" max="100" />
-                    <button type="button" style={styles.numBtn} onClick={() => updateCount(1)}>+</button>
+                
+                {formData.collections.map((col, idx) => (
+                  <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                    {formData.collections.length > 1 && (
+                      <button type="button" onClick={() => removeCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    )}
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Collection Type</label>
+                      <select style={styles.formControl} value={col.bookType} onChange={(e) => updateType(idx, e.target.value)} required>
+                        <option value="">Select a category...</option>
+                        <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
+                        <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
+                        <option value="Academic">Academic (Textbooks, Reference)</option>
+                        <option value="Children">Children's Books</option>
+                        <option value="Comics">Comics & Manga</option>
+                        <option value="Mixed">Mixed Collection</option>
+                      </select>
+                    </div>
+                    <div style={{ marginBottom: 0 }}>
+                      <label style={styles.label}>Approximate Number of Books</label>
+                      <div style={styles.numberInput}>
+                        <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, -1)}>-</button>
+                        <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} readOnly />
+                        <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, 1)}>+</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+
+                <button type="button" onClick={addCollection} style={{ background: 'none', border: '2px dashed #DEE2E6', width: '100%', padding: 16, borderRadius: 12, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, marginBottom: 24 }}>
+                  <i className="fa-solid fa-plus"></i> Add Another Collection Type
+                </button>
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Notes (Optional)</label>
                   <textarea style={styles.formControl} rows="3" placeholder="Tell us about the condition or specific titles..." value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}></textarea>
@@ -155,8 +208,16 @@ const Donate = () => {
               <div>
                 <h3 style={{ marginBottom: 20 }}>Step 3: Review & Confirm</h3>
                 <div style={{ background: '#F1F3F5', padding: 20, borderRadius: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><span style={{ color: '#6C757D' }}>Category:</span><strong>{formData.bookType || '-'}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><span style={{ color: '#6C757D' }}>Book Count:</span><strong>{formData.bookCount} Books</strong></div>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ color: '#6C757D', display: 'block', marginBottom: 4 }}>Collections:</span>
+                    {formData.collections.map((col, idx) => (
+                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
+                        <strong>{col.bookType || 'Not Selected'}</strong>
+                        <span>{col.bookCount} Books</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, paddingTop: 12, borderTop: '1px solid #DEE2E6' }}><span style={{ color: '#6C757D' }}>Total Books:</span><strong>{totalBooks} Books</strong></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><span style={{ color: '#6C757D' }}>Drop-off Date:</span><strong>{formData.selectedDate || '-'}</strong></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6C757D' }}>Estimated Points:</span><strong style={{ color: '#2A9D8F' }}>~{points} pts</strong></div>
                 </div>
@@ -170,6 +231,44 @@ const Donate = () => {
               {step === 3 && <button type="submit" style={{ ...styles.btn, ...styles.btnSubmit }}>Confirm Donation</button>}
             </div>
           </form>
+        </div>
+
+        <div style={styles.donationsSection}>
+          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, marginBottom: 10 }}>My Donations</h2>
+          <p style={{ color: '#6C757D', marginBottom: 20 }}>Track the status of your recent book donations.</p>
+          
+          {myDonations.length === 0 ? (
+            <div style={{ background: 'white', padding: 40, borderRadius: 12, textAlign: 'center', border: '1px dashed #DEE2E6' }}>
+              <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
+              <p style={{ color: '#6C757D' }}>You haven't made any donations yet.</p>
+            </div>
+          ) : (
+            <div style={styles.donationsGrid}>
+              {myDonations.map((donation, idx) => (
+                <div key={idx} style={styles.donationCard}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>{donation.type || 'Books'}</h4>
+                      <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
+                    </div>
+                    <span style={{ 
+                      ...styles.statusBadge, 
+                      ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
+                    }}>
+                      {donation.status || 'Pending'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 14 }}>
+                    <div><i className="fa-solid fa-book" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.count} Books</div>
+                    <div><i className="fa-solid fa-calendar" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.date}</div>
+                  </div>
+                  <div style={{ fontSize: 14 }}>
+                    <i className="fa-solid fa-clock" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.time}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 

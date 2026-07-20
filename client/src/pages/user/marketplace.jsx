@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 
 const Marketplace = () => {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialCategory = queryParams.get('category') || 'all';
+
   const [currentTab, setCurrentTab] = useState('bundles');
   const [cart, setCart] = useState([]);
   const [user, setUser] = useState({ points: 0 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [priceFilter, setPriceFilter] = useState('all');
   const [toast, setToast] = useState({ show: false, message: '' });
 
@@ -92,7 +96,19 @@ const Marketplace = () => {
           <div style={styles.filterGroup}>
             <select style={styles.filterSelect} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               <option value="all">All Categories</option>
-              {currentTab === 'bundles' && <><option value="Fiction">Fiction</option><option value="Self-Help">Self-Help</option><option value="Educational">Educational</option><option value="Classics">Classics</option></>}
+              {currentTab === 'bundles' && (
+                <>
+                  <option value="Fiction">Fiction</option>
+                  <option value="Non-Fiction">Non-Fiction</option>
+                  <option value="Academic">Academic</option>
+                  <option value="Childrens">Children's</option>
+                  <option value="Comics">Comics</option>
+                  <option value="Rare Finds">Rare Finds</option>
+                  <option value="Self-Help">Self-Help</option>
+                  <option value="Educational">Educational</option>
+                  <option value="Classics">Classics</option>
+                </>
+              )}
             </select>
           </div>
           <div style={styles.filterGroup}>
