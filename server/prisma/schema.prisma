@@ -20,6 +20,8 @@ model User {
   level                                           Int                @default(1)
   phoneNumber                                     String?
   isActive                                        Boolean            @default(true)
+  status                                          String?            @default("AVAILABLE")
+  activeOrders                                    Int?               @default(0)
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
@@ -32,6 +34,7 @@ model User {
   likes                                           EventLike[]
   Notification                                    Notification[]
   orders                                          Order[]
+  Order_Order_driverIdToUser                      Order[]            @relation("Order_driverIdToUser")
   Payment                                         Payment[]
   PointTransaction_PointTransaction_staffIdToUser PointTransaction[] @relation("PointTransaction_staffIdToUser")
   PointTransaction_PointTransaction_userIdToUser  PointTransaction[] @relation("PointTransaction_userIdToUser")
@@ -123,26 +126,29 @@ model CraftListing {
 }
 
 model Order {
-  id               String             @id @default(uuid())
-  userId           String
-  totalPoints      Int
-  cashAmount       Float?
-  status           OrderStatus        @default(PENDING)
-  processedAt      DateTime?
-  atAirportAt      DateTime?
-  arrivedAt        DateTime?
-  deliveredAt      DateTime?
-  shippingAddress  String?
-  phoneNumber      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  deliveryUpdates  DeliveryUpdate[]
-  Dispute          Dispute[]
-  Notification     Notification[]
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items            OrderItem[]
-  Payment          Payment[]
-  PointTransaction PointTransaction[]
+  id                        String             @id @default(uuid())
+  userId                    String
+  totalPoints               Int
+  cashAmount                Float?
+  status                    OrderStatus        @default(PENDING)
+  processedAt               DateTime?
+  atAirportAt               DateTime?
+  arrivedAt                 DateTime?
+  deliveredAt               DateTime?
+  shippingAddress           String?
+  phoneNumber               String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  driverId                  String?
+  driverName                String?
+  deliveryUpdates           DeliveryUpdate[]
+  Dispute                   Dispute[]
+  Notification              Notification[]
+  user                      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User_Order_driverIdToUser User?              @relation("Order_driverIdToUser", fields: [driverId], references: [id], onUpdate: NoAction, map: "fk_order_driver")
+  items                     OrderItem[]
+  Payment                   Payment[]
+  PointTransaction          PointTransaction[]
 }
 
 model OrderItem {
