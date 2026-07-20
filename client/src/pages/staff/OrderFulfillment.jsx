@@ -103,13 +103,26 @@ function OrderFulfillment() {
       const data = await response.json();
       console.log('✅ Raw delivery personnel data:', data);
       
-      // Ensure each driver has a status field (default to AVAILABLE)
+      // Ensure each driver has required fields - PRESERVE activeOrders from API
       const driversWithStatus = data.map(driver => ({
         ...driver,
-        status: driver.status || 'AVAILABLE'
+        status: driver.status || 'AVAILABLE',
+        activeOrders: driver.activeOrders || 0,
+        maxOrders: driver.maxOrders || 5,
+        canAcceptMore: driver.canAcceptMore !== undefined ? driver.canAcceptMore : true,
+        remainingCapacity: driver.remainingCapacity !== undefined ? driver.remainingCapacity : 5,
+        isFull: driver.isFull !== undefined ? driver.isFull : false
       }));
       
-      console.log('✅ Delivery Personnel with status:', driversWithStatus);
+      console.log('🔍 DEBUG - Processed drivers with counts:');
+      console.table(driversWithStatus.map(d => ({
+        name: d.name,
+        status: d.status,
+        activeOrders: d.activeOrders,
+        maxOrders: d.maxOrders,
+        isFull: d.isFull
+      })));
+      
       setAvailableDrivers(driversWithStatus);
       
     } catch (error) {
@@ -122,7 +135,12 @@ function OrderFulfillment() {
           email: 'driver1@projenius.com',
           phoneNumber: null,
           role: 'DELIVERY_PERSONNEL',
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
+          activeOrders: 0,
+          maxOrders: 5,
+          canAcceptMore: true,
+          remainingCapacity: 5,
+          isFull: false
         },
         { 
           id: '555fad0c-ef01-403d-8224-f59d8dc6d4af', 
@@ -130,23 +148,12 @@ function OrderFulfillment() {
           email: 'driver2@projenius.com',
           phoneNumber: null,
           role: 'DELIVERY_PERSONNEL',
-          status: 'AVAILABLE'
-        },
-        { 
-          id: 'usr_004', 
-          name: 'Pasindu Madushan', 
-          email: 'pasindu@ethos.lk',
-          phoneNumber: '+94774567890',
-          role: 'DELIVERY_PERSONNEL',
-          status: 'AVAILABLE'
-        },
-        { 
-          id: '33057f4c-849f-4636-963c-06d8e151d13c', 
-          name: 'delivery', 
-          email: 'delivery@test.com',
-          phoneNumber: null,
-          role: 'DELIVERY_PERSONNEL',
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
+          activeOrders: 0,
+          maxOrders: 5,
+          canAcceptMore: true,
+          remainingCapacity: 5,
+          isFull: false
         }
       ]);
     } finally {
@@ -194,14 +201,17 @@ function OrderFulfillment() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to assign delivery personnel');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to assign delivery personnel');
+      }
+      
       const updatedOrder = await response.json();
       
       setOrders(orders.map(o => o.id === selectedOrder.id ? updatedOrder : o));
       
-      setAvailableDrivers(availableDrivers.map(d => 
-        d.id === driver.id ? { ...d, status: 'ON_DELIVERY' } : d
-      ));
+      // CRITICAL: Force refresh drivers list to update active order counts
+      await loadAvailableDrivers(true);
       
       setShowAssignModal(false);
       setSelectedOrder(null);
@@ -243,6 +253,9 @@ function OrderFulfillment() {
       const updatedOrder = await response.json();
       setOrders(orders.map(o => o.id === updatingOrder.id ? updatedOrder : o));
 
+      // CRITICAL: Force refresh drivers to update active order counts
+      await loadAvailableDrivers(true);
+
       setShowUpdateModal(false);
       setUpdatingOrder(null);
       setUpdateData({ status: '', note: '', location: '' });
@@ -257,12 +270,14 @@ function OrderFulfillment() {
   // ===== REASSIGN DELIVERY PERSONNEL =====
   const handleReassignDriver = async (order) => {
     if (!window.confirm(`Reassign delivery personnel for order ${order.id}?`)) return;
-    await loadAvailableDrivers();
+    await loadAvailableDrivers(true);
     openAssignModal(order);
   };
 
   // ===== OPEN ASSIGN MODAL =====
   const openAssignModal = (order) => {
+    // Force refresh drivers before opening modal
+    loadAvailableDrivers(true);
     setSelectedOrder(order);
     setShowAssignModal(true);
   };
@@ -282,6 +297,10 @@ function OrderFulfillment() {
 
       if (!response.ok) throw new Error('Failed to delete order');
       setOrders(orders.filter(o => o.id !== id));
+      
+      // Refresh drivers to update active order counts
+      await loadAvailableDrivers(true);
+      
       alert('Order deleted successfully!');
       
     } catch (error) {
@@ -341,6 +360,11 @@ function OrderFulfillment() {
 
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
 
+  // Calculate driver stats
+  const availableDriversCount = availableDrivers.filter(d => d.status === 'AVAILABLE').length;
+  const activeDriversCount = availableDrivers.filter(d => d.status === 'ACTIVE').length;
+  const totalActiveOrders = availableDrivers.reduce((sum, d) => sum + (d.activeOrders || 0), 0);
+
   // ===== Refresh Data =====
   const refreshData = () => {
     loadOrders();
@@ -388,9 +412,15 @@ function OrderFulfillment() {
         </div>
         <div className="stat-card">
           <h3>Available Drivers</h3>
-          <div className="stat-value">{availableDrivers.filter(d => d.status === 'AVAILABLE').length}</div>
+          <div className="stat-value">{availableDriversCount}</div>
           <div className="stat-trend">✅ Ready to assign</div>
           <div className="stat-sub">Total: {availableDrivers.length} drivers</div>
+        </div>
+        <div className="stat-card">
+          <h3>Active Drivers</h3>
+          <div className="stat-value">{activeDriversCount}</div>
+          <div className="stat-trend">🚚 On route</div>
+          <div className="stat-sub">{totalActiveOrders} orders in progress</div>
         </div>
         <div className="stat-card">
           <h3>Completed</h3>
@@ -422,13 +452,6 @@ function OrderFulfillment() {
               </span>
             );
           })}
-          <button 
-            onClick={refreshData}
-            className="refresh-btn"
-            style={{ marginLeft: 'auto' }}
-          >
-            🔄 Refresh
-          </button>
         </div>
 
         {/* Table */}
@@ -460,6 +483,7 @@ function OrderFulfillment() {
                   
                   const driver = availableDrivers.find(d => d.id === order.driverId);
                   const driverName = driver ? driver.name : order.driverName;
+                  const driverActiveOrders = order.driverActiveOrders || driver?.activeOrders || 0;
                   
                   return (
                     <tr key={order.id} style={{ 
@@ -501,7 +525,8 @@ function OrderFulfillment() {
                               color: '#64748b',
                               fontWeight: '400'
                             }}>
-                              🚚 Delivery Personnel
+                              🚚 {driverActiveOrders}/5 orders
+                              {driverActiveOrders >= 5 && ' 🔴 FULL'}
                             </div>
                           </div>
                         ) : (
@@ -535,43 +560,41 @@ function OrderFulfillment() {
                         </div>
                       </td>
                       <td>
-                        <div className="action-group">
-                          {(!order.driverId || order.driverId === '') && 
-                           (order.status === 'PENDING' || order.status === 'PROCESSING') && (
-                            <button 
-                              className="btn-small" 
-                              onClick={() => openAssignModal(order)}
-                            >
-                              👤 Assign
-                            </button>
-                          )}
-                          {(order.driverId && order.status !== 'COMPLETED' && order.status !== 'CANCELLED') && (
-                            <>
-                              <button 
-                                className="btn-small" 
-                                style={{ background: '#2196f3', color: 'white' }}
-                                onClick={() => {
-                                  setUpdatingOrder(order);
-                                  setUpdateData({ status: '', note: '', location: '' });
-                                  setShowUpdateModal(true);
-                                }}
-                              >
-                                📍 Update
-                              </button>
-                              <button 
-                                className="btn-small" 
-                                style={{ background: '#ff9800', color: 'white' }}
-                                onClick={() => handleReassignDriver(order)}
-                              >
-                                🔄 Reassign
-                              </button>
-                            </>
-                          )}
-                          <button 
-                            className="btn-small-danger" 
-                            onClick={() => handleDelete(order.id)}
-                          >
-                            🗑️
+  <div className="action-group">
+    {(!order.driverId || order.driverId === '') && 
+     (order.status === 'PENDING' || order.status === 'PROCESSING') && (
+      <button 
+        className="btn-assign" 
+        onClick={() => openAssignModal(order)}
+      >
+        Assign
+      </button>
+    )}
+    {(order.driverId && order.status !== 'COMPLETED' && order.status !== 'CANCELLED') && (
+      <>
+        <button 
+          className="btn-update" 
+          onClick={() => {
+            setUpdatingOrder(order);
+            setUpdateData({ status: '', note: '', location: '' });
+            setShowUpdateModal(true);
+          }}
+        >
+          Update
+        </button>
+        <button 
+          className="btn-reassign" 
+          onClick={() => handleReassignDriver(order)}
+        >
+          Reassign
+        </button>
+      </>
+    )}
+    <button 
+      className="btn-delete" 
+      onClick={() => handleDelete(order.id)}
+    >
+      Delete
                           </button>
                         </div>
                       </td>
@@ -634,23 +657,38 @@ function OrderFulfillment() {
                     onChange={(e) => setSelectedDriver(e.target.value)}
                   >
                     <option value="">Choose delivery personnel...</option>
-                    {availableDrivers.map(driver => (
-                      <option 
-                        key={driver.id} 
-                        value={driver.id}
-                        disabled={driver.status === 'OFFLINE' || driver.status === 'ON_DELIVERY'}
-                      >
-                        {driver.name} 
-                        {driver.phoneNumber && ` (${driver.phoneNumber})`}
-                        {driver.email && ` - ${driver.email}`}
-                        {driver.status === 'AVAILABLE' ? ' ✅ Available' : 
-                         driver.status === 'ON_DELIVERY' ? ' 🚚 On Delivery' : ' ⏸️ Offline'}
-                      </option>
-                    ))}
+                    {availableDrivers.map(driver => {
+                      const activeOrders = driver.activeOrders || 0;
+                      const maxOrders = driver.maxOrders || 5;
+                      const isFull = driver.isFull || activeOrders >= maxOrders;
+                      
+                      // CLEAN STATUS DISPLAY - Only show name and status
+                      let statusDisplay = '';
+                      if (isFull) {
+                        statusDisplay = '🔴 FULL';
+                      } else {
+                        statusDisplay = '✅ Available';
+                      }
+                      
+                      return (
+                        <option 
+                          key={driver.id} 
+                          value={driver.id}
+                          disabled={isFull || !driver.canAcceptMore}
+                          style={{
+                            color: isFull ? '#dc3545' : '#333',
+                            fontWeight: isFull ? 'bold' : 'normal'
+                          }}
+                        >
+                          {driver.name} - {statusDisplay}
+                        </option>
+                      );
+                    })}
                   </select>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
-                    Total: {availableDrivers.length} delivery personnel • 
-                    {availableDrivers.filter(d => d.status === 'AVAILABLE').length} available
+                    Total: {availableDrivers.length} drivers • 
+                    {availableDrivers.filter(d => d.status === 'AVAILABLE').length} available • 
+                    {availableDrivers.filter(d => d.isFull).length} full
                   </div>
                 </>
               )}

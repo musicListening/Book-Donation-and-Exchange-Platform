@@ -60,12 +60,12 @@ function StaffLayout({ children, title }) {
               <div className="sidebar-user-avatar">{initials}</div>
               <div className="sidebar-user-details">
                 {/* Only show first letter of name */}
-                <strong>{user.name ? user.name[0] : 'S'}</strong>
+              <strong>{user.name || 'Staff User'}</strong>
                 <span>Operations Staff</span>
               </div>
             </div>
           )}
-          <button onClick={handleLogout} className="logout-btn">
+          <button onClick={handleLogout} className="logout-btn"> 
             <span>Logout</span>
           </button>
         </div>
