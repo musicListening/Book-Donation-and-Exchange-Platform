@@ -1,6 +1,46 @@
+import React, { useState, useEffect } from 'react';
 import '../../styles/delivery.css';
 
 const DriverProfile = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user.id) return;
+      try {
+        const res = await fetch(`/api/orders/driver/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data);
+        }
+      } catch (err) {
+        console.error('Error fetching orders for profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, [user.id]);
+
+  const completedOrders = orders.filter(o => o.status === 'COMPLETED');
+  const totalDeliveries = completedOrders.length;
+  const totalOrders = orders.length;
+  const reliabilityScore = totalOrders > 0 ? Math.round((totalDeliveries / totalOrders) * 100) : 0;
+
+  const memberSince = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'N/A';
+
+  const getInitials = (name) => {
+    if (!name) return 'DR';
+    const parts = name.split(' ');
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+  };
+
   return (
     <>
       <div className="page-header">
@@ -11,28 +51,27 @@ const DriverProfile = () => {
       <div className="profile-grid">
         {/* Identity */}
         <section className="col-span-8 identity-card">
-         
           <div className="info">
             <div className="name-title">
-              <h3>Benjamin Thorne</h3>
-              <p>Senior Logistics Partner</p>
+              <h3>{user.name || 'Delivery Driver'}</h3>
+              <p>{user.role === 'DELIVERY_PERSONNEL' ? 'Delivery Partner' : user.role || 'Logistics Partner'}</p>
             </div>
             <div className="details-grid">
               <div>
                 <div className="field-label">Driver ID</div>
-                <div className="field-value bold">AL-8829-THORNE</div>
+                <div className="field-value bold">{user.id ? `DRV-${user.id.slice(0, 8).toUpperCase()}` : 'N/A'}</div>
               </div>
               <div>
                 <div className="field-label">Contact</div>
-                <div className="field-value">+44 7700 900 123</div>
+                <div className="field-value">{user.phoneNumber || 'Not set'}</div>
               </div>
               <div>
                 <div className="field-label">Email</div>
-                <div className="field-value underline">b.thorne@arboreal.eco</div>
+                <div className="field-value underline">{user.email || 'Not set'}</div>
               </div>
               <div>
                 <div className="field-label">Service Region</div>
-                <div className="field-value">Greater London (Zone 1-2)</div>
+                <div className="field-value">{user.address || 'Not set'}</div>
               </div>
             </div>
           </div>
@@ -51,17 +90,17 @@ const DriverProfile = () => {
             <div className="stat-item">
               <div className="stat-label">Reliability Score</div>
               <div className="stat-value">
-                98% <span className="trend material-symbols-outlined">trending_up</span>
+                {loading ? '...' : `${reliabilityScore}%`} <span className="trend material-symbols-outlined">trending_up</span>
               </div>
             </div>
             <div className="stat-item">
-              <div className="stat-label">Total CO2 Saved</div>
-              <div className="stat-value">428 kg</div>
+              <div className="stat-label">Total Deliveries</div>
+              <div className="stat-value">{loading ? '...' : totalDeliveries}</div>
             </div>
           </div>
           <div className="member-since">
             <div className="label">Member Since</div>
-            <div className="date">March 2023</div>
+            <div className="date">{memberSince}</div>
           </div>
         </section>
 
@@ -78,7 +117,7 @@ const DriverProfile = () => {
             <div className="info">
               <div className="label">Type</div>
               <div className="name">Eco-Cargo E-Bike v4</div>
-              <div className="id">ARB-2291-EB</div>
+              <div className="id">{user.id ? `ARB-${user.id.slice(0, 4).toUpperCase()}-EB` : 'N/A'}</div>
             </div>
           </div>
           <div className="stats-row">
@@ -142,15 +181,15 @@ const DriverProfile = () => {
         {/* Courier note */}
         <section className="col-span-12">
           <div className="courier-note">
-            <div className="quote-mark">“</div>
+            <div className="quote-mark">"</div>
             <div className="note-text">
-              "Benjamin continues to set the standard for eco-friendly logistics in our London hub. His reliability score hasn't dipped below 97% in two years, and his commitment to the e-bike transition is a model for all our regional partners. A true asset to the ShareShelf community."
+              "{user.name || 'This driver'} is a valued member of the ShareShelf delivery team. Their dedication to eco-friendly logistics and reliable service makes them a key contributor to our community platform."
             </div>
             <div className="note-author">
-              <div className="avatar-circle">SJ</div>
+              <div className="avatar-circle">{getInitials(user.name)}</div>
               <div>
-                <div className="author-name">Sarah Jenkins</div>
-                <div className="author-title">Regional Operations Manager, London</div>
+                <div className="author-name">{user.name || 'Driver'}</div>
+                <div className="author-title">ShareShelf Delivery Partner</div>
               </div>
             </div>
           </div>
