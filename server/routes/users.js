@@ -52,6 +52,19 @@ router.get('/', async (req, res) => {
   }
 });
 
+// 1b. GET ALL DELETED USERS
+router.get('/deleted', async (req, res) => {
+  try {
+    const deletedUsers = await prisma.deletedUser.findMany({
+      orderBy: { deletedAt: 'desc' },
+    });
+    res.json(deletedUsers);
+  } catch (error) {
+    console.error("Fetch deleted users error:", error);
+    res.status(500).json({ error: 'Failed to fetch deleted users' });
+  }
+});
+
 // 2. GET DELIVERY PERSONNEL WITH ACTIVE ORDER COUNT
 router.get('/delivery-personnel', async (req, res) => {
   try {
@@ -251,25 +264,46 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// 6. DELETE USER PERMANENTLY
+// 6. SOFT DELETE USER (archive to DeletedUser, then remove from User)
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const deletedBy = req.headers['x-admin-id'] || null;
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    // Copy user data to DeletedUser table before deleting
+    await prisma.deletedUser.create({
+      data: {
+        originalId: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        points: user.points,
+        level: user.level,
+        phoneNumber: user.phoneNumber,
+        address: user.address,
+        isActive: user.isActive,
+        status: user.status,
+        activeOrders: user.activeOrders,
+        createdAt: user.createdAt,
+        originalCreatedAt: user.createdAt,
+        deletedBy,
+      }
+    });
+
     await prisma.auditLog.create({
       data: {
-        actorUserId: req.headers['x-admin-id'] || id,
+        actorUserId: deletedBy || id,
         targetUserId: id,
         action: 'USER_DEACTIVATION',
-        details: `User ${user.name} permanently deleted by admin`
+        details: `User ${user.name} moved to deleted users by admin`
       }
     });
 
     await prisma.user.delete({ where: { id } });
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'User moved to deleted users successfully' });
   } catch (error) {
     console.error("Delete user error:", error);
     if (error.code === 'P2003' || error.code === 'P2014') {
