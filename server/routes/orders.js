@@ -338,32 +338,6 @@ router.get('/driver/:driverId', async (req, res) => {
   }
 });
 
-// ===== GET Orders by Driver ID =====
-router.get('/driver/:driverId', async (req, res) => {
-    try {
-        const { driverId } = req.params;
-        const orders = await prisma.order.findMany({
-            where: { driverId },
-            include: {
-                items: {
-                    include: {
-                        bookItem: true,
-                        collection: true,
-                        craftListing: true
-                    }
-                },
-                user: true,
-                deliveryUpdates: true
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        res.json(orders);
-    } catch (error) {
-        console.error('Error fetching driver orders:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // ===== GET Single Order =====
 router.get('/:id', async (req, res) => {
   try {

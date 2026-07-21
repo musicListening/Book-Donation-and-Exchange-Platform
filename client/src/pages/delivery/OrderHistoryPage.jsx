@@ -21,7 +21,7 @@ const OrderHistoryPage = () => {
         const res = await fetch(`/api/orders/driver/${user.id}`);
         if (!res.ok) throw new Error('Failed to fetch order history.');
         const data = await res.json();
-        setOrders(data);
+        setOrders(Array.isArray(data) ? data : (data.orders || []));
         setError('');
       } catch (err) {
         console.error(err);
