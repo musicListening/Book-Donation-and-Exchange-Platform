@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
 
-const c = { primary: '#176b63', dark: '#0f4e48', soft: '#e2f1ee', yellow: '#fff4cc', yellowBorder: '#edd77d', surface: '#fff', canvas: '#f8f8f2', ink: '#172b29', muted: '#5c6a68', border: '#d6e2df', error: '#b74f47' };
+const c = { primary: '#176b63', dark: '#0f4e48', soft: '#dcf1ea', softer: '#eef8f4', green: '#2f8f73', greenBorder: '#bfe3d3', yellow: '#fff4cc', yellowBorder: '#edd77d', surface: '#fff', canvas: '#f4f9f6', ink: '#172b29', muted: '#5c6a68', border: '#d6e2df', error: '#b74f47' };
 const Icon = ({ name, size = 22 }) => <span className="material-symbols-outlined" style={{ fontSize: size }}>{name}</span>;
 
 function currentUser() {
@@ -22,7 +22,16 @@ const localDateTime = (value) => {
 
 function formatEvent(event) {
   const date = new Date(event.eventDate);
-  return { ...event, image: event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=900&h=500&fit=crop', date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }), time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) };
+  return {
+    ...event,
+    image: event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=900&h=500&fit=crop',
+    date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+    day: date.toLocaleDateString(undefined, { day: 'numeric' }),
+    month: date.toLocaleDateString(undefined, { month: 'short' }),
+    time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+    participantCount: event.participantCount || 0,
+    isParticipating: Boolean(event.isParticipating),
+  };
 }
 
 // Full add / edit form for community admins, used directly on this page.
@@ -70,7 +79,7 @@ function EventForm({ event, onClose, onSave }) {
   );
 }
 
-function Events({ events, loading, error, onOpen, isAdmin, onAdd, onEdit, onDelete, deletingId }) {
+function Events({ events, loading, error, onOpen, isAdmin, onAdd, onEdit, onDelete, deletingId, onParticipate, participatingId }) {
   return (
     <section>
       <div className="heading">
@@ -86,23 +95,40 @@ function Events({ events, loading, error, onOpen, isAdmin, onAdd, onEdit, onDele
       <div className="event-grid">
         {events.map((event) => (
           <article className="event-card" key={event.id} onClick={() => onOpen(event)}>
-            {isAdmin && (
-              <div className="card-admin-actions" onClick={(clickEvent) => clickEvent.stopPropagation()}>
-                <button aria-label="Edit event" title="Edit event" onClick={() => onEdit(event)}><Icon name="edit" size={18} /></button>
-                <button aria-label="Delete event" title="Delete event" className="danger" disabled={deletingId === event.id} onClick={() => onDelete(event)}><Icon name="delete" size={18} /></button>
-              </div>
-            )}
-            <img src={event.image} alt="" />
+            <div className="event-card-media">
+              <img src={event.image} alt="" />
+              <span className="date-chip"><strong>{event.day}</strong>{event.month}</span>
+              {isAdmin && (
+                <div className="card-admin-actions" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+                  <button aria-label="Edit event" title="Edit event" onClick={() => onEdit(event)}><Icon name="edit" size={18} /></button>
+                  <button aria-label="Delete event" title="Delete event" className="danger" disabled={deletingId === event.id} onClick={() => onDelete(event)}><Icon name="delete" size={18} /></button>
+                </div>
+              )}
+            </div>
             <div>
-              <span className="label">Community event</span>
+              <div className="card-top-row">
+                <span className="label">Community event</span>
+                <span className="participant-chip"><Icon name="group" size={15} />{event.participantCount}</span>
+              </div>
               <h2>{event.title}</h2>
               <p className="description">{event.description}</p>
               <div className="meta">
-                <span><Icon name="calendar_today" size={18} />{event.date}</span>
                 <span><Icon name="schedule" size={18} />{event.time}</span>
                 <span><Icon name="location_on" size={18} />{event.venue || 'Venue to be announced'}</span>
               </div>
-              <button className="text-button">View event <Icon name="arrow_forward" size={18} /></button>
+              <div className="card-actions" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+                <button className="text-button" onClick={() => onOpen(event)}>View event <Icon name="arrow_forward" size={18} /></button>
+                {!isAdmin && (
+                  <button
+                    className={`join-button ${event.isParticipating ? 'joined' : ''}`}
+                    disabled={participatingId === event.id}
+                    onClick={() => onParticipate(event)}
+                  >
+                    <Icon name={event.isParticipating ? 'check_circle' : 'add_circle'} size={17} />
+                    {event.isParticipating ? 'Going' : 'Join event'}
+                  </button>
+                )}
+              </div>
             </div>
           </article>
         ))}
@@ -111,7 +137,7 @@ function Events({ events, loading, error, onOpen, isAdmin, onAdd, onEdit, onDele
   );
 }
 
-function Details({ event, onBack, isAdmin, onEdit, onDelete, deleting }) {
+function Details({ event, onBack, isAdmin, onEdit, onDelete, deleting, onParticipate, participating }) {
   return (
     <section className="details">
       <div className="details-topbar">
@@ -125,7 +151,10 @@ function Details({ event, onBack, isAdmin, onEdit, onDelete, deleting }) {
       </div>
       <img className="hero" src={event.image} alt="" />
       <div className="detail-body">
-        <span className="label">Community event</span>
+        <div className="card-top-row">
+          <span className="label">Community event</span>
+          <span className="participant-chip"><Icon name="group" size={15} />{event.participantCount} joined</span>
+        </div>
         <h1>{event.title}</h1>
         <p className="detail-description">{event.description}</p>
         <div className="detail-meta">
@@ -133,12 +162,68 @@ function Details({ event, onBack, isAdmin, onEdit, onDelete, deleting }) {
           <div><Icon name="schedule" /><span>Time<strong>{event.time}</strong></span></div>
           <div><Icon name="location_on" /><span>Location<strong>{event.venue || 'Venue to be announced'}</strong></span></div>
         </div>
+        {!isAdmin && (
+          <button className={`join-button large ${event.isParticipating ? 'joined' : ''}`} disabled={participating} onClick={() => onParticipate(event)}>
+            <Icon name={event.isParticipating ? 'check_circle' : 'add_circle'} size={19} />
+            {event.isParticipating ? 'You are going' : 'Join this event'}
+          </button>
+        )}
       </div>
     </section>
   );
 }
 
-function Conversation({ messages, loading, error, onSend, onRefresh }) {
+function MessageItem({ message, isOwn, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(message.content);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const startEdit = () => { setValue(message.content); setEditing(true); };
+  const cancelEdit = () => { setValue(message.content); setEditing(false); };
+
+  const saveEdit = async (event) => {
+    event.preventDefault();
+    if (!value.trim() || saving) return;
+    setSaving(true);
+    try { await onUpdate(message.id, value); setEditing(false); } finally { setSaving(false); }
+  };
+
+  const remove = async () => {
+    setRemoving(true);
+    try { await onDelete(message); } finally { setRemoving(false); }
+  };
+
+  return (
+    <article className={`message ${isOwn ? 'own' : ''}`}>
+      <div className="avatar">{message.user.name.charAt(0).toUpperCase()}</div>
+      <div className="message-body">
+        <div className="message-top"><strong>{message.user.name}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>
+        {editing ? (
+          <form className="edit-form" onSubmit={saveEdit}>
+            <textarea autoFocus value={value} onChange={(event) => setValue(event.target.value)} maxLength={1000} aria-label="Edit your message" />
+            <div className="edit-actions">
+              <button type="button" className="text-button" onClick={cancelEdit}>Cancel</button>
+              <button className="save-button" disabled={!value.trim() || saving}>{saving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <p>{message.content}</p>
+            {isOwn && (
+              <div className="message-actions">
+                <button type="button" onClick={startEdit}><Icon name="edit" size={15} />Edit</button>
+                <button type="button" className="danger" onClick={remove} disabled={removing}><Icon name="delete" size={15} />{removing ? 'Deleting...' : 'Delete'}</button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function Conversation({ messages, loading, error, onSend, onUpdate, onDelete, onRefresh, currentUserId }) {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const submit = async (event) => {
@@ -160,10 +245,7 @@ function Conversation({ messages, loading, error, onSend, onRefresh }) {
         {!loading && error && <p className="center error">{error}</p>}
         {!loading && !error && messages.length === 0 && <div className="center"><Icon name="chat_bubble_outline" size={48} /><p>Be the first to start the conversation.</p></div>}
         {messages.map((message) => (
-          <article className="message" key={message.id}>
-            <div className="avatar">{message.user.name.charAt(0).toUpperCase()}</div>
-            <div><div className="message-top"><strong>{message.user.name}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div><p>{message.content}</p></div>
-          </article>
+          <MessageItem key={message.id} message={message} isOwn={message.user.id === currentUserId} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
       </div>
       <form className="composer" onSubmit={submit}>
@@ -189,6 +271,7 @@ export default function CommunityHome() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [participatingId, setParticipatingId] = useState(null);
   const nextEvent = events.find((event) => new Date(event.eventDate) >= new Date()) || events[0];
 
   const loadEvents = async () => {
@@ -233,7 +316,43 @@ export default function CommunityHome() {
     }
   };
 
+  const updateMessage = async (id, content) => {
+    try {
+      const updatedMessage = await communityAPI.updateMessage(id, content);
+      setMessages((current) => current.map((message) => (message.id === id ? updatedMessage : message)));
+    } catch (error) {
+      setMessageError(error.message || 'Unable to update your message.');
+      throw error;
+    }
+  };
+
+  const deleteMessage = async (message) => {
+    if (!window.confirm('Delete this message? This cannot be undone.')) return;
+    try {
+      await communityAPI.deleteMessage(message.id);
+      setMessages((current) => current.filter((item) => item.id !== message.id));
+    } catch (error) {
+      setMessageError(error.message || 'Unable to delete your message.');
+      throw error;
+    }
+  };
+
   const switchTab = (next) => { setTab(next); setSelected(null); };
+
+  const toggleParticipation = async (event) => {
+    setParticipatingId(event.id);
+    setEventError('');
+    try {
+      const result = await communityAPI.participateInEvent(event.id);
+      const apply = (item) => (item.id === event.id ? { ...item, isParticipating: result.isParticipating, participantCount: result.participantCount } : item);
+      setEvents((current) => current.map(apply));
+      setSelected((current) => (current ? apply(current) : current));
+    } catch (error) {
+      setEventError(error.message || 'Unable to update your participation.');
+    } finally {
+      setParticipatingId(null);
+    }
+  };
 
   const openAdd = () => { setEditingEvent(null); setFormOpen(true); };
   const openEdit = (event) => { setEditingEvent(event); setFormOpen(true); };
@@ -270,10 +389,10 @@ export default function CommunityHome() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,0&display=swap" rel="stylesheet" />
       <style>{`
         *{box-sizing:border-box}
-        .community-page{min-height:100vh;background:radial-gradient(circle at top left, rgba(255,244,204,.95), transparent 30%), radial-gradient(circle at top right, rgba(226,241,238,.75), transparent 26%), ${c.canvas};color:${c.ink};font-family:'DM Sans',sans-serif}
+        .community-page{min-height:100vh;background:radial-gradient(circle at top right, rgba(255,244,204,.85), transparent 24%), radial-gradient(circle at top left, rgba(191,227,211,.65), transparent 32%), ${c.canvas};color:${c.ink};font-family:'DM Sans',sans-serif}
         button{font:inherit}
         h1,h2{font-family:'Libre Baskerville',serif;letter-spacing:0}
-        .nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);border-bottom:1px solid ${c.yellowBorder};backdrop-filter:blur(12px)}
+        .nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);border-bottom:1px solid ${c.greenBorder};backdrop-filter:blur(12px)}
         .nav-inner{max-width:1200px;margin:auto;min-height:72px;padding:0 24px;display:flex;align-items:center;gap:24px;justify-content:space-between}
         .brand{color:${c.primary};font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;text-decoration:none}
         .tabs{display:flex;align-self:stretch;gap:4px}
@@ -282,9 +401,9 @@ export default function CommunityHome() {
         .exit{color:#fff;background:${c.error};text-decoration:none;padding:9px 13px;border-radius:6px;display:flex;align-items:center;gap:6px;font-weight:600}
         .content{max-width:1200px;margin:auto;padding:56px 24px 84px}
         .hero-panel{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;margin-bottom:30px}
-        .hero-card,.spotlight-card{background:rgba(255,255,255,.94);border:1px solid ${c.yellowBorder};border-radius:16px;box-shadow:0 12px 28px rgba(23,107,99,.06)}
-        .hero-card{padding:32px}
-        .spotlight-card{padding:32px;background:${c.yellow};color:${c.ink}}
+        .hero-card,.spotlight-card{background:rgba(255,255,255,.94);border:1px solid ${c.greenBorder};border-radius:16px;box-shadow:0 12px 28px rgba(23,107,99,.06)}
+        .hero-card{padding:32px;background:linear-gradient(165deg,#fff,${c.softer})}
+        .spotlight-card{padding:32px;background:${c.yellow};color:${c.ink};border-color:${c.yellowBorder}}
         .hero-card p.hero-kicker,.spotlight-card p.hero-kicker{margin:0 0 8px;text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:700;color:#9a6420}
         .spotlight-card p.hero-kicker{color:#9a6420}
         .hero-title{font-size:clamp(28px,4vw,40px);line-height:1.12;margin:0;color:${c.dark}}
@@ -295,27 +414,41 @@ export default function CommunityHome() {
         .heading-actions{display:flex;align-items:center;gap:12px}
         .heading p,.conversation-header p{margin:0 0 6px;color:#9a6420;text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:700}
         .heading h1,.conversation-header h1{margin:0;font-size:30px}
-        .count{border:1px solid ${c.yellowBorder};background:${c.yellow};border-radius:99px;padding:10px 15px;color:${c.muted};font-size:14px;white-space:nowrap}
+        .count{border:1px solid ${c.greenBorder};background:${c.softer};color:${c.primary};border-radius:99px;padding:10px 15px;font-size:14px;white-space:nowrap;font-weight:700}
         .primary-button{display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:${c.primary};color:#fff;padding:12px 18px;font-weight:700;cursor:pointer}
-        .event-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
-        .event-card{background:#fff;border:1px solid ${c.yellowBorder};border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;position:relative}
-        .event-card:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(23,107,99,.12)}
+        .event-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+        .event-card{background:#fff;border:1px solid ${c.greenBorder};border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;position:relative;display:flex;flex-direction:column}
+        .event-card:hover{transform:translateY(-4px);box-shadow:0 16px 30px rgba(23,107,99,.14)}
+        .event-card-media{position:relative}
         .event-card img{width:100%;height:190px;object-fit:cover;display:block}
-        .event-card>div:last-child{padding:20px}
+        .event-card-media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,78,72,0) 55%,rgba(15,78,72,.45) 100%)}
+        .event-card>div:last-child{padding:20px;display:flex;flex-direction:column;flex:1}
+        .date-chip{position:absolute;top:12px;left:12px;z-index:2;background:#fff;border-radius:10px;padding:6px 10px;text-align:center;line-height:1.1;color:${c.dark};box-shadow:0 6px 14px rgba(15,78,72,.18)}
+        .date-chip strong{display:block;font-size:16px}
+        .date-chip{font-size:11px;text-transform:uppercase;font-weight:700}
         .card-admin-actions{position:absolute;top:12px;right:12px;display:flex;gap:6px;z-index:2}
         .card-admin-actions button{width:34px;height:34px;border:0;border-radius:6px;background:rgba(255,255,255,0.92);color:${c.primary};display:grid;place-items:center;cursor:pointer}
         .card-admin-actions button.danger{color:${c.error}}
         .card-admin-actions button:disabled{opacity:.5;cursor:not-allowed}
+        .card-top-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
         .label{display:inline-block;background:${c.yellow};color:${c.dark};border-radius:99px;padding:6px 10px;font-size:12px;font-weight:700}
+        .participant-chip{display:inline-flex;align-items:center;gap:5px;background:${c.softer};color:${c.green};border:1px solid ${c.greenBorder};border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700}
         .event-card h2{margin:14px 0 8px;font-size:21px;line-height:1.35}
         .description{color:${c.muted};line-height:1.5;margin:0 0 18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .meta{display:grid;gap:8px;color:${c.muted};font-size:13px}
         .meta span{display:flex;align-items:center;gap:8px}
+        .card-actions{margin-top:auto;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
         .text-button,.back{color:${c.primary};border:0;background:transparent;padding:0;display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;margin-top:18px}
-        .empty{border:1px dashed ${c.yellowBorder};background:#fff;padding:68px 28px;text-align:center;color:${c.muted};border-radius:12px;grid-column:1/-1}
+        .card-actions .text-button{margin-top:0}
+        .join-button{display:inline-flex;align-items:center;gap:6px;border:1px solid ${c.primary};background:#fff;color:${c.primary};border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;transition:background .2s,color .2s}
+        .join-button:hover{background:${c.softer}}
+        .join-button.joined{background:${c.green};border-color:${c.green};color:#fff}
+        .join-button:disabled{opacity:.6;cursor:not-allowed}
+        .join-button.large{margin-top:26px;padding:13px 22px;font-size:14px}
+        .empty{border:1px dashed ${c.greenBorder};background:#fff;padding:68px 28px;text-align:center;color:${c.muted};border-radius:12px;grid-column:1/-1}
         .empty h2{color:${c.ink};font-size:20px;margin:12px 0 6px}
         .error{color:${c.error}}
-        .details,.conversation{max-width:900px;margin:auto;background:#fff;border:1px solid ${c.yellowBorder};border-radius:12px;overflow:hidden}
+        .details,.conversation{max-width:900px;margin:auto;background:#fff;border:1px solid ${c.greenBorder};border-radius:12px;overflow:hidden}
         .details-topbar{display:flex;justify-content:space-between;align-items:center;margin:20px 24px;flex-wrap:wrap;gap:12px}
         .details-admin-actions{display:flex;gap:10px}
         .details-admin-actions .secondary{display:flex;align-items:center;gap:6px;border:1px solid ${c.border};background:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:700;color:${c.ink}}
@@ -336,10 +469,24 @@ export default function CommunityHome() {
         .icon-button{margin-left:auto;width:42px;height:42px;border:1px solid ${c.border};border-radius:6px;background:#fff;color:${c.primary};display:grid;place-items:center;cursor:pointer}
         .message-list{min-height:390px;max-height:56vh;overflow:auto;padding:28px;background:#fffdf4}
         .message{display:flex;gap:11px;margin-bottom:22px;max-width:760px}
+        .message.own{margin-left:auto}
         .avatar{width:38px;height:38px;font-weight:700}
+        .message-body{flex:1;min-width:0}
         .message-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
         .message-top time{color:${c.muted};font-size:12px}
         .message p{margin:5px 0 0;color:${c.ink};line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+        .message-actions{display:flex;gap:16px;margin-top:8px}
+        .message-actions button{border:0;background:transparent;padding:0;color:${c.muted};font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px}
+        .message-actions button:hover{color:${c.primary}}
+        .message-actions button.danger:hover{color:${c.error}}
+        .message-actions button:disabled{opacity:.6;cursor:not-allowed}
+        .edit-form{margin-top:6px;display:flex;flex-direction:column;gap:8px}
+        .edit-form textarea{width:100%;resize:vertical;min-height:56px;padding:11px;border:1px solid ${c.yellowBorder};border-radius:10px;color:${c.ink};font:inherit}
+        .edit-form textarea:focus{outline:2px solid ${c.soft};border-color:${c.primary}}
+        .edit-actions{display:flex;justify-content:flex-end;gap:14px}
+        .edit-actions .text-button{margin:0;color:${c.muted};font-weight:700}
+        .save-button{border:0;border-radius:6px;background:${c.primary};color:#fff;font-weight:700;padding:8px 16px;cursor:pointer}
+        .save-button:disabled{background:#9db6b1;cursor:not-allowed}
         .center{text-align:center;color:${c.muted};padding:60px 20px}
         .composer{padding:20px 24px;display:flex;gap:12px;border-top:1px solid ${c.yellowBorder}}
         .composer textarea{flex:1;resize:vertical;min-height:56px;max-height:110px;padding:14px;border:1px solid ${c.yellowBorder};border-radius:10px;color:${c.ink};font:inherit}
@@ -377,6 +524,7 @@ export default function CommunityHome() {
           .detail-body{padding:24px 18px}
           .detail-body h1{font-size:27px}
           .message-list{padding:18px 14px}
+          .message{max-width:100%}
         }
       `}</style>
 
@@ -416,12 +564,12 @@ export default function CommunityHome() {
         </section>
         {tab === 'events' ? (
           selected ? (
-            <Details event={selected} onBack={() => setSelected(null)} isAdmin={isAdmin} onEdit={openEdit} onDelete={deleteEvent} deleting={deletingId === selected.id} />
+            <Details event={selected} onBack={() => setSelected(null)} isAdmin={isAdmin} onEdit={openEdit} onDelete={deleteEvent} deleting={deletingId === selected.id} onParticipate={toggleParticipation} participating={participatingId === selected.id} />
           ) : (
-            <Events events={events} loading={loadingEvents} error={eventError} onOpen={setSelected} isAdmin={isAdmin} onAdd={openAdd} onEdit={openEdit} onDelete={deleteEvent} deletingId={deletingId} />
+            <Events events={events} loading={loadingEvents} error={eventError} onOpen={setSelected} isAdmin={isAdmin} onAdd={openAdd} onEdit={openEdit} onDelete={deleteEvent} deletingId={deletingId} onParticipate={toggleParticipation} participatingId={participatingId} />
           )
         ) : (
-          <Conversation messages={messages} loading={loadingMessages} error={messageError} onSend={sendMessage} onRefresh={loadMessages} />
+          <Conversation messages={messages} loading={loadingMessages} error={messageError} onSend={sendMessage} onUpdate={updateMessage} onDelete={deleteMessage} onRefresh={loadMessages} currentUserId={user?.id} />
         )}
       </main>
 

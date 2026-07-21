@@ -316,6 +316,10 @@ export const communityAPI = {
     createEvent: (data) => communityRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
     updateEvent: (id, data) => communityRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEvent: (id) => communityRequest(`/events/${id}`, { method: 'DELETE' }),
+    participateInEvent: (id) => communityRequest(`/events/${id}/participate`, { method: 'POST' }),
     getMessages: () => communityRequest('/messages'),
-    sendMessage: (content) => communityRequest('/messages', { method: 'POST', body: JSON.stringify({ content }) }),  deleteMessage: (id) => communityRequest(`/messages/${id}`, { method: 'DELETE' }),
-  getStats: () => communityRequest('/stats'),};
+    sendMessage: (content) => communityRequest('/messages', { method: 'POST', body: JSON.stringify({ content }) }),
+    deleteMessage: (id) => communityRequest(`/messages/${id}`, { method: 'DELETE' }),
+    updateMessage: (id, content) => communityRequest(`/messages/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+    getStats: () => communityRequest('/stats'),
+};

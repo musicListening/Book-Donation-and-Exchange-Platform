@@ -39,6 +39,11 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
 
 function EventCard({ event, isLatest }) {
   const [hovered, setHovered] = useState(false);
+  const participants = event.participants || [];
+  const participantCount = event.participantCount ?? participants.length;
+  const shownNames = participants.slice(0, 3).map((participant) => participant.name);
+  const extraCount = participants.length - shownNames.length;
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -69,6 +74,16 @@ function EventCard({ event, isLatest }) {
         </div>
         <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, color: colors.onSurface, marginBottom: 8 }}>{event.title}</h4>
         <p style={{ fontSize: 13, color: colors.onSurfaceVariant, lineHeight: 1.5, flex: 1 }}>{event.description}</p>
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${colors.outlineVariant}` }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: colors.primary }}>
+            <Icon name="group" size={16} /> {participantCount} joined
+          </span>
+          {shownNames.length > 0 && (
+            <p style={{ marginTop: 6, fontSize: 12, color: colors.onSurfaceVariant, lineHeight: 1.5 }}>
+              {shownNames.join(', ')}{extraCount > 0 ? ` and ${extraCount} more` : ''}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
