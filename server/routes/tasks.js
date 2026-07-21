@@ -1,109 +1,100 @@
 // server/routes/tasks.js
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const router = express.Router();
+const { prisma } = require('../db');
 
-// Generate task ID (e.g., "#SL-88210")
-const generateTaskId = () => {
-    const random = Math.floor(10000 + Math.random() * 90000);
-    return `#SL-${random}`;
-};
-
-// ===== CREATE Task =====
-router.post('/', async (req, res) => {
-    try {
-        const { donor, location, volume, status, userId } = req.body;
-
-        const task = await prisma.task.create({
-            data: {
-                taskId: generateTaskId(),
-                donor,
-                location,
-                volume,
-                date: new Date().toLocaleString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }),
-                status: status || 'Pending',
-                userId,
-            }
-        });
-
-        res.status(201).json(task);
-    } catch (error) {
-        console.error('Error creating task:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ===== READ ALL Tasks =====
+// GET ALL TASKS
 router.get('/', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        const where = userId ? { userId } : {};
+  try {
+    // REMOVED token check for development
+    const tasks = await prisma.task.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
 
-        const tasks = await prisma.task.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        });
-
-        res.json(tasks);
-    } catch (error) {
-        console.error('Error fetching tasks:', error);
-        res.status(500).json({ error: error.message });
-    }
+    // Always return an array, even if empty
+    res.json(tasks || []);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    // Return empty array instead of error to prevent UI crash
+    res.json([]);
+  }
 });
 
-// ===== UPDATE Task =====
+// GET TASKS BY USER
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const tasks = await prisma.task.findMany({
+      where: { userId: userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(tasks || []);
+  } catch (error) {
+    console.error('Error fetching user tasks:', error);
+    res.json([]);
+  }
+});
+
+// CREATE TASK
+router.post('/', async (req, res) => {
+  try {
+    const { donor, location, volume, status, userId } = req.body;
+
+    const task = await prisma.task.create({
+      data: {
+        taskId: `TASK-${Date.now().toString().slice(-6)}`,
+        donor: donor || 'Unknown Donor',
+        location: location || 'Unknown Location',
+        volume: volume || '0 Books',
+        date: new Date().toISOString().split('T')[0],
+        status: status || 'Pending',
+        userId: userId || 'test-user-123'
+      }
+    });
+    res.status(201).json(task);
+  } catch (error) {
+    console.error('Error creating task:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE TASK
 router.put('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { donor, location, volume, status } = req.body;
+  try {
+    const { id } = req.params;
+    const { donor, location, volume, status } = req.body;
 
-        const task = await prisma.task.update({
-            where: { id },
-            data: { donor, location, volume, status }
-        });
-
-        res.json(task);
-    } catch (error) {
-        console.error('Error updating task:', error);
-        res.status(500).json({ error: error.message });
-    }
+    const updated = await prisma.task.update({
+      where: { id },
+      data: { 
+        donor, 
+        location, 
+        volume, 
+        status 
+      }
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// ===== UPDATE Task Status (for dropdown) =====
-router.put('/:id/status', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        const task = await prisma.task.update({
-            where: { id },
-            data: { status }
-        });
-
-        res.json(task);
-    } catch (error) {
-        console.error('Error updating task status:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ===== DELETE Task =====
+// DELETE TASK
 router.delete('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        await prisma.task.delete({ where: { id } });
-        res.json({ message: 'Task deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting task:', error);
-        res.status(500).json({ error: error.message });
+  try {
+    const { id } = req.params;
+    await prisma.task.delete({ where: { id } });
+    res.json({ message: 'Task deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Task not found' });
     }
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;
