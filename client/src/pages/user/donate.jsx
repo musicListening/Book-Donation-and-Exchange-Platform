@@ -11,14 +11,40 @@ const Donate = () => {
     timeSlot: '10:00 AM'
   });
   const [myDonations, setMyDonations] = useState([]);
-
+  const [donationCategory, setDonationCategory] = useState('books');
+  const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1 }]);
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
     
-    const storedDonations = JSON.parse(localStorage.getItem('ss_donations') || '[]');
-    // Only show donations for the current user if we had a real backend, but here we just show all stored.
-    setMyDonations(storedDonations);
+    // Fetch user donations from backend
+    if (storedUser.id) {
+      fetch(`/api/donations?userId=${storedUser.id}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch');
+          return res.json();
+        })
+        .then(data => {
+          if (!Array.isArray(data)) {
+            console.error('Expected array of donations but got:', data);
+            setMyDonations([]);
+            return;
+          }
+          // Map backend data to frontend format
+          const mappedDonations = data.map(d => ({
+            id: d.id.substring(0, 8).toUpperCase(), // Shorten UUID for display
+            fullId: d.id,
+            type: d.category || d.type,
+            count: d.requestedCount,
+            date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
+            time: 'N/A', // Time not stored separately in backend
+            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            details: null // Not applicable if each collection is separate
+          }));
+          setMyDonations(mappedDonations);
+        })
+        .catch(err => console.error('Error fetching donations:', err));
+    }
   }, []);
 
 
@@ -52,39 +78,171 @@ const Donate = () => {
     });
   };
 
+  const updateCraftCount = (index, delta) => {
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].craftCount = Math.max(1, Math.min(100, newCols[index].craftCount + delta));
+      return newCols;
+    });
+  };
+
+  const updateCraftType = (index, value) => {
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].craftType = value;
+      return newCols;
+    });
+  };
+
+  const addCraftCollection = () => {
+    setCraftCollections(prev => [...prev, { craftType: '', craftCount: 1 }]);
+  };
+
+  const removeCraftCollection = (index) => {
+    setCraftCollections(prev => prev.filter((_, i) => i !== index));
+  };
+
   const nextStep = () => {
-    if (step === 1 && formData.collections.some(c => !c.bookType)) {
-      alert('Please select a category for all collections');
-      return;
+    if (step === 1) {
+      if (donationCategory === 'books' && formData.collections.some(c => !c.bookType)) {
+        alert('Please select a category for all book collections');
+        return;
+      }
+      if (donationCategory === 'crafts' && craftCollections.some(c => !c.craftType)) {
+        alert('Please select a category for all craft collections');
+        return;
+      }
     }
-    if (step === 2 && !formData.selectedDate) {
-      alert('Please select a drop-off date');
-      return;
+    if (step === 2) {
+      if (!formData.selectedDate) {
+        alert('Please select a drop-off date');
+        return;
+      }
+      
+      const selected = new Date(formData.selectedDate);
+      const minDate = new Date(Date.now() + 86400000);
+      minDate.setHours(0, 0, 0, 0);
+      
+      if (selected < minDate) {
+        alert('Drop-off date must be at least 24 hours from today.');
+        return;
+      }
     }
     setStep(step + 1);
   };
 
   const prevStep = () => setStep(step - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const totalBooks = formData.collections.reduce((sum, col) => sum + col.bookCount, 0);
-    const points = totalBooks * 10;
-    const donations = JSON.parse(localStorage.getItem('ss_donations') || '[]');
-    const newDonation = {
-      id: 'DON-' + Math.floor(100 + Math.random() * 900),
-      user: user.name,
-      type: formData.collections.length > 1 ? 'Multiple Categories' : formData.collections[0].bookType,
-      count: totalBooks,
-      date: formData.selectedDate,
-      time: formData.timeSlot,
-      status: 'Pending',
-      details: formData.collections
-    };
-    donations.unshift(newDonation);
-    localStorage.setItem('ss_donations', JSON.stringify(donations));
-    document.getElementById('successModal').style.display = 'flex';
-    document.getElementById('finalPoints').innerText = points;
+    if (!user || !user.id) {
+      alert("Please log in to donate.");
+      return;
+    }
+    
+    const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
+    const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
+    const points = (totalBooks * 10) + (totalCrafts * 10);
+    
+    try {
+      if (donationCategory === 'books') {
+        for (const col of formData.collections) {
+          const response = await fetch('/api/donations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              type: 'COLLECTION',
+              category: col.bookType,
+              requestedCount: col.bookCount,
+              notes: formData.notes,
+              dropOffDate: formData.selectedDate
+            })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to save book donation');
+          }
+        }
+      } else {
+        for (const col of craftCollections) {
+          const response = await fetch('/api/donations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              type: 'COLLECTION',
+              category: 'Craft: ' + col.craftType,
+              requestedCount: col.craftCount,
+              notes: formData.notes,
+              dropOffDate: formData.selectedDate
+            })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to save craft donation');
+          }
+        }
+      }
+
+      // Re-fetch donations to update UI
+      fetch(`/api/donations?userId=${user.id}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch after submit');
+          return res.json();
+        })
+        .then(data => {
+          if (!Array.isArray(data)) {
+            console.error('Expected array of donations but got:', data);
+            return;
+          }
+          const mappedDonations = data.map(d => ({
+            id: d.id.substring(0, 8).toUpperCase(),
+            fullId: d.id,
+            type: d.category || d.type,
+            count: d.requestedCount,
+            date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
+            time: 'N/A',
+            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            details: null
+          }));
+          setMyDonations(mappedDonations);
+        })
+        .catch(err => console.error('Error fetching donations:', err));
+      
+      document.getElementById('successModal').style.display = 'flex';
+      document.getElementById('finalPoints').innerText = points;
+    } catch (error) {
+      console.error('Error creating donations:', error);
+      alert('Failed to submit donations. Please try again.');
+    }
+  };
+
+  const handleCompleteDonation = async (fullId) => {
+    try {
+      const res = await fetch(`/api/donations/${fullId}/complete`, { method: 'PUT' });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to complete donation');
+      }
+      
+      const result = await res.json();
+      
+      // Update local storage user points
+      const updatedUser = { ...user, points: result.updatedUser.points };
+      setUser(updatedUser);
+      localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
+      
+      // Update local state for donations
+      setMyDonations(prev => prev.map(d => d.fullId === fullId ? { ...d, status: 'Completed' } : d));
+      
+      alert('Donation completed and points awarded!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to complete donation.');
+    }
   };
 
   const styles = {
@@ -120,8 +278,9 @@ const Donate = () => {
     statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' }
   };
 
-  const totalBooks = formData.collections.reduce((sum, col) => sum + col.bookCount, 0);
-  const points = totalBooks * 10;
+  const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
+  const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
+  const points = (totalBooks * 10) + (totalCrafts * 10);
 
   return (
     <div style={styles.body}>
@@ -129,8 +288,8 @@ const Donate = () => {
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}>
-          <h1 style={styles.pageHeaderH1}>Donate Your Books</h1>
-          <p>Help others discover new stories and earn points for your generosity.</p>
+          <h1 style={styles.pageHeaderH1}>Donate Your Items</h1>
+          <p>Help others discover new stories or crafts, and earn points for your generosity.</p>
         </div>
 
         <div style={styles.formCard}>
@@ -144,40 +303,90 @@ const Donate = () => {
             {step === 1 && (
               <div>
                 <h3 style={{ marginBottom: 20 }}>Step 1: What are you donating?</h3>
-                
-                {formData.collections.map((col, idx) => (
-                  <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
-                    {formData.collections.length > 1 && (
-                      <button type="button" onClick={() => removeCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
-                    )}
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Collection Type</label>
-                      <select style={styles.formControl} value={col.bookType} onChange={(e) => updateType(idx, e.target.value)} required>
-                        <option value="">Select a category...</option>
-                        <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
-                        <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
-                        <option value="Academic">Academic (Textbooks, Reference)</option>
-                        <option value="Children">Children's Books</option>
-                        <option value="Comics">Comics & Manga</option>
-                        <option value="Mixed">Mixed Collection</option>
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: 0 }}>
-                      <label style={styles.label}>Approximate Number of Books</label>
-                      <div style={styles.numberInput}>
-                        <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, -1)}>-</button>
-                        <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} readOnly />
-                        <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, 1)}>+</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
 
-                <button type="button" onClick={addCollection} style={{ background: 'none', border: '2px dashed #DEE2E6', width: '100%', padding: 16, borderRadius: 12, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, marginBottom: 24 }}>
-                  <i className="fa-solid fa-plus"></i> Add Another Collection Type
-                </button>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                  <button type="button" onClick={() => setDonationCategory('books')} style={{ ...styles.btn, background: donationCategory === 'books' ? '#1E4D4B' : '#E9ECEF', color: donationCategory === 'books' ? 'white' : '#495057', flex: 1 }}>
+                    <i className="fa-solid fa-book"></i> Books
+                  </button>
+                  <button type="button" onClick={() => setDonationCategory('crafts')} style={{ ...styles.btn, background: donationCategory === 'crafts' ? '#1E4D4B' : '#E9ECEF', color: donationCategory === 'crafts' ? 'white' : '#495057', flex: 1 }}>
+                    <i className="fa-solid fa-paintbrush"></i> Crafts
+                  </button>
+                </div>
+                
+                {donationCategory === 'books' && (
+                  <>
+                    {formData.collections.map((col, idx) => (
+                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                        {formData.collections.length > 1 && (
+                          <button type="button" onClick={() => removeCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        )}
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Book Collection Type</label>
+                          <select style={styles.formControl} value={col.bookType} onChange={(e) => updateType(idx, e.target.value)} required>
+                            <option value="">Select a category...</option>
+                            <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
+                            <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
+                            <option value="Academic">Academic (Textbooks, Reference)</option>
+                            <option value="Children">Children's Books</option>
+                            <option value="Comics">Comics & Manga</option>
+                            <option value="Mixed">Mixed Collection</option>
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: 0 }}>
+                          <label style={styles.label}>Approximate Number of Books</label>
+                          <div style={styles.numberInput}>
+                            <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, -1)}>-</button>
+                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} readOnly />
+                            <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, 1)}>+</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button type="button" onClick={addCollection} style={{ background: 'none', border: '2px dashed #DEE2E6', width: '100%', padding: 16, borderRadius: 12, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, marginBottom: 24 }}>
+                      <i className="fa-solid fa-plus"></i> Add Another Book Collection
+                    </button>
+                  </>
+                )}
+
+                {donationCategory === 'crafts' && (
+                  <>
+                    {craftCollections.map((col, idx) => (
+                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                        {craftCollections.length > 1 && (
+                          <button type="button" onClick={() => removeCraftCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        )}
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Craft Collection Type</label>
+                          <select style={styles.formControl} value={col.craftType} onChange={(e) => updateCraftType(idx, e.target.value)} required>
+                            <option value="">Select a category...</option>
+                            <option value="Paper Crafts">Paper Crafts (Origami, Quilling)</option>
+                            <option value="Woodwork">Woodwork (Carvings, Small Furniture)</option>
+                            <option value="Textiles">Textiles (Knitting, Crochet, Sewing)</option>
+                            <option value="Upcycled">Upcycled Materials</option>
+                            <option value="Mixed Media">Mixed Media / Other</option>
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: 0 }}>
+                          <label style={styles.label}>Number of Items</label>
+                          <div style={styles.numberInput}>
+                            <button type="button" style={styles.numBtn} onClick={() => updateCraftCount(idx, -1)}>-</button>
+                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} readOnly />
+                            <button type="button" style={styles.numBtn} onClick={() => updateCraftCount(idx, 1)}>+</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button type="button" onClick={addCraftCollection} style={{ background: 'none', border: '2px dashed #DEE2E6', width: '100%', padding: 16, borderRadius: 12, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, marginBottom: 24 }}>
+                      <i className="fa-solid fa-plus"></i> Add Another Craft Collection
+                    </button>
+                  </>
+                )}
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Notes (Optional)</label>
@@ -191,7 +400,7 @@ const Donate = () => {
                 <h3 style={{ marginBottom: 20 }}>Step 2: Pick a drop-off date</h3>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Drop-off Date</label>
-                  <input type="date" style={styles.formControl} value={formData.selectedDate} onChange={(e) => setFormData(prev => ({ ...prev, selectedDate: e.target.value }))} required />
+                  <input type="date" style={styles.formControl} value={formData.selectedDate} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} onChange={(e) => setFormData(prev => ({ ...prev, selectedDate: e.target.value }))} required />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Preferred Time Slot</label>
@@ -210,18 +419,26 @@ const Donate = () => {
                 <div style={{ background: '#F1F3F5', padding: 20, borderRadius: 12 }}>
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ color: '#6C757D', display: 'block', marginBottom: 4 }}>Collections:</span>
-                    {formData.collections.map((col, idx) => (
+                    {donationCategory === 'books' ? formData.collections.map((col, idx) => (
                       <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
                         <strong>{col.bookType || 'Not Selected'}</strong>
                         <span>{col.bookCount} Books</span>
                       </div>
+                    )) : craftCollections.map((col, idx) => (
+                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
+                        <strong>{col.craftType || 'Not Selected'}</strong>
+                        <span>{col.craftCount} Items</span>
+                      </div>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, paddingTop: 12, borderTop: '1px solid #DEE2E6' }}><span style={{ color: '#6C757D' }}>Total Books:</span><strong>{totalBooks} Books</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, paddingTop: 12, borderTop: '1px solid #DEE2E6' }}>
+                    <span style={{ color: '#6C757D' }}>Total Items:</span>
+                    <strong>{donationCategory === 'books' ? totalBooks + ' Books' : totalCrafts + ' Crafts'}</strong>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><span style={{ color: '#6C757D' }}>Drop-off Date:</span><strong>{formData.selectedDate || '-'}</strong></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6C757D' }}>Estimated Points:</span><strong style={{ color: '#2A9D8F' }}>~{points} pts</strong></div>
                 </div>
-                <p style={{ fontSize: 13, color: '#6C757D', marginTop: 16 }}><i className="fa-solid fa-circle-info"></i> Points will be credited to your account after our staff verifies the condition and count of books at the collection center.</p>
+                <p style={{ fontSize: 13, color: '#6C757D', marginTop: 16 }}><i className="fa-solid fa-circle-info"></i> Points will be credited to your account after our staff verifies the condition and count of your items at the collection center.</p>
               </div>
             )}
 
@@ -235,7 +452,7 @@ const Donate = () => {
 
         <div style={styles.donationsSection}>
           <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, marginBottom: 10 }}>My Donations</h2>
-          <p style={{ color: '#6C757D', marginBottom: 20 }}>Track the status of your recent book donations.</p>
+          <p style={{ color: '#6C757D', marginBottom: 20 }}>Track the status of your recent donations.</p>
           
           {myDonations.length === 0 ? (
             <div style={{ background: 'white', padding: 40, borderRadius: 12, textAlign: 'center', border: '1px dashed #DEE2E6' }}>
@@ -251,16 +468,29 @@ const Donate = () => {
                       <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>{donation.type || 'Books'}</h4>
                       <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
                     </div>
-                    <span style={{ 
-                      ...styles.statusBadge, 
-                      ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
-                    }}>
-                      {donation.status || 'Pending'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {donation.status === 'Pending' && (
+                        <button 
+                          onClick={() => handleCompleteDonation(donation.fullId)} 
+                          style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                        >
+                          Complete Drop-off
+                        </button>
+                      )}
+                      <span style={{ 
+                        ...styles.statusBadge, 
+                        ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
+                      }}>
+                        {donation.status || 'Pending'}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 14 }}>
-                    <div><i className="fa-solid fa-book" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.count} Books</div>
-                    <div><i className="fa-solid fa-calendar" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.date}</div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <i className={donation.type && donation.type.startsWith('Craft:') ? "fa-solid fa-circle" : "fa-solid fa-book"} style={{ color: '#2A9D8F', width: 20, fontSize: donation.type && donation.type.startsWith('Craft:') ? 10 : 14 }}></i> 
+                      {donation.count} {donation.type && donation.type.startsWith('Craft:') ? 'Crafts' : 'Books'}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}><i className="fa-solid fa-calendar" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.date}</div>
                   </div>
                   <div style={{ fontSize: 14 }}>
                     <i className="fa-solid fa-clock" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.time}

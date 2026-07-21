@@ -27,6 +27,7 @@ router.post('/register', async (req, res) => {
                 email,
                 password: hashedPassword,
                 role: 'END_USER', 
+                points: 50,
             },
         });
 

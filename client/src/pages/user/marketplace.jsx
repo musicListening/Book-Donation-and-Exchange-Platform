@@ -41,7 +41,7 @@ const Marketplace = () => {
   const filterProducts = (items) => {
     return items.filter(item => {
       const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === 'all' || (currentTab === 'bundles' ? item.genre === categoryFilter : true);
+      const matchesCategory = categoryFilter === 'all' || item.genre === categoryFilter || item.category === categoryFilter;
       let matchesPrice = true;
       if (priceFilter === 'low') matchesPrice = item.price < 200;
       else if (priceFilter === 'mid') matchesPrice = item.price >= 200 && item.price <= 400;
@@ -98,15 +98,21 @@ const Marketplace = () => {
               <option value="all">All Categories</option>
               {currentTab === 'bundles' && (
                 <>
-                  <option value="Fiction">Fiction</option>
-                  <option value="Non-Fiction">Non-Fiction</option>
-                  <option value="Academic">Academic</option>
-                  <option value="Childrens">Children's</option>
-                  <option value="Comics">Comics</option>
-                  <option value="Rare Finds">Rare Finds</option>
-                  <option value="Self-Help">Self-Help</option>
-                  <option value="Educational">Educational</option>
-                  <option value="Classics">Classics</option>
+                  <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
+                  <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
+                  <option value="Academic">Academic (Textbooks, Reference)</option>
+                  <option value="Children">Children's Books</option>
+                  <option value="Comics">Comics & Manga</option>
+                  <option value="Mixed">Mixed Collection</option>
+                </>
+              )}
+              {currentTab === 'crafts' && (
+                <>
+                  <option value="Paper Crafts">Paper Crafts (Origami, Quilling)</option>
+                  <option value="Woodwork">Woodwork (Carvings, Small Furniture)</option>
+                  <option value="Textiles">Textiles (Knitting, Crochet, Sewing)</option>
+                  <option value="Upcycled">Upcycled Materials</option>
+                  <option value="Mixed Media">Mixed Media / Other</option>
                 </>
               )}
             </select>

@@ -580,30 +580,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ============ TRENDING BUNDLES ============ */}
-      <section style={styles.trending}>
-        <div className="reveal" style={styles.trendingHeader}>
-          <div>
-            <h2 style={styles.sectionTitle}>🔥 Staff-Curated Bundles</h2>
-            <p style={{ color: '#6C757D' }}>Handpicked collections by our expert staff.</p>
-          </div>
-          <a href="#" style={styles.viewAll}>View All <i className="fa-solid fa-arrow-right"></i></a>
-        </div>
-        <div className="reveal-stagger" style={styles.bundlesScroll}>
-          {/* Bundles will be loaded dynamically from the database */}
-        </div>
-      </section>
-
-      {/* ============ HANDMADE CRAFTS ============ */}
-      <section style={styles.crafts}>
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <h2 className="reveal" style={styles.sectionTitle}>🎨 Handmade Paper Creations</h2>
-          <p className="reveal" style={styles.sectionSubtitle}>Unique crafts made by talented community members.</p>
-        </div>
-        <div className="reveal-stagger" style={styles.craftsGrid}>
-          {/* Crafts will be loaded dynamically from the database */}
-        </div>
-      </section>
 
       {/* ============ TESTIMONIALS ============ */}
       <section style={styles.testimonials}>
@@ -697,8 +673,8 @@ const Home = () => {
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Contact</h4>
             <ul style={styles.footerLinks}>
               <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> hello@projenius.com</li>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-phone"></i> +91 98765 43210</li>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-location-dot"></i> Bangalore, India</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-phone"></i> +94 77 123 4567</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-location-dot"></i> Colombo, Sri Lanka</li>
             </ul>
           </div>
         </div>

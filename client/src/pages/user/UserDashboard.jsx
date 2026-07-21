@@ -168,13 +168,14 @@ const UserDashboard = () => {
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
                 <span>Browse Books</span>
               </Link>
-              <Link to="/my-crafts" style={styles.actionBtn}>
-                <i className="fa-solid fa-palette" style={{ ...styles.actionIcon, color: '#C4941A' }}></i>
-                <span>My Crafts</span>
-              </Link>
+
               <Link to="/orders" style={styles.actionBtn}>
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
+              </Link>
+              <Link to="/profile" style={styles.actionBtn}>
+                <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
+                <span>Profile</span>
               </Link>
             </div>
             <div style={{ ...styles.card, marginTop: 32 }}>

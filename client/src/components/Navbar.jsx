@@ -77,7 +77,7 @@ export default function Navbar({
     { to: '/marketplace', label: 'Marketplace' },
     { to: '/orders', label: 'My Orders' },
     { to: '/donate', label: 'Donate' },
-    { to: '/my-crafts', label: 'My Crafts' },
+
   ];
 
   // ─── COMMUNITY NAV TABS ───────────────────────────────────────

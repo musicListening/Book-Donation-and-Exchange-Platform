@@ -75,6 +75,40 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// ===== COMPLETE Donation (by user) =====
+router.put('/:id/complete', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Use a transaction to ensure both operations succeed
+        const result = await prisma.$transaction(async (tx) => {
+            const donation = await tx.donationRequest.findUnique({ where: { id } });
+            
+            if (!donation) throw new Error('Donation not found');
+            if (donation.pointsAwarded > 0) throw new Error('Already completed');
+
+            const pointsToAdd = donation.requestedCount * 10;
+
+            const updatedDonation = await tx.donationRequest.update({
+                where: { id },
+                data: { pointsAwarded: pointsToAdd }
+            });
+
+            const updatedUser = await tx.user.update({
+                where: { id: donation.userId },
+                data: { points: { increment: pointsToAdd } }
+            });
+
+            return { updatedDonation, updatedUser };
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error completing donation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== DELETE Donation =====
 router.delete('/:id', async (req, res) => {
     try {
