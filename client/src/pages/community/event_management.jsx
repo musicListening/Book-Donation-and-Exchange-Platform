@@ -205,6 +205,7 @@ export default function EventManagement() {
   const now = new Date();
   const upcomingCount = events.filter((event) => new Date(event.eventDate) >= now).length;
   const pastCount = events.length - upcomingCount;
+  const nextEvent = sortedEvents.find((event) => new Date(event.eventDate) >= now);
 
   return (
     <>
@@ -217,35 +218,52 @@ export default function EventManagement() {
         .event-stat-card { background: ${colors.surfaceContainerLowest}; border: 1px solid ${colors.outlineVariant}; border-radius: 12px; padding: 16px 20px; }
         .event-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 24px; }
         .event-search { flex: 1; min-width: 220px; padding: 10px 14px 10px 40px; border-radius: 40px; border: 1px solid ${colors.outlineVariant}; font-size: 14px; background-position: 12px center; background-repeat: no-repeat; }
+        .event-hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; margin-bottom: 28px; }
+        @media (max-width: 1024px) { .event-hero { grid-template-columns: 1fr; } }
       `}</style>
 
       <CommunitySidebar active="events" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
 
       <main style={{ marginLeft: isMd ? 280 : 0, minHeight: '100vh', background: colors.surface, display: 'flex', flexDirection: 'column' }}>
-        <CommunityHeader title="Events" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
+        <CommunityHeader title="Events" subtitle="Simple event management" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="content-wrapper" style={{ padding: 28, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: colors.secondary, letterSpacing: '0.08em', marginBottom: 4 }}>Event management</p>
-              <h3 style={{ fontSize: 26, fontWeight: 700, color: colors.primary, fontFamily: "'Playfair Display', serif" }}>All events</h3>
-              <p style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 4 }}>Create, edit, and manage community events.</p>
-            </div>
-            <button onClick={handleAddEvent} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 22px', background: colors.primary, color: 'white', border: 'none', borderRadius: 40, fontSize: 14, fontWeight: 600, cursor: 'pointer', boxShadow: '0 6px 16px rgba(0,109,91,0.3)' }}>
-              <Icon name="add" size={20} /> Add Event
-            </button>
+        <div className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+          <div className="event-hero">
+            <section className="soft-card" style={{ padding: 30 }}>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Event management</p>
+                  <h3 className="page-title">All events</h3>
+                  <p className="page-subtitle">Create, edit, and manage your community events.</p>
+                </div>
+                <button onClick={handleAddEvent} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 22px', background: colors.primary, color: 'white', border: 'none', borderRadius: 40, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  <Icon name="add" size={20} /> Add Event
+                </button>
+              </div>
+            </section>
+            <section className="soft-card" style={{ padding: 30 }}>
+              <p className="eyebrow">Next event</p>
+              {nextEvent ? (
+                <>
+                  <h4 style={{ fontSize: 22, lineHeight: 1.3, fontFamily: "'Playfair Display', serif", marginBottom: 10, color: colors.primaryDeep }}>{nextEvent.title}</h4>
+                  <p style={{ color: colors.onSurfaceVariant, fontSize: 14, lineHeight: 1.8 }}>{new Date(nextEvent.eventDate).toLocaleString()} {nextEvent.venue ? `• ${nextEvent.venue}` : ''}</p>
+                </>
+              ) : (
+                <p style={{ color: colors.onSurfaceVariant, fontSize: 14, lineHeight: 1.8 }}>No upcoming event is scheduled yet.</p>
+              )}
+            </section>
           </div>
 
           <div className="event-stats">
-            <div className="event-stat-card">
+            <div className="event-stat-card" style={{ background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, padding: '18px 22px' }}>
               <p style={{ fontSize: 12, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Total events</p>
               <p style={{ fontSize: 26, fontWeight: 700, color: colors.primary, fontFamily: "'Playfair Display', serif" }}>{events.length}</p>
             </div>
-            <div className="event-stat-card">
+            <div className="event-stat-card" style={{ background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, padding: '18px 22px' }}>
               <p style={{ fontSize: 12, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Upcoming</p>
               <p style={{ fontSize: 26, fontWeight: 700, color: colors.tertiary, fontFamily: "'Playfair Display', serif" }}>{upcomingCount}</p>
             </div>
-            <div className="event-stat-card">
+            <div className="event-stat-card" style={{ background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, padding: '18px 22px' }}>
               <p style={{ fontSize: 12, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Past</p>
               <p style={{ fontSize: 26, fontWeight: 700, color: colors.onSurfaceVariant, fontFamily: "'Playfair Display', serif" }}>{pastCount}</p>
             </div>
@@ -257,9 +275,9 @@ export default function EventManagement() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by title, venue, or description..."
-              style={{ backgroundImage: "none" }}
+              style={{ backgroundImage: "none", background: '#fff', boxShadow: '0 10px 24px rgba(10,59,50,0.04)', border: `1px solid ${colors.accentBorder}`, padding: '14px 18px' }}
             />
-            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} style={{ padding: '10px 14px', borderRadius: 40, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, background: '#fff' }}>
+            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} style={{ padding: '12px 16px', borderRadius: 40, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: colors.accentSoft }}>
               <option value="soonest">Soonest first</option>
               <option value="latest">Latest first</option>
             </select>

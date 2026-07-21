@@ -6,6 +6,10 @@ import { useEffect, useState } from "react";
 // ============================================================
 export const colors = {
   primary: "#006D5B",
+  primaryDeep: "#0A3B32",
+  accent: "#E4B93A",
+  accentSoft: "#FFF4CC",
+  accentBorder: "#F1D980",
   primaryContainer: "#1B8C78",
   primaryFixed: "#C8F0EA",
   onPrimaryContainer: "#E8F5F2",
@@ -24,6 +28,7 @@ export const colors = {
   surfaceContainer: "#EEF6F3",
   onSurface: "#1A2E28",
   onSurfaceVariant: "#3D5A52",
+  inkSoft: "#587169",
   outlineVariant: "#C5D9D3",
   error: "#BA1A1A",
   errorContainer: "#FFDAD6",
@@ -63,10 +68,69 @@ export function CommunityAdminFonts() {
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${colors.surface}; font-family: 'Inter', sans-serif; }
+        body {
+          background:
+            radial-gradient(circle at top left, rgba(255, 244, 204, 0.9), transparent 30%),
+            radial-gradient(circle at top right, rgba(200, 240, 234, 0.55), transparent 26%),
+            linear-gradient(180deg, #fffef7 0%, ${colors.surface} 45%, #f6faf8 100%);
+          font-family: 'Inter', sans-serif;
+          color: ${colors.onSurface};
+        }
         a { text-decoration: none; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-family: 'Material Symbols Outlined'; }
         .content-wrapper { flex: 1; }
+        .soft-card {
+          background: rgba(255,255,255,0.94);
+          border: 1px solid rgba(227, 220, 173, 0.85);
+          border-radius: 16px;
+          box-shadow: 0 10px 26px rgba(10, 59, 50, 0.05);
+        }
+        .section-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+        .eyebrow {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: ${colors.secondary};
+          letter-spacing: 0.08em;
+          margin-bottom: 6px;
+        }
+        .page-title {
+          font-size: clamp(24px, 3vw, 34px);
+          line-height: 1.12;
+          color: ${colors.primaryDeep};
+          font-family: 'Playfair Display', serif;
+        }
+        .page-subtitle {
+          margin-top: 12px;
+          max-width: 680px;
+          color: ${colors.inkSoft};
+          font-size: 14px;
+          line-height: 1.8;
+        }
+        .metric-strip {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 14px;
+        }
+        .metric-pill {
+          padding: 16px 18px;
+          border-radius: 14px;
+          background: ${colors.accentSoft};
+          border: 1px solid ${colors.accentBorder};
+        }
+        .metric-pill strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 28px;
+          color: ${colors.primaryDeep};
+          font-family: 'Playfair Display', serif;
+        }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
         ::-webkit-scrollbar-thumb { background: ${colors.primaryContainer}; border-radius: 10px; }
@@ -87,9 +151,10 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
   };
 
   const content = (
-    <aside style={{ height: "100%", width: 280, background: sidebarColors.background, borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "28px 20px" }}>
-      <div style={{ marginBottom: 48, paddingLeft: 12 }}>
+    <aside style={{ height: "100%", width: 280, background: "linear-gradient(180deg, #0A3B32 0%, #0E4B3F 48%, #113A33 100%)", borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "32px 20px", boxShadow: "18px 0 40px rgba(10, 59, 50, 0.1)" }}>
+      <div style={{ marginBottom: 38, paddingLeft: 12 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: sidebarColors.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Community Admin</h1>
+        <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.7 }}>Simple tools for events and messages.</p>
       </div>
       <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
         {NAV_LINKS.map((link) => {
@@ -98,7 +163,7 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
             <a
               key={link.key}
               onClick={(e) => { e.preventDefault(); if (navigate) navigate(link.path); if (onClose) onClose(); }}
-              style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", textDecoration: "none", borderRadius: 10, fontWeight: isActive ? 600 : 400, color: isActive ? sidebarColors.text : "rgba(255, 255, 255, 0.7)", background: isActive ? sidebarColors.activeBackground : "transparent", borderLeft: isActive ? `3px solid ${colors.primaryFixed}` : "3px solid transparent", fontSize: 14, lineHeight: "20px", transition: "all 0.2s ease", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", textDecoration: "none", borderRadius: 14, fontWeight: isActive ? 600 : 400, color: isActive ? sidebarColors.text : "rgba(255, 255, 255, 0.7)", background: isActive ? "linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07))" : "transparent", borderLeft: isActive ? `3px solid ${colors.primaryFixed}` : "3px solid transparent", fontSize: 14, lineHeight: "20px", transition: "all 0.2s ease", cursor: "pointer", boxShadow: isActive ? "0 10px 25px rgba(0,0,0,0.12)" : "none" }}
               onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = sidebarColors.hoverBackground; e.currentTarget.style.color = sidebarColors.textHover; } }}
               onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)"; } }}
             >
@@ -134,19 +199,32 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
 }
 
 // One sticky header reused by every Community Admin page.
-export function CommunityHeader({ title, isMd, onMenuClick }) {
+export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) {
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 30, background: colors.surfaceContainerLowest, borderBottom: `1px solid ${colors.outlineVariant}`, display: "flex", justifyContent: "space-between", alignItems: "center", height: 70, padding: "0 28px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0 }}>
+    <header style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0, backdropFilter: "blur(10px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         {!isMd && (
           <button onClick={onMenuClick} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, color: colors.primary, display: "flex", borderRadius: 8 }}>
             <Icon name="menu" size={24} />
           </button>
         )}
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: colors.primary }}>{title}</h2>
+        <div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: colors.primary }}>{title}</h2>
+          {subtitle && <p style={{ color: colors.inkSoft, fontSize: 13, marginTop: 5 }}>{subtitle}</p>}
+        </div>
       </div>
-      <div style={{ width: 40, height: 40, borderRadius: "50%", background: colors.primaryFixed, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary, fontWeight: 600 }}>
-        <Icon name="person" size={20} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {action}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}` }}>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", color: colors.onPrimary, fontWeight: 600, position: "relative" }}>
+            <Icon name="person" size={18} />
+            <span style={{ position: "absolute", right: 1, bottom: 1, width: 8, height: 8, borderRadius: "50%", background: "#19c37d", boxShadow: "0 0 0 2px rgba(255,255,255,0.9)" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 11, textTransform: "uppercase", color: colors.inkSoft, letterSpacing: "0.08em" }}>Admin</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: colors.primaryDeep }}>Community Admin</p>
+          </div>
+        </div>
       </div>
     </header>
   );

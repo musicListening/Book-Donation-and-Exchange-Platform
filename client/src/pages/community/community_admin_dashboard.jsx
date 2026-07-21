@@ -127,29 +127,76 @@ export default function CommunityAdminDashboard() {
         .event-grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding-bottom: 20px; }
         @media (min-width: 768px) { .event-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (min-width: 1024px) { .event-grid { grid-template-columns: repeat(3, 1fr); } }
+        .dashboard-hero {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 36px;
+        }
+        .simple-note-list {
+          display: grid;
+          gap: 10px;
+          margin-top: 16px;
+        }
+        @media (max-width: 1024px) {
+          .dashboard-hero { grid-template-columns: 1fr; }
+        }
       `}</style>
 
       <CommunitySidebar active="dashboard" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
 
       <main style={{ marginLeft: isMd ? 280 : 0, minHeight: '100vh', background: colors.surface, display: 'flex', flexDirection: 'column' }}>
-        <CommunityHeader title="Dashboard" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
+        <CommunityHeader title="Dashboard" subtitle="Overview and recent activity" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="content-wrapper" style={{ padding: 28, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
-          <div style={{ marginBottom: 28 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: colors.secondary, letterSpacing: '0.08em', marginBottom: 4 }}>Overview</p>
-            <h3 style={{ fontSize: 26, fontWeight: 700, color: colors.primary, fontFamily: "'Playfair Display', serif" }}>Welcome back{user?.name ? `, ${user.name}` : ''}</h3>
-            <p style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 4 }}>A live snapshot of the ShareShelf community.</p>
+        <div className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+          <div className="dashboard-hero">
+            <section className="soft-card" style={{ padding: 30 }}>
+              <p className="eyebrow">Overview</p>
+              <h3 className="page-title">Welcome back{user?.name ? `, ${user.name}` : ''}</h3>
+              <p className="page-subtitle">Check your numbers and manage events or messages from here.</p>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 26 }}>
+                <Link to="/community-admin/events" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.primary, color: colors.onPrimary, fontWeight: 700 }}>
+                  <Icon name="add_circle" size={18} /> New event
+                </Link>
+                <Link to="/community-admin/messages" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}`, fontWeight: 700 }}>
+                  <Icon name="forum" size={18} /> Review messages
+                </Link>
+              </div>
+            </section>
+            <section className="soft-card" style={{ padding: 30 }}>
+              <p className="eyebrow">Note</p>
+              <h4 style={{ fontSize: 22, lineHeight: 1.3, color: colors.primaryDeep, fontFamily: "'Playfair Display', serif" }}>Keep it clear</h4>
+              <p style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7, color: colors.onSurfaceVariant }}>
+                {events.length === 0
+                  ? 'Start by adding one event so members can see fresh activity on the community page.'
+                  : 'Update event details and check recent messages when needed.'}
+              </p>
+              <div className="simple-note-list">
+                <div style={{ padding: '14px 16px', borderRadius: 14, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, color: colors.onSurfaceVariant, fontSize: 14 }}>
+                  <strong style={{ color: colors.primary }}>Published events:</strong> {events.length}
+                </div>
+                <div style={{ padding: '14px 16px', borderRadius: 14, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, color: colors.onSurfaceVariant, fontSize: 14 }}>
+                  <strong style={{ color: colors.primary }}>Messages total:</strong> {stats.totalMessages}
+                </div>
+                <div style={{ padding: '14px 16px', borderRadius: 14, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, color: colors.onSurfaceVariant, fontSize: 14 }}>
+                  <strong style={{ color: colors.primary }}>Tip:</strong> Use short titles and simple venue names.
+                </div>
+              </div>
+            </section>
           </div>
 
           {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
 
-          <div className="metric-grid" style={{ marginBottom: 40 }}>
+          <div className="metric-grid" style={{ marginBottom: 48 }}>
             {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, color: colors.onSurface, fontFamily: "'Playfair Display', serif" }}>Latest events</h3>
-            <Link to="/community-admin/events" style={{ color: colors.primary, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <p className="eyebrow">Publishing feed</p>
+              <h3 style={{ fontSize: 24, fontWeight: 700, color: colors.onSurface, fontFamily: "'Playfair Display', serif" }}>Latest events</h3>
+            </div>
+            <Link to="/community-admin/events" style={{ color: colors.primary, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}` }}>
               Manage events <Icon name="arrow_forward" size={16} />
             </Link>
           </div>

@@ -117,6 +117,8 @@ export default function MessageModeration() {
     const term = search.trim().toLowerCase();
     return message.content.toLowerCase().includes(term) || message.user.name.toLowerCase().includes(term);
   });
+  const today = new Date().toDateString();
+  const todayCount = messages.filter((message) => new Date(message.createdAt).toDateString() === today).length;
 
   return (
     <>
@@ -125,31 +127,48 @@ export default function MessageModeration() {
         .message-grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding-bottom: 20px; }
         @media (min-width: 768px) { .message-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (min-width: 1200px) { .message-grid { grid-template-columns: repeat(3, 1fr); } }
+        .message-hero {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 32px;
+        }
+        @media (max-width: 1024px) {
+          .message-hero { grid-template-columns: 1fr; }
+        }
       `}</style>
 
       <CommunitySidebar active="messages" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
 
       <main style={{ marginLeft: isMd ? 280 : 0, minHeight: '100vh', background: colors.surface, display: 'flex', flexDirection: 'column' }}>
-        <CommunityHeader title="Message Moderation" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
+        <CommunityHeader title="Message Moderation" subtitle="Community messages" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} action={<button onClick={loadMessages} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.primary, fontWeight: 700, cursor: 'pointer' }}><Icon name="refresh" size={18} /> Refresh</button>} />
 
-        <div className="content-wrapper" style={{ padding: 28, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: colors.secondary, letterSpacing: '0.08em', marginBottom: 4 }}>Moderation queue</p>
-              <h3 style={{ fontSize: 26, fontWeight: 700, color: colors.primary, fontFamily: "'Playfair Display', serif" }}>Community messages</h3>
-              <p style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 4 }}>Real messages posted by customers in the Community Hub.</p>
-            </div>
-            <div style={{ background: colors.surfaceContainerLowest, padding: '8px 20px', borderRadius: 40, fontSize: 14, border: `1px solid ${colors.outlineVariant}` }}>
-              <span style={{ fontWeight: 700, color: colors.primary, fontSize: 18 }}>{filteredMessages.length}</span> <span style={{ color: colors.onSurfaceVariant }}>messages</span>
-            </div>
+        <div className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+          <div className="message-hero">
+            <section className="soft-card" style={{ padding: 30 }}>
+              <p className="eyebrow">Messages</p>
+              <h3 className="page-title">Community messages</h3>
+              <p className="page-subtitle">Search messages and remove anything that should not stay visible.</p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
+                <div className="metric-pill"><span style={{ color: colors.inkSoft, fontSize: 12 }}>Visible now</span><strong>{filteredMessages.length}</strong></div>
+                <div className="metric-pill"><span style={{ color: colors.inkSoft, fontSize: 12 }}>Posted today</span><strong>{todayCount}</strong></div>
+              </div>
+            </section>
+            <section className="soft-card" style={{ padding: 30 }}>
+              <p className="eyebrow">Note</p>
+              <p style={{ fontSize: 14, lineHeight: 1.8, color: colors.onSurfaceVariant }}>{user?.role === 'COMMUNITY_ADMIN' ? 'Use search first, then remove messages only when needed.' : 'This view is read-only for your role.'}</p>
+            </section>
           </div>
 
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by message or customer name..."
-            style={{ width: '100%', maxWidth: 420, padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, marginBottom: 24 }}
-          />
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by message or customer name..."
+              style={{ width: '100%', maxWidth: 460, padding: '14px 18px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: '#fff', boxShadow: '0 10px 24px rgba(10,59,50,0.04)' }}
+            />
+            <div style={{ padding: '10px 16px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
+          </div>
 
           {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
 
