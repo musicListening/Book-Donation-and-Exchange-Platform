@@ -21,6 +21,7 @@ model User {
   phoneNumber                                     String?
   isActive                                        Boolean            @default(true)
   status                                          String?            @default("AVAILABLE")
+  activeOrders                                    Int?               @default(0)
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
