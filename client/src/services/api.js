@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://book-donation-and-exchange-platform.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 // ===== USER API =====
 export const userAPI = {
@@ -290,3 +290,32 @@ export const shipmentAPI = {
         return response.json();
     },
 };
+
+// ===== COMMUNITY API =====
+const communityRequest = async (path, options = {}) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/community${path}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...options.headers,
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    return response.status === 204 ? null : response.json();
+};
+
+export const communityAPI = {
+    getEvents: () => communityRequest('/events'),
+    createEvent: (data) => communityRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
+    updateEvent: (id, data) => communityRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteEvent: (id) => communityRequest(`/events/${id}`, { method: 'DELETE' }),
+    getMessages: () => communityRequest('/messages'),
+    sendMessage: (content) => communityRequest('/messages', { method: 'POST', body: JSON.stringify({ content }) }),  deleteMessage: (id) => communityRequest(`/messages/${id}`, { method: 'DELETE' }),
+  getStats: () => communityRequest('/stats'),};
