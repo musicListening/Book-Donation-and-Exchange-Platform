@@ -1,6 +1,7 @@
 // server/routes/donations.js
 const express = require('express');
 const { prisma } = require('../db');
+const { calculateDonationPoints, calculateLevelByBooks } = require('../utils/pointsCalculator');
 const router = express.Router();
 
 // ===== CREATE Donation Request =====
@@ -217,22 +218,24 @@ router.patch('/:id/verify', async (req, res) => {
             verifiedCount, 
             condition, 
             notes, 
-            pointsAwarded, 
-            awardedMysteryBox,
-            staffNotes,
+            staffId,
             isCollectionComplete
         } = req.body;
 
-        console.log('📤 Verifying donation (status -> VERIFIED):', { 
-            id, 
-            verifiedCount, 
-            condition, 
-            notes, 
-            pointsAwarded, 
-            awardedMysteryBox,
-            staffNotes,
-            isCollectionComplete 
+        const donation = await prisma.donationRequest.findUnique({
+            where: { id },
+            include: { user: true }
         });
+        if (!donation) return res.status(404).json({ error: 'Donation not found' });
+
+        const isCollection = donation.type === 'COLLECTION' || isCollectionComplete;
+        const points = await calculateDonationPoints(parseInt(verifiedCount) || 0, isCollection);
+
+        const user = donation.user;
+        const newBooksDonated = (user.booksDonated || 0) + (parseInt(verifiedCount) || 0);
+        const newLevel = await calculateLevelByBooks(newBooksDonated);
+        const newPoints = (user.points || 0) + points.total;
+        const leveledUp = newLevel > (user.level || 1);
 
         const updated = await prisma.donationRequest.update({
             where: { id },
@@ -241,19 +244,126 @@ router.patch('/:id/verify', async (req, res) => {
                 verifiedCount: parseInt(verifiedCount) || 0,
                 condition: condition || 'good',
                 notes: notes || '',
-                pointsAwarded: parseInt(pointsAwarded) || 0,
-                awardedMysteryBox: awardedMysteryBox === true || awardedMysteryBox === 'true',
-                staffNotes: staffNotes || '',
-                isCollectionComplete: isCollectionComplete === true || isCollectionComplete === 'true',
-                verifiedDate: new Date()
+                pointsAwarded: points.total,
+                staffNotes: req.body.staffNotes || '',
+                isCollectionComplete: isCollection,
+                verifiedDate: new Date(),
+                verifiedBy: staffId || null
             },
             include: { user: true }
         });
 
-        console.log('✅ Donation verified:', updated);
-        res.json(updated);
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { points: newPoints, booksDonated: newBooksDonated, level: newLevel }
+        });
+
+        await prisma.pointTransaction.create({
+            data: {
+                userId: user.id,
+                type: 'EARNED_DONATION',
+                amount: points.total,
+                description: `Verified ${verifiedCount} book(s) - ${points.baseRate} pts/book`,
+                relatedDonationId: id,
+                staffId: staffId || null
+            }
+        });
+
+        if (points.bonus > 0) {
+            await prisma.pointTransaction.create({
+                data: {
+                    userId: user.id,
+                    type: 'EARNED_BONUS',
+                    amount: points.bonus,
+                    description: `Collection bonus (${points.bonusPct}%)`,
+                    relatedDonationId: id,
+                    staffId: staffId || null
+                }
+            });
+        }
+
+        if (leveledUp) {
+            await prisma.notification.create({
+                data: {
+                    userId: user.id,
+                    type: 'LEVEL_UP',
+                    title: 'Level Up!',
+                    message: `Congratulations! You've reached Level ${newLevel}! You may be eligible for a Mystery Box.`
+                }
+            });
+        }
+
+        res.json({
+            donation: updated,
+            points,
+            leveledUp,
+            newLevel,
+            newPoints,
+            newBooksDonated
+        });
     } catch (error) {
         console.error('Error verifying donation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== ASSIGN Mystery Box to user after verification =====
+router.post('/:id/mystery-box', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { staffId } = req.body;
+
+        const donation = await prisma.donationRequest.findUnique({
+            where: { id },
+            include: { user: true }
+        });
+        if (!donation) return res.status(404).json({ error: 'Donation not found' });
+
+        const user = donation.user;
+        const levelConfig = await prisma.level.findUnique({ where: { level: user.level } });
+        const bookCount = levelConfig?.mysteryBoxBooks || 5;
+
+        const availableBooks = await prisma.bookItem.findMany({
+            where: { isAvailable: true, condition: { in: ['NEW', 'LIKE_NEW', 'GOOD'] } }
+        });
+
+        const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
+        const selectedBooks = shuffled.slice(0, Math.min(bookCount, shuffled.length));
+
+        const mysteryBox = await prisma.mysteryBox.create({
+            data: {
+                userId: user.id,
+                level: user.level,
+                status: 'UNCLAIMED',
+                assignedBy: staffId || null,
+                description: `Mystery Box (Level ${user.level}) - ${selectedBooks.length} books`
+            }
+        });
+
+        for (const book of selectedBooks) {
+            await prisma.bookItem.update({
+                where: { id: book.id },
+                data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+            });
+        }
+
+        await prisma.notification.create({
+            data: {
+                userId: user.id,
+                type: 'MYSTERY_BOX_REWARD',
+                title: 'Mystery Box Awarded!',
+                message: `You've received a Mystery Box with ${selectedBooks.length} books! Check your dashboard to claim it.`
+            }
+        });
+
+        const result = await prisma.mysteryBox.findUnique({
+            where: { id: mysteryBox.id },
+            include: { books: true }
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error assigning mystery box:', error);
         res.status(500).json({ error: error.message });
     }
 });

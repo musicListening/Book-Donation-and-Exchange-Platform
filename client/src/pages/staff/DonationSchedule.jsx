@@ -1,6 +1,7 @@
 // pages/staff/DonationSchedule.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
+import { systemConfigAPI } from '../../services/api';
 
 function DonationSchedule() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -8,6 +9,9 @@ function DonationSchedule() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [systemConfig, setSystemConfig] = useState({});
+  const [levels, setLevels] = useState([]);
+  const [leveledUpResult, setLeveledUpResult] = useState(null);
   
   // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -23,7 +27,8 @@ function DonationSchedule() {
     awardMysteryBox: false,
     userLevel: 0,
     currentPoints: 0,
-    userId: null
+    userId: null,
+    booksDonated: 0
   });
 
   useEffect(() => {
@@ -46,7 +51,20 @@ function DonationSchedule() {
       }
     }
     fetchAllData();
+    fetchConfig();
   }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const config = await systemConfigAPI.getAll();
+      setSystemConfig(config);
+      if (config.LEVEL_THRESHOLDS) {
+        try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
+      }
+    } catch (err) {
+      console.warn('Could not load system config');
+    }
+  };
 
   // ===== FETCH ALL DATA FROM DATABASE =====
   const fetchAllData = async () => {
@@ -120,7 +138,8 @@ function DonationSchedule() {
           createdAt: donation.createdAt || new Date().toISOString(),
           isCollectionComplete: donation.isCollectionComplete || false,
           awardedMysteryBox: donation.awardedMysteryBox || false,
-          condition: donation.condition || null
+          condition: donation.condition || null,
+          booksDonated: user?.booksDonated || donation.user?.booksDonated || 0
         };
       });
       
@@ -147,119 +166,116 @@ function DonationSchedule() {
     return levelMap[level] || levelMap[1];
   };
 
-  // ===== CALCULATE POINTS =====
+  // ===== CALCULATE POINTS (from system config) =====
   const calculatePoints = (actualCount, isCollectionComplete) => {
-    const basePoints = actualCount * 10;
-    const bonus = isCollectionComplete ? Math.round(basePoints * 0.1) : 0;
-    return basePoints + bonus;
+    const baseRate = parseInt(systemConfig.BASE_POINTS_PER_BOOK) || 10;
+    const bonusPct = parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10;
+    const basePoints = actualCount * baseRate;
+    const bonus = isCollectionComplete ? Math.round(basePoints * (bonusPct / 100)) : 0;
+    return { basePoints, bonus, total: basePoints + bonus, baseRate, bonusPct };
   };
 
-  // ===== CALCULATE LEVEL =====
-  const calculateLevel = (points) => {
-    if (points >= 1000) return 5;
-    if (points >= 500) return 4;
-    if (points >= 250) return 3;
-    if (points >= 100) return 2;
-    return 1;
+  // ===== CALCULATE LEVEL (from level config, based on books donated) =====
+  const calculateLevelByBooks = (booksDonated) => {
+    if (levels.length === 0) {
+      if (booksDonated >= 100) return 5;
+      if (booksDonated >= 50) return 4;
+      if (booksDonated >= 25) return 3;
+      if (booksDonated >= 10) return 2;
+      return 1;
+    }
+    const sorted = [...levels].sort((a, b) => (a.minPoints || a.minBooks || 0) - (b.minPoints || b.minBooks || 0));
+    let currentLevel = 1;
+    for (const lvl of sorted) {
+      const threshold = lvl.minBooks || lvl.minPoints || 0;
+      if (booksDonated >= threshold) currentLevel = lvl.level;
+    }
+    return currentLevel;
   };
 
   // ===== HANDLE VERIFY DONATION =====
   const handleVerifyDonation = (donation) => {
     setSelectedDonation(donation);
-    const basePoints = donation.requestedCount * 10;
-    const bonusPoints = donation.type === 'COLLECTION' ? Math.round(basePoints * 0.1) : 0;
+    const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
     
     setVerifyForm({
       verifiedCount: donation.requestedCount || 0,
       condition: donation.condition || 'good',
       notes: '',
       isComplete: donation.type === 'COLLECTION',
-      awardPoints: basePoints + bonusPoints,
+      awardPoints: points.total,
       awardMysteryBox: false,
       userLevel: donation.userLevel || 0,
       currentPoints: donation.userPoints || 0,
-      userId: donation.userId || null
+      userId: donation.userId || null,
+      booksDonated: donation.booksDonated || 0
     });
     setShowVerifyModal(true);
   };
 
-  // ===== CONFIRM VERIFICATION - REMOVE FROM UI =====
+  // ===== CONFIRM VERIFICATION - SERVER-SIDE POINTS CALCULATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
       alert('No donation selected');
       return;
     }
 
-    const payload = {
-      verifiedCount: verifyForm.verifiedCount,
-      pointsAwarded: verifyForm.awardPoints,
-      awardedMysteryBox: verifyForm.awardMysteryBox,
-    };
-
-    console.log('📤 Sending to /update-points:', payload);
-    console.log('📤 Donation ID:', selectedDonation.id);
-
     try {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        alert('❌ No token found. Please login again.');
+        alert('No token found. Please login again.');
         return;
       }
 
-      const response = await fetch(`/api/donations/${selectedDonation.id}/update-points`, {
+      const response = await fetch(`/api/donations/${selectedDonation.id}/verify`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          verifiedCount: verifyForm.verifiedCount,
+          condition: verifyForm.condition,
+          notes: verifyForm.notes,
+          staffId: currentUser.id,
+          isCollectionComplete: verifyForm.isComplete
+        })
       });
-
-      console.log('📥 Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Server error:', errorText);
-        
-        let errorMessage = 'Failed to update points';
+        let errorMessage = 'Failed to verify donation';
         try {
           const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (e) {
-          if (errorText) errorMessage = errorText;
-        }
-        
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {}
         throw new Error(errorMessage);
       }
 
-      const updatedDonation = await response.json();
-      console.log('✅ Points updated:', updatedDonation);
+      const result = await response.json();
+      const { points, leveledUp, newLevel, newBooksDonated } = result;
 
-      // Update user points
-      if (verifyForm.userId && verifyForm.awardPoints > 0) {
-        const user = users.find(u => u.id === verifyForm.userId);
-        const newPoints = (user?.points || 0) + verifyForm.awardPoints;
-        
+      setLeveledUpResult(leveledUp ? { newLevel, newBooksDonated } : null);
+
+      if (verifyForm.awardMysteryBox) {
         try {
-          await fetch(`/api/users/${verifyForm.userId}`, {
-            method: 'PATCH',
+          const boxResponse = await fetch(`/api/donations/${selectedDonation.id}/mystery-box`, {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              points: newPoints,
-              level: calculateLevel(newPoints)
-            })
+            body: JSON.stringify({ staffId: currentUser.id })
           });
-          console.log(`✅ Updated user ${verifyForm.userId} points to ${newPoints}`);
-        } catch (pointsError) {
-          console.warn('⚠️ Error updating user points:', pointsError);
+          if (boxResponse.ok) {
+            console.log('Mystery box assigned');
+          }
+        } catch (boxErr) {
+          console.warn('Error assigning mystery box:', boxErr);
         }
       }
 
-      // ✅ REMOVE the donation from UI immediately
       setDonations(prevDonations => 
         prevDonations.filter(d => d.id !== selectedDonation.id)
       );
@@ -267,27 +283,20 @@ function DonationSchedule() {
       setShowVerifyModal(false);
       setSelectedDonation(null);
       
-      const mysteryBoxMsg = verifyForm.awardMysteryBox ? ' 🎁 Mystery Box awarded!' : '';
-      alert(`✅ Points awarded! ${verifyForm.verifiedCount} books confirmed. ${verifyForm.awardPoints} points awarded.${mysteryBoxMsg}`);
+      const mysteryBoxMsg = verifyForm.awardMysteryBox ? ' Mystery Box awarded!' : '';
+      const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}!` : '';
+      alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}${mysteryBoxMsg}`);
       
       setVerifyForm({
-        verifiedCount: 0,
-        condition: 'good',
-        notes: '',
-        isComplete: true,
-        awardPoints: 0,
-        awardMysteryBox: false,
-        userLevel: 0,
-        currentPoints: 0,
-        userId: null
+        verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
+        awardPoints: 0, awardMysteryBox: false, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
       
-      // Refresh data to get latest pending donations
       fetchAllData();
       
     } catch (error) {
-      console.error('❌ Error updating points:', error);
-      alert(`Failed to update points: ${error.message}`);
+      console.error('Error verifying donation:', error);
+      alert(`Failed to verify: ${error.message}`);
     }
   };
 
@@ -512,12 +521,11 @@ function DonationSchedule() {
                 value={verifyForm.verifiedCount}
                 onChange={(e) => {
                   const count = parseInt(e.target.value) || 0;
-                  const basePoints = count * 10;
-                  const bonusPoints = selectedDonation.type === 'COLLECTION' && verifyForm.isComplete ? Math.round(basePoints * 0.1) : 0;
+                  const points = calculatePoints(count, verifyForm.isComplete && selectedDonation.type === 'COLLECTION');
                   setVerifyForm({ 
                     ...verifyForm, 
                     verifiedCount: count,
-                    awardPoints: basePoints + bonusPoints
+                    awardPoints: points.total
                   });
                 }}
                 min="0"
@@ -555,16 +563,15 @@ function DonationSchedule() {
                     checked={verifyForm.isComplete}
                     onChange={(e) => {
                       const isComplete = e.target.checked;
-                      const basePoints = verifyForm.verifiedCount * 10;
-                      const bonusPoints = isComplete ? Math.round(basePoints * 0.1) : 0;
+                      const points = calculatePoints(verifyForm.verifiedCount, isComplete);
                       setVerifyForm({ 
                         ...verifyForm, 
                         isComplete,
-                        awardPoints: basePoints + bonusPoints
+                        awardPoints: points.total
                       });
                     }}
                   />
-                  Collection Complete? (10% bonus if complete)
+                  Collection Complete? ({parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10}% bonus if complete)
                 </label>
               </div>
             )}
