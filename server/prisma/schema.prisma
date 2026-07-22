@@ -63,24 +63,33 @@ model DeletedUser {
 }
 
 model DonationRequest {
-  id               String             @id @default(uuid())
-  userId           String
-  type             DonationType
-  requestedCount   Int
-  verifiedCount    Int
-  dropOffDate      DateTime?
-  verifiedDate     DateTime?
-  verifiedBy       String?
-  pointsAwarded    Int                @default(0)
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  collectionName   String?
-  category         String?
-  books            BookItem[]
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Notification     Notification[]
-  PointTransaction PointTransaction[]
+  id                    String             @id @default(uuid())
+  userId                String
+  type                  DonationType
+  requestedCount        Int
+  verifiedCount         Int
+  dropOffDate           DateTime?
+  verifiedDate          DateTime?
+  verifiedBy            String?
+  pointsAwarded         Int                @default(0)
+  notes                 String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  collectionName        String?
+  category              String?
+  
+  // ===== ADD THESE MISSING FIELDS =====
+  status                String             @default("PENDING")  // PENDING, VERIFIED, REJECTED
+  condition             String?            // excellent, good, fair, poor
+  awardedMysteryBox     Boolean            @default(false)
+  staffNotes            String?
+  isCollectionComplete  Boolean            @default(false)
+  // =====================================
+  
+  books                 BookItem[]
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Notification          Notification[]
+  PointTransaction      PointTransaction[]
 }
 
 model BookCollection {
@@ -475,3 +484,5 @@ enum TransactionType {
   STAFF_ADJUSTMENT
   REFUND
 }
+
+
