@@ -42,6 +42,25 @@ model User {
   Task                                            Task[]
 }
 
+model DeletedUser {
+  id                String   @id @default(uuid())
+  originalId        String
+  name              String
+  email             String
+  role              UserRole @default(END_USER)
+  points            Int      @default(0)
+  level             Int      @default(1)
+  phoneNumber       String?
+  address           String?
+  isActive          Boolean  @default(true)
+  status            String?
+  activeOrders      Int?     @default(0)
+  createdAt         DateTime
+  deletedAt         DateTime @default(now())
+  deletedBy         String?
+  originalCreatedAt DateTime
+}
+
 model DonationRequest {
   id               String             @id @default(uuid())
   userId           String
