@@ -21,6 +21,7 @@ model User {
   phoneNumber                                     String?
   isActive                                        Boolean            @default(true)
   status                                          String?            @default("AVAILABLE")
+  activeOrders                                    Int?               @default(0)
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
@@ -62,24 +63,29 @@ model DeletedUser {
 }
 
 model DonationRequest {
-  id               String             @id @default(uuid())
-  userId           String
-  type             DonationType
-  requestedCount   Int
-  verifiedCount    Int
-  dropOffDate      DateTime?
-  verifiedDate     DateTime?
-  verifiedBy       String?
-  pointsAwarded    Int                @default(0)
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  collectionName   String?
-  category         String?
-  books            BookItem[]
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Notification     Notification[]
-  PointTransaction PointTransaction[]
+  id                   String             @id @default(uuid())
+  userId               String
+  type                 DonationType
+  requestedCount       Int
+  verifiedCount        Int
+  dropOffDate          DateTime?
+  verifiedDate         DateTime?
+  verifiedBy           String?
+  pointsAwarded        Int                @default(0)
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  collectionName       String?
+  category             String?
+  status               String?            @default("PENDING") @db.VarChar(255)
+  condition            String?            @db.VarChar(255)
+  awardedMysteryBox    Boolean?           @default(false)
+  staffNotes           String?
+  isCollectionComplete Boolean?           @default(false)
+  books                BookItem[]
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Notification         Notification[]
+  PointTransaction     PointTransaction[]
 }
 
 model BookCollection {
