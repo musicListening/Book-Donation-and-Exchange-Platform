@@ -521,10 +521,10 @@ async function main() {
   // ── Step 12: Level table (database-backed) ──
   const levels = [
     { level: 1, minPoints: 0,   name: 'Book Lover',       reward: 'Basic Mystery Box (3 Books)',          mysteryBoxUnlock: 'Standard Mystery Box',      mysteryBoxPoints: 100, mysteryBoxBooks: 3 },
-    { level: 2, minPoints: 250, name: 'Bibliophile',       reward: 'Rare Collection Unlock (Victorian Set)', mysteryBoxUnlock: null,                       mysteryBoxPoints: null, mysteryBoxBooks: null },
-    { level: 3, minPoints: 750, name: 'Grand Librarian',   reward: 'Premium Mystery Box + 5% Discount',    mysteryBoxUnlock: 'Premium Mystery Box',       mysteryBoxPoints: 200, mysteryBoxBooks: 5 },
-    { level: 4, minPoints: 2000,name: 'Literary Elite',    reward: 'Exclusive Editions + Direct Support',  mysteryBoxUnlock: 'Rare Collection Access',    mysteryBoxPoints: 350, mysteryBoxBooks: 7 },
-    { level: 5, minPoints: 5000,name: 'Legendary Reader',  reward: 'All Mystery Boxes Free + Rare Unlocks', mysteryBoxUnlock: 'All Mystery Boxes Free',    mysteryBoxPoints: 0,   mysteryBoxBooks: 10 },
+    { level: 2, minPoints: 10,  name: 'Bibliophile',       reward: 'Rare Collection Unlock (Victorian Set)', mysteryBoxUnlock: null,                       mysteryBoxPoints: null, mysteryBoxBooks: null },
+    { level: 3, minPoints: 25,  name: 'Grand Librarian',   reward: 'Premium Mystery Box + 5% Discount',    mysteryBoxUnlock: 'Premium Mystery Box',       mysteryBoxPoints: 200, mysteryBoxBooks: 5 },
+    { level: 4, minPoints: 50,  name: 'Literary Elite',    reward: 'Exclusive Editions + Direct Support',  mysteryBoxUnlock: 'Rare Collection Access',    mysteryBoxPoints: 350, mysteryBoxBooks: 7 },
+    { level: 5, minPoints: 100, name: 'Legendary Reader',  reward: 'All Mystery Boxes Free + Rare Unlocks', mysteryBoxUnlock: 'All Mystery Boxes Free',    mysteryBoxPoints: 0,   mysteryBoxBooks: 10 },
   ];
   for (const lvl of levels) {
     await prisma.level.upsert({
@@ -540,12 +540,12 @@ async function main() {
     { key: 'COLLECTION_BONUS_PERCENTAGE', value: '10', description: 'Extra percentage added when a verified collection is donated' },
     { key: 'POINT_TO_CASH_CONVERSION_RATE', value: '100:10', description: 'Conversion metric (e.g., 100 points = 10 Rs)' },
     { key: 'LEVEL_THRESHOLDS', value: JSON.stringify([
-      { level: 1, minPoints: 0, name: 'Book Lover', reward: 'Basic Mystery Box (3 Books)' },
-      { level: 2, minPoints: 250, name: 'Bibliophile', reward: 'Rare Collection Unlock (Victorian Set)' },
-      { level: 3, minPoints: 750, name: 'Grand Librarian', reward: 'Premium Mystery Box + 5% Discount' },
-      { level: 4, minPoints: 2000, name: 'Literary Elite', reward: 'Exclusive Editions + Direct Support' },
-      { level: 5, minPoints: 5000, name: 'Legendary Reader', reward: 'All Mystery Boxes Free + Rare Unlocks' },
-    ]), description: 'JSON array of level thresholds with minPoints, name, and reward' },
+      { level: 1, minBooks: 0, name: 'Book Lover', reward: 'Basic Mystery Box (3 Books)' },
+      { level: 2, minBooks: 10, name: 'Bibliophile', reward: 'Rare Collection Unlock (Victorian Set)' },
+      { level: 3, minBooks: 25, name: 'Grand Librarian', reward: 'Premium Mystery Box + 5% Discount' },
+      { level: 4, minBooks: 50, name: 'Literary Elite', reward: 'Exclusive Editions + Direct Support' },
+      { level: 5, minBooks: 100, name: 'Legendary Reader', reward: 'All Mystery Boxes Free + Rare Unlocks' },
+    ]), description: 'JSON array of level thresholds with minBooks (books donated), name, and reward' },
     { key: 'MYSTERY_BOX_BOOKS', value: '5' },
     { key: 'MYSTERY_BOX_POINTS_COST', value: '200' },
     { key: 'RARE_COLLECTION_MIN_LEVEL', value: '2' },

@@ -49,21 +49,26 @@ const UserDashboard = () => {
     navigate('/login');
   };
 
-  // Build level info from dynamic thresholds
+  // Build level info from dynamic thresholds (based on books donated)
   const getLevelInfo = () => {
     if (levels.length === 0) {
-      return { name: 'Book Lover', min: 0, next: 250, nextName: 'Bibliophile', progress: 50 };
+      const booksDonated = user?.booksDonated || 0;
+      if (booksDonated >= 100) return { name: 'Legendary Reader', min: 50, next: 100, nextName: 'Max Level', progress: 100 };
+      if (booksDonated >= 50) return { name: 'Literary Elite', min: 25, next: 50, nextName: 'Legendary Reader', progress: Math.min(100, ((booksDonated - 25) / 25) * 100) };
+      if (booksDonated >= 25) return { name: 'Grand Librarian', min: 10, next: 25, nextName: 'Literary Elite', progress: ((booksDonated - 10) / 15) * 100 };
+      if (booksDonated >= 10) return { name: 'Bibliophile', min: 0, next: 10, nextName: 'Grand Librarian', progress: (booksDonated / 10) * 100 };
+      return { name: 'Book Lover', min: 0, next: 10, nextName: 'Bibliophile', progress: Math.max(5, (booksDonated / 10) * 100) };
     }
-    const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
+    const sorted = [...levels].sort((a, b) => (a.minPoints || a.minBooks || 0) - (b.minPoints || b.minBooks || 0));
     const currentLevel = user?.level || 1;
     const idx = sorted.findIndex(l => l.level === currentLevel);
     const current = sorted[idx] || sorted[0];
     const next = sorted[idx + 1] || sorted[idx];
-    const min = parseInt(current.minPoints) || 0;
-    const nextMin = parseInt(next.minPoints) || min;
-    const pts = user?.points || 0;
+    const min = current.minBooks || current.minPoints || 0;
+    const nextMin = next.minBooks || next.minPoints || min;
+    const books = user?.booksDonated || 0;
     const range = nextMin - min;
-    const progress = range > 0 ? Math.min(100, Math.max(5, ((pts - min) / range) * 100)) : 100;
+    const progress = range > 0 ? Math.min(100, Math.max(5, ((books - min) / range) * 100)) : 100;
     return {
       name: current.name || `Level ${current.level}`,
       min,
@@ -93,7 +98,7 @@ const UserDashboard = () => {
     progressContainer: { marginTop: 20, width: '100%' },
     progressBar: { height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },
     progressFill: { height: '100%', background: '#E9C46A', width: `${progress}%` },
-    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 },
+    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 },
     actionBtn: { background: 'white', border: '1px solid #DEE2E6', borderRadius: 12, padding: 24, textAlign: 'center', textDecoration: 'none', color: '#343A40', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
     actionIcon: { fontSize: 32, color: '#1E4D4B' },
     card: { background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
@@ -153,7 +158,7 @@ const UserDashboard = () => {
                     <div style={styles.progressFill}></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 8, opacity: 0.8 }}>
-                    <span>{Math.max(0, currentLevelInfo.next - user.points)} pts to next level</span>
+                    <span>{Math.max(0, currentLevelInfo.next - (user.booksDonated || 0))} books to next level</span>
                     <span>{currentLevelInfo.nextName}</span>
                   </div>
                 </div>
@@ -228,11 +233,11 @@ const UserDashboard = () => {
             <div style={styles.card}>
               <h3 style={{ marginBottom: 20 }}>Your Impact</h3>
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#2A9D8F' }}>12</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#2A9D8F' }}>{user.booksDonated || 0}</div>
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Books Donated Total</p>
               </div>
               <div style={{ borderTop: '1px solid #DEE2E6', paddingTop: 20, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#1E4D4B' }}>1.2</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#1E4D4B' }}>{((user.booksDonated || 0) * 0.1).toFixed(1)}</div>
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Trees Saved (Approx.)</p>
               </div>
             </div>
