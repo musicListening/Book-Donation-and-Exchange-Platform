@@ -64,27 +64,6 @@ model DeletedUser {
 }
 
 model DonationRequest {
-<<<<<<< HEAD
-  id               String             @id @default(uuid())
-  userId           String
-  type             DonationType
-  requestedCount   Int
-  verifiedCount    Int
-  dropOffDate      DateTime?
-  verifiedDate     DateTime?
-  verifiedBy       String?
-  pointsAwarded    Int                @default(0)
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  collectionName   String?
-  category         String?
-  images           String[]
-  books            BookItem[]
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Notification     Notification[]
-  PointTransaction PointTransaction[]
-=======
   id                   String             @id @default(uuid())
   userId               String
   type                 DonationType
@@ -99,6 +78,7 @@ model DonationRequest {
   updatedAt            DateTime           @updatedAt
   collectionName       String?
   category             String?
+  images               String[]
   status               String?            @default("PENDING") @db.VarChar(255)
   condition            String?            @db.VarChar(255)
   awardedMysteryBox    Boolean?           @default(false)
@@ -108,7 +88,6 @@ model DonationRequest {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
   PointTransaction     PointTransaction[]
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
 }
 
 model BookCollection {
