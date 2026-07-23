@@ -22,8 +22,13 @@ model User {
   isActive                                        Boolean            @default(true)
   status                                          String?            @default("AVAILABLE")
   activeOrders                                    Int?               @default(0)
+<<<<<<< HEAD
   booksDonated                                    Int                @default(0)
   profileImage                                    String?
+=======
+  profileImage                                    String?
+  booksDonated                                    Int                @default(0)
+>>>>>>> f4c258b2846d8d1de2faa707328b83e6a6b34cb5
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
