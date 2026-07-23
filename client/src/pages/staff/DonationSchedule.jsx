@@ -12,6 +12,7 @@ function DonationSchedule() {
   const [systemConfig, setSystemConfig] = useState({});
   const [levels, setLevels] = useState([]);
   const [leveledUpResult, setLeveledUpResult] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -24,7 +25,6 @@ function DonationSchedule() {
     notes: '',
     isComplete: true,
     awardPoints: 0,
-    awardMysteryBox: false,
     userLevel: 0,
     currentPoints: 0,
     userId: null,
@@ -204,7 +204,6 @@ function DonationSchedule() {
       notes: '',
       isComplete: donation.type === 'COLLECTION',
       awardPoints: points.total,
-      awardMysteryBox: false,
       userLevel: donation.userLevel || 0,
       currentPoints: donation.userPoints || 0,
       userId: donation.userId || null,
@@ -258,24 +257,6 @@ function DonationSchedule() {
 
       setLeveledUpResult(leveledUp ? { newLevel, newBooksDonated } : null);
 
-      if (verifyForm.awardMysteryBox) {
-        try {
-          const boxResponse = await fetch(`/api/donations/${selectedDonation.id}/mystery-box`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ staffId: currentUser.id })
-          });
-          if (boxResponse.ok) {
-            console.log('Mystery box assigned');
-          }
-        } catch (boxErr) {
-          console.warn('Error assigning mystery box:', boxErr);
-        }
-      }
-
       setDonations(prevDonations => 
         prevDonations.filter(d => d.id !== selectedDonation.id)
       );
@@ -283,13 +264,12 @@ function DonationSchedule() {
       setShowVerifyModal(false);
       setSelectedDonation(null);
       
-      const mysteryBoxMsg = verifyForm.awardMysteryBox ? ' Mystery Box awarded!' : '';
-      const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}!` : '';
-      alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}${mysteryBoxMsg}`);
+      const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
+      alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}`);
       
       setVerifyForm({
         verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
-        awardPoints: 0, awardMysteryBox: false, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
+        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
       
       fetchAllData();
@@ -336,7 +316,6 @@ function DonationSchedule() {
         notes: '',
         isComplete: true,
         awardPoints: 0,
-        awardMysteryBox: false,
         userLevel: 0,
         currentPoints: 0,
         userId: null
@@ -409,16 +388,32 @@ function DonationSchedule() {
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0 }}>Pending Donations</h3>
-          <span style={{ 
-            padding: '4px 12px', 
-            borderRadius: '20px', 
-            background: '#fff3e0', 
-            color: '#ff9800',
-            fontSize: '13px',
-            fontWeight: '600'
-          }}>
-            {pendingCount} pending
-          </span>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by donor name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                border: '1px solid #DEE2E6',
+                borderRadius: '8px',
+                fontSize: '13px',
+                width: '220px',
+                outline: 'none'
+              }}
+            />
+            <span style={{ 
+              padding: '4px 12px', 
+              borderRadius: '20px', 
+              background: '#fff3e0', 
+              color: '#ff9800',
+              fontSize: '13px',
+              fontWeight: '600'
+            }}>
+              {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending
+            </span>
+          </div>
         </div>
 
         {donations.length === 0 ? (
@@ -426,6 +421,12 @@ function DonationSchedule() {
             <p style={{ fontSize: '24px' }}>✅</p>
             <p>All caught up! No pending donations.</p>
             <p style={{ fontSize: '13px' }}>Check back later for new submissions.</p>
+          </div>
+        ) : donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+            <p style={{ fontSize: '24px' }}>🔍</p>
+            <p>No donations found matching "{searchTerm}"</p>
+            <p style={{ fontSize: '13px' }}>Try a different search term.</p>
           </div>
         ) : (
           <div className="data-table">
@@ -441,7 +442,9 @@ function DonationSchedule() {
                 </tr>
               </thead>
               <tbody>
-                {donations.map((d) => {
+                {donations
+                  .filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map((d) => {
                   const levelInfo = getLevelBadge(d.userLevel || 0);
                   
                   return (
@@ -482,7 +485,7 @@ function DonationSchedule() {
           </div>
         )}
         <div className="table-footer">
-          <span>Showing {donations.length} pending donations</span>
+          <span>Showing {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending donations{searchTerm ? ` (filtered by "${searchTerm}")` : ''}</span>
         </div>
       </div>
 
@@ -577,17 +580,6 @@ function DonationSchedule() {
             )}
 
             <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={verifyForm.awardMysteryBox}
-                  onChange={(e) => setVerifyForm({ ...verifyForm, awardMysteryBox: e.target.checked })}
-                />
-                Award Mystery Box (Bonus reward for exceptional donations)
-              </label>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Staff Notes</label>
               <textarea
                 className="form-control"
@@ -612,11 +604,6 @@ function DonationSchedule() {
             }}>
               <div>
                 <span style={{ fontWeight: '500' }}>Points to Award:</span>
-                {verifyForm.awardMysteryBox && (
-                  <span style={{ marginLeft: '12px', fontSize: '12px', color: '#9c27b0', fontWeight: '600' }}>
-                    + Mystery Box
-                  </span>
-                )}
               </div>
               <span style={{ fontSize: '24px', fontWeight: '700', color: '#1E4D4B' }}>
                 {verifyForm.awardPoints}

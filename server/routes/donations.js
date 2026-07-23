@@ -288,7 +288,43 @@ router.patch('/:id/verify', async (req, res) => {
                     userId: user.id,
                     type: 'LEVEL_UP',
                     title: 'Level Up!',
-                    message: `Congratulations! You've reached Level ${newLevel}! You may be eligible for a Mystery Box.`
+                    message: `Congratulations! You've reached Level ${newLevel}! A Mystery Box has been assigned to you.`
+                }
+            });
+
+            const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
+            const boxBookCount = levelConfig?.mysteryBoxBooks || 5;
+
+            const availableBooks = await prisma.bookItem.findMany({
+                where: { isAvailable: true, condition: { in: ['NEW', 'LIKE_NEW', 'GOOD'] } }
+            });
+
+            const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
+            const selectedBooks = shuffled.slice(0, Math.min(boxBookCount, shuffled.length));
+
+            const mysteryBox = await prisma.mysteryBox.create({
+                data: {
+                    userId: user.id,
+                    level: newLevel,
+                    status: 'UNCLAIMED',
+                    assignedBy: staffId || null,
+                    description: `Mystery Box (Level ${newLevel}) - ${selectedBooks.length} books`
+                }
+            });
+
+            for (const book of selectedBooks) {
+                await prisma.bookItem.update({
+                    where: { id: book.id },
+                    data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+                });
+            }
+
+            await prisma.notification.create({
+                data: {
+                    userId: user.id,
+                    type: 'MYSTERY_BOX_REWARD',
+                    title: 'Mystery Box Awarded!',
+                    message: `You've received a Mystery Box with ${selectedBooks.length} books! Go to your dashboard to claim it.`
                 }
             });
         }

@@ -37,23 +37,47 @@ const Donate = () => {
 
   const prevStep = () => setStep(step - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const points = formData.bookCount * 10;
-    const donations = JSON.parse(localStorage.getItem('ss_donations') || '[]');
-    const newDonation = {
-      id: 'DON-' + Math.floor(100 + Math.random() * 900),
-      user: user.name,
-      type: formData.bookType,
-      count: formData.bookCount,
-      date: formData.selectedDate,
-      time: formData.timeSlot,
-      status: 'Pending'
-    };
-    donations.push(newDonation);
-    localStorage.setItem('ss_donations', JSON.stringify(donations));
-    document.getElementById('successModal').style.display = 'flex';
-    document.getElementById('finalPoints').innerText = points;
+
+    try {
+      const token = localStorage.getItem('token');
+      const storedUser = JSON.parse(localStorage.getItem('user') || localStorage.getItem('ss_current_user') || '{}');
+
+      if (!storedUser?.id) {
+        alert('Please login to donate');
+        return;
+      }
+
+      const response = await fetch('/api/donations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          userId: storedUser.id,
+          type: 'SINGLE_BOOK',
+          category: formData.bookType,
+          collectionName: formData.bookType,
+          requestedCount: formData.bookCount,
+          notes: formData.notes,
+          dropOffDate: formData.selectedDate || null
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create donation');
+      }
+
+      document.getElementById('successModal').style.display = 'flex';
+      document.getElementById('finalPoints').innerText = points;
+    } catch (error) {
+      console.error('Error creating donation:', error);
+      alert('Failed to submit donation: ' + error.message);
+    }
   };
 
   const styles = {
