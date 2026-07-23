@@ -23,8 +23,7 @@ model User {
   status                                          String?            @default("AVAILABLE")
   activeOrders                                    Int?               @default(0)
   booksDonated                                    Int                @default(0)
-  mysteryBoxes                                    MysteryBox[]
-  MysteryBox_staff                                MysteryBox[]       @relation("MysteryBoxStaff")
+  profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
@@ -35,6 +34,8 @@ model User {
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
+  MysteryBox_MysteryBox_assignedByToUser          MysteryBox[]       @relation("MysteryBox_assignedByToUser")
+  MysteryBox_MysteryBox_userIdToUser              MysteryBox[]       @relation("MysteryBox_userIdToUser")
   Notification                                    Notification[]
   orders                                          Order[]
   Order_Order_driverIdToUser                      Order[]            @relation("Order_driverIdToUser")
@@ -66,33 +67,29 @@ model DeletedUser {
 }
 
 model DonationRequest {
-  id                    String             @id @default(uuid())
-  userId                String
-  type                  DonationType
-  requestedCount        Int
-  verifiedCount         Int
-  dropOffDate           DateTime?
-  verifiedDate          DateTime?
-  verifiedBy            String?
-  pointsAwarded         Int                @default(0)
-  notes                 String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  collectionName        String?
-  category              String?
-  
-  // ===== ADD THESE MISSING FIELDS =====
-  status                String             @default("PENDING")  // PENDING, VERIFIED, REJECTED
-  condition             String?            // excellent, good, fair, poor
-  awardedMysteryBox     Boolean            @default(false)
-  staffNotes            String?
-  isCollectionComplete  Boolean            @default(false)
-  // =====================================
-  
-  books                 BookItem[]
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Notification          Notification[]
-  PointTransaction      PointTransaction[]
+  id                   String             @id @default(uuid())
+  userId               String
+  type                 DonationType
+  requestedCount       Int
+  verifiedCount        Int
+  dropOffDate          DateTime?
+  verifiedDate         DateTime?
+  verifiedBy           String?
+  pointsAwarded        Int                @default(0)
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  collectionName       String?
+  category             String?
+  awardedMysteryBox    Boolean            @default(false)
+  condition            String?
+  isCollectionComplete Boolean            @default(false)
+  staffNotes           String?
+  status               String             @default("PENDING")
+  books                BookItem[]
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Notification         Notification[]
+  PointTransaction     PointTransaction[]
 }
 
 model BookCollection {
@@ -131,10 +128,10 @@ model BookItem {
   addedToMarketplaceAt DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
+  mysteryBoxId         String?
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
-  mysteryBoxId         String?
-  mysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
+  MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
   CartItem             CartItem[]
   orderItems           OrderItem[]
 }
@@ -415,6 +412,22 @@ model Task {
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model MysteryBox {
+  id                               String           @id
+  userId                           String
+  level                            Int
+  status                           MysteryBoxStatus @default(UNCLAIMED)
+  assignedBy                       String?
+  assignedAt                       DateTime         @default(now())
+  claimedAt                        DateTime?
+  description                      String?
+  createdAt                        DateTime         @default(now())
+  updatedAt                        DateTime
+  BookItem                         BookItem[]
+  User_MysteryBox_assignedByToUser User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
+  User_MysteryBox_userIdToUser     User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   END_USER
   OPERATIONS_STAFF
@@ -484,11 +497,6 @@ enum NotificationType {
   MYSTERY_BOX_REWARD
 }
 
-enum MysteryBoxStatus {
-  UNCLAIMED
-  CLAIMED
-}
-
 enum PaymentMethod {
   STRIPE
   RAZORPAY
@@ -512,4 +520,7 @@ enum TransactionType {
   REFUND
 }
 
-
+enum MysteryBoxStatus {
+  UNCLAIMED
+  CLAIMED
+}

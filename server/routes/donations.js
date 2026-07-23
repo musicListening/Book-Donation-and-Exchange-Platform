@@ -1,13 +1,32 @@
-// server/routes/donations.js
 const express = require('express');
 const { prisma } = require('../db');
 const { calculateDonationPoints, calculateLevelByBooks } = require('../utils/pointsCalculator');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 // ===== CREATE Donation Request =====
-router.post('/', async (req, res) => {
+router.post('/', upload.array('images', 5), async (req, res) => {
     try {
         const { userId, type, collectionName, category, requestedCount, notes, dropOffDate } = req.body;
+        
+        let images = [];
+        if (req.files && req.files.length > 0) {
+            images = req.files.map(file => `/uploads/${file.filename}`);
+        } else if (req.body.images) { // Fallback for URLs
+            images = Array.isArray(req.body.images) ? req.body.images : req.body.images.split(',').map(url => url.trim()).filter(Boolean);
+        }
 
         const donation = await prisma.donationRequest.create({
             data: {
@@ -20,13 +39,8 @@ router.post('/', async (req, res) => {
                 notes,
                 dropOffDate: dropOffDate ? new Date(dropOffDate) : null,
                 pointsAwarded: 0,
-                status: 'PENDING',
-                condition: null,
-                awardedMysteryBox: false,
-                staffNotes: null,
-                isCollectionComplete: false
-            },
-            include: { user: true }
+                images: images || [],
+            }
         });
 
         res.status(201).json(donation);
@@ -425,6 +439,40 @@ router.patch('/:id/reject', async (req, res) => {
         res.json(updated);
     } catch (error) {
         console.error('Error rejecting donation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== COMPLETE Donation (by user) =====
+router.put('/:id/complete', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Use a transaction to ensure both operations succeed
+        const result = await prisma.$transaction(async (tx) => {
+            const donation = await tx.donationRequest.findUnique({ where: { id } });
+            
+            if (!donation) throw new Error('Donation not found');
+            if (donation.pointsAwarded > 0) throw new Error('Already completed');
+
+            const pointsToAdd = donation.requestedCount * 10;
+
+            const updatedDonation = await tx.donationRequest.update({
+                where: { id },
+                data: { pointsAwarded: pointsToAdd }
+            });
+
+            const updatedUser = await tx.user.update({
+                where: { id: donation.userId },
+                data: { points: { increment: pointsToAdd } }
+            });
+
+            return { updatedDonation, updatedUser };
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error completing donation:', error);
         res.status(500).json({ error: error.message });
     }
 });
