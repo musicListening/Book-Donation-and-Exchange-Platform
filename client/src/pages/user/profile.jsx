@@ -3,10 +3,13 @@ import Navbar from '../../components/Navbar';
 import { systemConfigAPI } from '../../services/api';
 
 const Profile = () => {
-  const [user, setUser] = useState({ name: '', email: '', points: 0, level: 1 });
+  const [user, setUser] = useState({ name: '', email: '', points: 0, level: 1, profileImage: '' });
   const [activeTab, setActiveTab] = useState('donations');
   const [cartCount, setCartCount] = useState(0);
   const [levels, setLevels] = useState([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({ name: '' });
+  const [profileFile, setProfileFile] = useState(null);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'Arjun Sharma', email: 'arjun@example.com', points: 450 };
@@ -33,6 +36,39 @@ const Profile = () => {
     const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
     const found = sorted.find(l => l.level === (user.level || 1));
     return found ? found.name : `Level ${user.level || 1}`;
+  };
+
+  const openEditModal = () => {
+    setEditFormData({ name: user.name || '' });
+    setProfileFile(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('name', editFormData.name);
+      if (profileFile) {
+        formData.append('profileImage', profileFile);
+      }
+
+      const res = await fetch(`http://localhost:5000/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update profile');
+      }
+      const updatedUser = await res.json();
+      setUser(updatedUser);
+      localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setIsEditModalOpen(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const getLevelProgress = () => {
@@ -80,7 +116,13 @@ const Profile = () => {
     successText: { color: '#2A9D8F', fontWeight: 700 },
     errorText: { color: '#E63946', fontWeight: 700 },
     settingsGroup: { display: 'flex', flexDirection: 'column', gap: 20 },
-    deactivateBtn: { background: '#E63946', color: 'white', padding: '12px 24px', borderRadius: 8, border: 'none', fontWeight: 700, cursor: 'pointer', width: 'fit-content' }
+    deactivateBtn: { background: '#E63946', color: 'white', padding: '12px 24px', borderRadius: 8, border: 'none', fontWeight: 700, cursor: 'pointer', width: 'fit-content' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
+    modal: { background: 'white', padding: 32, borderRadius: 16, width: '90%', maxWidth: 400, position: 'relative' },
+    formGroup: { marginBottom: 16 },
+    label: { display: 'block', marginBottom: 8, fontWeight: 600, color: '#343A40' },
+    input: { width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #DEE2E6', outline: 'none' },
+    closeBtn: { position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6C757D' }
   };
 
   const renderTabContent = () => {
@@ -132,12 +174,14 @@ const Profile = () => {
       <main style={styles.mainContent}>
         <div style={styles.profileSide}>
           <div style={styles.profileCard}>
-            <div style={styles.avatar}>{user.name[0]}</div>
+            <div style={styles.avatar}>
+              {user.profileImage ? <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : (user.name ? user.name[0] : 'U')}
+            </div>
             <h2>{user.name}</h2>
             <p style={{ color: '#6C757D', fontSize: 14 }}>{user.email}</p>
             <div style={styles.pointsBox}><span style={{ fontSize: 12, fontWeight: 700, color: '#6C757D', textTransform: 'uppercase' }}>Points Balance</span><strong style={styles.pointsStrong}>{user.points} pts</strong></div>
             <div style={styles.levelContainer}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}><span>Level: <strong>{levelName}</strong></span><span style={{ color: '#1E4D4B', fontWeight: 700 }}>{Math.round(levelProgress)}%</span></div><div style={styles.progressBar}><div style={{ ...styles.progressFill, width: `${levelProgress}%` }}></div></div></div>
-            <button style={styles.btn}>Edit Profile</button>
+            <button style={styles.btn} onClick={openEditModal}>Edit Profile</button>
           </div>
         </div>
 
@@ -150,6 +194,26 @@ const Profile = () => {
           {renderTabContent()}
         </div>
       </main>
+
+      {isEditModalOpen && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <button style={styles.closeBtn} onClick={() => setIsEditModalOpen(false)}><i className="fa-solid fa-xmark"></i></button>
+            <h2 style={{ fontFamily: 'Playfair Display, serif', marginBottom: 20 }}>Edit Profile</h2>
+            <form onSubmit={handleEditSubmit}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Name</label>
+                <input style={styles.input} type="text" value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} required />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Profile Image</label>
+                <input style={styles.input} type="file" accept="image/*" onChange={e => setProfileFile(e.target.files[0])} />
+              </div>
+              <button type="submit" style={styles.btn}>Save Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

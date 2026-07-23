@@ -19,6 +19,7 @@ model User {
   address                                         String?
   level                                           Int                @default(1)
   phoneNumber                                     String?
+  profileImage                                    String?
   isActive                                        Boolean            @default(true)
   status                                          String?            @default("AVAILABLE")
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
@@ -57,6 +58,7 @@ model DonationRequest {
   updatedAt        DateTime           @updatedAt
   collectionName   String?
   category         String?
+  images           String[]
   books            BookItem[]
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification     Notification[]

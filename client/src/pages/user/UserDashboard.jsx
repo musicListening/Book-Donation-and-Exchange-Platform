@@ -143,7 +143,7 @@ const UserDashboard = () => {
           <div>
             <div style={styles.pointsCard}>
               <div>
-                <h3 style={{ fontSize: 16, opacity: 0.8 }}>Your Balance</h3>
+                <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
                 <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>

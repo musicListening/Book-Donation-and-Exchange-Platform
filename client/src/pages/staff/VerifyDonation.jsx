@@ -13,6 +13,7 @@ function VerifyDonation() {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [flagForm, setFlagForm] = useState({ title: '', author: '', isbn: '', notes: '' });
   const [editingFlag, setEditingFlag] = useState(null);
+  const [donationImages, setDonationImages] = useState([]);
 
   // ====== ISBN VALIDATION STATE ======
   const [isbnError, setIsbnError] = useState('');
@@ -26,6 +27,16 @@ function VerifyDonation() {
         role: user.role || 'VERIFICATION STAFF'
       });
     }
+
+    fetch('/api/donations')
+      .then(res => res.json())
+      .then(data => {
+         if (Array.isArray(data)) {
+           const latestWithImages = data.find(d => d.images && d.images.length > 0);
+           if (latestWithImages) setDonationImages(latestWithImages.images);
+         }
+      })
+      .catch(console.error);
   }, []);
 
   // ====== ISBN VALIDATION FUNCTION - Works for any country ======
@@ -435,6 +446,21 @@ function VerifyDonation() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="verification-protocol">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0 }}>DONATION IMAGES</h3>
+        </div>
+        {donationImages.length > 0 ? (
+          <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+             {donationImages.map((img, i) => (
+                <img key={i} src={img.startsWith('http') ? img : `http://localhost:5000${img}`} alt={`Donation ${i}`} style={{ height: '150px', borderRadius: '8px', border: '1px solid #ccc', objectFit: 'cover' }} />
+             ))}
+          </div>
+        ) : (
+          <p style={{ color: '#6C757D', fontSize: '14px' }}>No images provided for this donation.</p>
+        )}
       </div>
 
       <div className="condition-assessment">

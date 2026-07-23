@@ -10,6 +10,7 @@ const Donate = () => {
     selectedDate: '',
     timeSlot: '10:00 AM'
   });
+  const [donationFiles, setDonationFiles] = useState(null);
   const [myDonations, setMyDonations] = useState([]);
   const [donationCategory, setDonationCategory] = useState('books');
   const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1 }]);
@@ -147,17 +148,23 @@ const Donate = () => {
     try {
       if (donationCategory === 'books') {
         for (const col of formData.collections) {
+          const bodyData = new FormData();
+          bodyData.append('userId', user.id);
+          bodyData.append('type', 'COLLECTION');
+          bodyData.append('category', col.bookType);
+          bodyData.append('requestedCount', col.bookCount);
+          bodyData.append('notes', formData.notes || '');
+          bodyData.append('dropOffDate', formData.selectedDate);
+          
+          if (donationFiles) {
+            for (let i = 0; i < donationFiles.length; i++) {
+              bodyData.append('images', donationFiles[i]);
+            }
+          }
+
           const response = await fetch('/api/donations', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              type: 'COLLECTION',
-              category: col.bookType,
-              requestedCount: col.bookCount,
-              notes: formData.notes,
-              dropOffDate: formData.selectedDate
-            })
+            body: bodyData
           });
           
           if (!response.ok) {
@@ -167,17 +174,23 @@ const Donate = () => {
         }
       } else {
         for (const col of craftCollections) {
+          const bodyData = new FormData();
+          bodyData.append('userId', user.id);
+          bodyData.append('type', 'COLLECTION');
+          bodyData.append('category', 'Craft: ' + col.craftType);
+          bodyData.append('requestedCount', col.craftCount);
+          bodyData.append('notes', formData.notes || '');
+          bodyData.append('dropOffDate', formData.selectedDate);
+          
+          if (donationFiles) {
+            for (let i = 0; i < donationFiles.length; i++) {
+              bodyData.append('images', donationFiles[i]);
+            }
+          }
+
           const response = await fetch('/api/donations', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              type: 'COLLECTION',
-              category: 'Craft: ' + col.craftType,
-              requestedCount: col.craftCount,
-              notes: formData.notes,
-              dropOffDate: formData.selectedDate
-            })
+            body: bodyData
           });
           
           if (!response.ok) {
@@ -397,7 +410,7 @@ const Donate = () => {
 
             {step === 2 && (
               <div>
-                <h3 style={{ marginBottom: 20 }}>Step 2: Pick a drop-off date</h3>
+                <h3 style={{ marginBottom: 20 }}>Step 2: Additional Details</h3>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Drop-off Date</label>
                   <input type="date" style={styles.formControl} value={formData.selectedDate} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} onChange={(e) => setFormData(prev => ({ ...prev, selectedDate: e.target.value }))} required />
@@ -409,6 +422,11 @@ const Donate = () => {
                     <option value="02:00 PM">Afternoon (02:00 PM - 04:00 PM)</option>
                     <option value="05:00 PM">Evening (05:00 PM - 07:00 PM)</option>
                   </select>
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Donation Images (Optional)</label>
+                  <input type="file" multiple accept="image/*" style={styles.formControl} onChange={(e) => setDonationFiles(e.target.files)} />
+                  <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>You can select multiple images to upload</small>
                 </div>
               </div>
             )}

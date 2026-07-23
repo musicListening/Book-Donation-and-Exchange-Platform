@@ -23,8 +23,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// 2. Parse JSON bodies (Also must be before routes)
+// 2. Parse JSON bodies and serve static uploads
 app.use(express.json());
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 3. Import routes
 const authRoutes = require('./routes/auth');

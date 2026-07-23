@@ -1,8 +1,20 @@
-// server/routes/users.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../db');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 // 1. GET ALL USERS
 router.get('/', async (req, res) => {
@@ -12,13 +24,40 @@ router.get('/', async (req, res) => {
       select: {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
-        phoneNumber: true, address: true, createdAt: true
+        phoneNumber: true, address: true, createdAt: true, profileImage: true
       }
     });
     res.json(users);
   } catch (error) {
     console.error("Fetch users error:", error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// UPDATE USER PROFILE
+router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    let profileImage = req.body.profileImage; // In case it's a string URL fallback
+
+    if (req.file) {
+      profileImage = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { name, profileImage },
+      select: {
+        id: true, name: true, email: true, role: true,
+        points: true, level: true, isActive: true,
+        phoneNumber: true, address: true, createdAt: true, profileImage: true
+      }
+    });
+    res.json(user);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 });
 
