@@ -53,12 +53,8 @@ router.get('/', async (req, res) => {
       select: {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
-<<<<<<< HEAD
-        phoneNumber: true, address: true, createdAt: true, profileImage: true
-=======
-        phoneNumber: true, address: true, createdAt: true,
+        phoneNumber: true, address: true, createdAt: true, profileImage: true,
         status: true, activeOrders: true
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
       }
     });
     res.json(users);
@@ -68,7 +64,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 // UPDATE USER PROFILE
 router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
   try {
@@ -86,7 +81,8 @@ router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
       select: {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
-        phoneNumber: true, address: true, createdAt: true, profileImage: true
+        phoneNumber: true, address: true, createdAt: true, profileImage: true,
+        status: true, activeOrders: true
       }
     });
     res.json(user);
@@ -96,8 +92,6 @@ router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
   }
 });
 
-// 2. CREATE NEW USER
-=======
 // 1b. GET ALL DELETED USERS
 router.get('/deleted', async (req, res) => {
   try {
@@ -189,7 +183,6 @@ router.get('/delivery-personnel', async (req, res) => {
 });
 
 // 3. CREATE NEW USER
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
 router.post('/', async (req, res) => {
   try {
     const { name, email, password, role, phoneNumber, address } = req.body;
