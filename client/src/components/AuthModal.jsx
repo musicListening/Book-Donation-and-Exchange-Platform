@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AuthModal.css';
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
+export default function AuthModal({ 
+  isOpen, 
+  onClose, 
+  initialMode = 'login', 
+  redirectTo = null,
+  onLoginSuccess = null 
+}) {
   const [mode, setMode] = useState(initialMode);
   
   // Form states
@@ -22,8 +28,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
   // Reset state when modal opens/closes or mode changes
   useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -41,7 +49,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     }
   }, [isOpen]);
 
-  if (!isOpen && !loading) return null; // Don't unmount immediately to allow CSS transition, but here we can just use CSS opacity since we render it always or conditionally. Actually, better to always render it in DOM if isOpen, or use a delayed unmount. Let's just always render and use CSS for visibility.
+  if (!isOpen) return null;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -49,6 +57,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     setLoading(true);
 
     try {
+      console.log('Attempting login...');
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,14 +70,33 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         throw new Error(data.message || 'Login failed');
       }
 
+      console.log('Login successful!', data);
+
+      // Store token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('ss_current_user', JSON.stringify(data.user));
       
       const userRole = data.user.role;
       
-      onClose(); // Close modal on success
+      // Close modal first
+      onClose();
 
+      // If onLoginSuccess callback is provided, use it
+      if (onLoginSuccess) {
+        console.log('Calling onLoginSuccess with redirectTo:', redirectTo);
+        onLoginSuccess(data.token);
+        return;
+      }
+
+      // If a redirect target was provided, go there
+      if (redirectTo) {
+        console.log('Redirecting to:', redirectTo);
+        navigate(redirectTo);
+        return;
+      }
+
+      // Default navigation based on role
       if (userRole === 'PLATFORM_ADMIN') {
         navigate('/admin/dashboard');
       } else if (userRole === 'OPERATIONS_STAFF') {
@@ -82,10 +110,25 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
       }
 
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculatePasswordStrength = (pass) => {
+    let score = 0;
+    if (!pass) return { score: 0, label: '', color: '#e0e0e0', width: '0%' };
+    if (pass.length >= 8) score += 1;
+    if (/[a-z]/.test(pass) && /[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+    
+    if (score <= 1) return { score, label: 'Weak', color: '#E63946', width: '25%' };
+    if (score === 2) return { score, label: 'Fair', color: '#F4A261', width: '50%' };
+    if (score === 3) return { score, label: 'Good', color: '#2A9D8F', width: '75%' };
+    return { score, label: 'Strong', color: '#1E4D4B', width: '100%' };
   };
 
   const handleSignup = async (e) => {
@@ -94,6 +137,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      return;
+    }
+
+    const strength = calculatePasswordStrength(password);
+    if (strength.score < 3) {
+      setError('Password must be Good or Strong');
       return;
     }
 
@@ -121,8 +170,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
       setMode('login');
       setPassword('');
       setConfirmPassword('');
+      setError('');
       alert('Registration successful! Please log in.');
     } catch (err) {
+      console.error('Signup error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -233,6 +284,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                 </button>
               </div>
+              {password && (
+                <div style={{ marginTop: '8px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#6C757D' }}>Password Strength:</span>
+                    <span style={{ color: calculatePasswordStrength(password).color, fontWeight: 'bold' }}>{calculatePasswordStrength(password).label}</span>
+                  </div>
+                  <div style={{ height: '4px', background: '#e0e0e0', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: calculatePasswordStrength(password).width, background: calculatePasswordStrength(password).color, transition: 'all 0.3s ease' }}></div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="form-group">
               <label>Confirm Password</label>

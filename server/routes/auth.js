@@ -27,6 +27,7 @@ router.post('/register', async (req, res) => {
                 email,
                 password: hashedPassword,
                 role: 'END_USER', 
+                points: 50,
             },
         });
 
@@ -74,7 +75,7 @@ router.post('/login', async (req, res) => {
         res.status(200).json({
             message: 'Login successful',
             token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role, points: user.points, level: user.level }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role, points: user.points, level: user.level, profileImage: user.profileImage }
         });
     } catch (error) {
         console.error("Login Error:", error);

@@ -22,7 +22,7 @@ export default function Navbar({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login' });
+  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login', redirectTo: null });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,7 +52,7 @@ export default function Navbar({
   const publicLinks = [
     { to: '/', label: 'Home' },
     { label: 'How It Works', hash: 'how-it-works' },
-    { to: '/login?redirect=/marketplace', label: 'Marketplace', requiresLogin: true },
+    { to: '/marketplace', label: 'Marketplace', requiresLogin: true },
     { label: 'About', hash: 'about' },
   ];
 
@@ -77,7 +77,7 @@ export default function Navbar({
     { to: '/marketplace', label: 'Marketplace' },
     { to: '/orders', label: 'My Orders' },
     { to: '/donate', label: 'Donate' },
-    { to: '/my-crafts', label: 'My Crafts' },
+
   ];
 
   // ─── COMMUNITY NAV TABS ───────────────────────────────────────
@@ -126,6 +126,14 @@ export default function Navbar({
                   >
                     {link.label}
                   </button>
+                ) : link.requiresLogin ? (
+                  <button
+                    key={link.label}
+                    className="ss-navbar__link ss-navbar__link--btn"
+                    onClick={() => setAuthModal({ isOpen: true, mode: 'login', redirectTo: link.to })}
+                  >
+                    {link.label}
+                  </button>
                 ) : (
                   <NavLink
                     key={link.to}
@@ -169,8 +177,12 @@ export default function Navbar({
                 )}
                 {user && (
                   <div className="ss-navbar__user-menu">
-                    <button className="ss-navbar__avatar" aria-label="User menu">
-                      {user.name?.[0]?.toUpperCase() ?? 'U'}
+                    <button className="ss-navbar__avatar" aria-label="User menu" style={user.profileImage ? { padding: 0, overflow: 'hidden' } : {}}>
+                      {user.profileImage ? (
+                        <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        user.name?.[0]?.toUpperCase() ?? 'U'
+                      )}
                     </button>
                     <div className="ss-navbar__dropdown">
                       <div className="ss-navbar__dropdown-header">
@@ -228,7 +240,15 @@ export default function Navbar({
                 <button
                   key={link.label}
                   className="ss-navbar__mobile-link"
-                  onClick={() => scrollToSection(link.hash)}
+                  onClick={() => { scrollToSection(link.hash); setMobileOpen(false); }}
+                >
+                  {link.label}
+                </button>
+              ) : link.requiresLogin ? (
+                <button
+                  key={link.label}
+                  className="ss-navbar__mobile-link"
+                  onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'login', redirectTo: link.to }); }}
                 >
                   {link.label}
                 </button>
@@ -249,7 +269,7 @@ export default function Navbar({
           )}
 
           <div className="ss-navbar__mobile-actions">
-            {variant === 'public' && (
+              {variant === 'public' && (
               <>
                 <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'signup' }); }} className="ss-navbar__btn ss-navbar__btn--ghost">Sign Up</button>
                 <button onClick={() => { setMobileOpen(false); setAuthModal({ isOpen: true, mode: 'login' }); }} className="ss-navbar__btn ss-navbar__btn--primary">Log In</button>
@@ -268,7 +288,8 @@ export default function Navbar({
 
       <AuthModal 
         isOpen={authModal.isOpen} 
-        initialMode={authModal.mode} 
+        initialMode={authModal.mode}
+        redirectTo={authModal.redirectTo}
         onClose={() => setAuthModal(prev => ({ ...prev, isOpen: false }))} 
       />
     </>
