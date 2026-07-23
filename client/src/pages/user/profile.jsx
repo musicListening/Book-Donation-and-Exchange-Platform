@@ -53,8 +53,12 @@ const Profile = () => {
         formData.append('profileImage', profileFile);
       }
 
-      const res = await fetch(`http://localhost:5000/api/users/${user.id}/profile`, {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/users/${user.id}/profile`, {
         method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       if (!res.ok) {
