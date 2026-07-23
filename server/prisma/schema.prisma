@@ -19,10 +19,11 @@ model User {
   address                                         String?
   level                                           Int                @default(1)
   phoneNumber                                     String?
-  profileImage                                    String?
   isActive                                        Boolean            @default(true)
   status                                          String?            @default("AVAILABLE")
   activeOrders                                    Int?               @default(0)
+  booksDonated                                    Int                @default(0)
+  profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
   Cart                                            Cart?
@@ -33,6 +34,8 @@ model User {
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
+  MysteryBox_MysteryBox_assignedByToUser          MysteryBox[]       @relation("MysteryBox_assignedByToUser")
+  MysteryBox_MysteryBox_userIdToUser              MysteryBox[]       @relation("MysteryBox_userIdToUser")
   Notification                                    Notification[]
   orders                                          Order[]
   Order_Order_driverIdToUser                      Order[]            @relation("Order_driverIdToUser")
@@ -78,12 +81,11 @@ model DonationRequest {
   updatedAt            DateTime           @updatedAt
   collectionName       String?
   category             String?
-  images               String[]
-  status               String?            @default("PENDING") @db.VarChar(255)
-  condition            String?            @db.VarChar(255)
-  awardedMysteryBox    Boolean?           @default(false)
+  awardedMysteryBox    Boolean            @default(false)
+  condition            String?
+  isCollectionComplete Boolean            @default(false)
   staffNotes           String?
-  isCollectionComplete Boolean?           @default(false)
+  status               String             @default("PENDING")
   books                BookItem[]
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
@@ -126,8 +128,10 @@ model BookItem {
   addedToMarketplaceAt DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
+  mysteryBoxId         String?
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
+  MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
   CartItem             CartItem[]
   orderItems           OrderItem[]
 }
@@ -392,6 +396,22 @@ model Task {
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model MysteryBox {
+  id                               String           @id
+  userId                           String
+  level                            Int
+  status                           MysteryBoxStatus @default(UNCLAIMED)
+  assignedBy                       String?
+  assignedAt                       DateTime         @default(now())
+  claimedAt                        DateTime?
+  description                      String?
+  createdAt                        DateTime         @default(now())
+  updatedAt                        DateTime
+  BookItem                         BookItem[]
+  User_MysteryBox_assignedByToUser User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
+  User_MysteryBox_userIdToUser     User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   END_USER
   OPERATIONS_STAFF
@@ -458,6 +478,7 @@ enum NotificationType {
   POINT_ADJUSTMENT
   SYSTEM
   DISPUTE_UPDATE
+  MYSTERY_BOX_REWARD
 }
 
 enum PaymentMethod {
@@ -481,4 +502,9 @@ enum TransactionType {
   SPENT_CRAFT
   STAFF_ADJUSTMENT
   REFUND
+}
+
+enum MysteryBoxStatus {
+  UNCLAIMED
+  CLAIMED
 }
