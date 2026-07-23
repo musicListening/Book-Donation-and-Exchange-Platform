@@ -10,7 +10,7 @@ import UserDashboard from './pages/user/UserDashboard';
 import Cart from './pages/user/cart';
 import Donate from './pages/user/donate';
 import Marketplace from './pages/user/marketplace';
-import MyCrafts from './pages/user/my-crafts';
+
 import Notifications from './pages/user/notifications';
 import Orders from './pages/user/orders';
 import Profile from './pages/user/profile';
@@ -57,7 +57,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
 
         {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<HomePage />} />
         <Route path="/register" element={<Signup />} />
         <Route path="/signup" element={<Signup />} />
 
@@ -67,7 +67,7 @@ function App() {
         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
         <Route path="/donate" element={<ProtectedRoute><Donate /></ProtectedRoute>} />
         <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
-        <Route path="/my-crafts" element={<ProtectedRoute><MyCrafts /></ProtectedRoute>} />
+
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

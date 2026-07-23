@@ -28,7 +28,7 @@ const UserDashboard = () => {
         }
         // Try to get fresh user data
         try {
-          const res = await fetch(`http://localhost:5000/api/users`);
+          const res = await fetch(`/api/users`);
           const users = await res.json();
           const freshUser = users.find(u => u.id === storedUser.id);
           if (freshUser) {
@@ -143,7 +143,7 @@ const UserDashboard = () => {
           <div>
             <div style={styles.pointsCard}>
               <div>
-                <h3 style={{ fontSize: 16, opacity: 0.8 }}>Your Balance</h3>
+                <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
                 <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>
@@ -168,13 +168,14 @@ const UserDashboard = () => {
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
                 <span>Browse Books</span>
               </Link>
-              <Link to="/my-crafts" style={styles.actionBtn}>
-                <i className="fa-solid fa-palette" style={{ ...styles.actionIcon, color: '#C4941A' }}></i>
-                <span>My Crafts</span>
-              </Link>
+
               <Link to="/orders" style={styles.actionBtn}>
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
+              </Link>
+              <Link to="/profile" style={styles.actionBtn}>
+                <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
+                <span>Profile</span>
               </Link>
             </div>
             <div style={{ ...styles.card, marginTop: 32 }}>
