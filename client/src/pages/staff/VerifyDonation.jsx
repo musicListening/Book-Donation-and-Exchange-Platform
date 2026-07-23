@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 
 function VerifyDonation() {
+<<<<<<< HEAD
   const [currentUser, setCurrentUser] = useState({ name: '', role: '' });
   const [isbn, setIsbn] = useState('978-3-16-148410-0');
   const [condition, setCondition] = useState('Pristine');
@@ -17,16 +18,57 @@ function VerifyDonation() {
 
   // ====== ISBN VALIDATION STATE ======
   const [isbnError, setIsbnError] = useState('');
+=======
+  const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
+  const [donations, setDonations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDonation, setSelectedDonation] = useState(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [showMysteryBoxModal, setShowMysteryBoxModal] = useState(false);
+  const [mysteryBoxDonation, setMysteryBoxDonation] = useState(null);
+  const [users, setUsers] = useState([]);
+  
+  // Verification form
+  const [verifyForm, setVerifyForm] = useState({
+    verifiedCount: 0,
+    condition: 'good',
+    notes: '',
+    isComplete: true,
+    awardPoints: 0,
+    awardMysteryBox: false,
+    userLevel: 0,
+    currentPoints: 0,
+    userId: null
+  });
+>>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      const user = JSON.parse(userData);
+      try {
+        const user = JSON.parse(userData);
+        setCurrentUser({
+          name: user.name || user.email || 'Staff User',
+          role: user.role || 'OPERATIONS_STAFF',
+          id: user.id || user.userId || 'staff-123'
+        });
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+        setCurrentUser({
+          name: 'Staff User',
+          role: 'OPERATIONS_STAFF',
+          id: 'staff-123'
+        });
+      }
+    } else {
       setCurrentUser({
-        name: user.name || user.email || 'Staff User',
-        role: user.role || 'VERIFICATION STAFF'
+        name: 'Staff User',
+        role: 'OPERATIONS_STAFF',
+        id: 'staff-123'
       });
     }
+<<<<<<< HEAD
 
     fetch('/api/donations')
       .then(res => res.json())
@@ -37,235 +79,346 @@ function VerifyDonation() {
          }
       })
       .catch(console.error);
+=======
+    fetchDonations();
+>>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
   }, []);
 
-  // ====== ISBN VALIDATION FUNCTION - Works for any country ======
-  const validateISBN = (isbnString) => {
-    const cleanISBN = isbnString.replace(/[-\s]/g, '');
-    
-    // Check if it's a valid ISBN-10 or ISBN-13
-    if (cleanISBN.length === 10) {
-      // ISBN-10 validation
-      if (!/^\d{9}[\dX]$/.test(cleanISBN)) {
-        return { valid: false, error: 'Invalid ISBN-10 format' };
+  // ===== FETCH DONATIONS FROM DATABASE =====
+  const fetchDonations = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Fetch all donation requests
+      const response = await fetch('/api/donations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch donations');
       }
-      
-      let sum = 0;
-      for (let i = 0; i < 10; i++) {
-        const digit = cleanISBN[i] === 'X' ? 10 : parseInt(cleanISBN[i], 10);
-        sum += digit * (10 - i);
+
+      const data = await response.json();
+      console.log('📦 Donations from DB:', data);
+
+      // Get all users to fetch levels and points
+      const usersResponse = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        setUsers(usersData);
+        console.log('👤 Users from DB:', usersData);
       }
+
+      // Map donations with user data
+      const mappedDonations = data.map(donation => {
+        const user = usersData?.find(u => u.id === donation.userId);
+        return {
+          id: donation.id,
+          donor: user?.name || donation.donor || 'Unknown Donor',
+          email: user?.email || donation.email || 'No email',
+          phone: user?.phoneNumber || donation.phone || 'No phone',
+          type: donation.type || 'Single Book',
+          bookCount: donation.requestedCount || donation.verifiedCount || 0,
+          category: donation.category || 'General',
+          collectionName: donation.collectionName || null,
+          estimatedPoints: donation.estimatedPoints || donation.bookCount * 10 || 0,
+          submittedAt: donation.createdAt || new Date().toISOString(),
+          status: donation.status || 'PENDING',
+          notes: donation.notes || '',
+          userLevel: user?.level || 0,
+          currentPoints: user?.points || 0,
+          userId: donation.userId || user?.id || null,
+          verifiedCount: donation.verifiedCount || 0,
+          pointsAwarded: donation.pointsAwarded || 0,
+          awardedMysteryBox: donation.awardedMysteryBox || false,
+          condition: donation.condition || null
+        };
+      });
+
+      setDonations(mappedDonations);
       
-      if (sum % 11 !== 0) {
-        return { valid: false, error: 'Invalid ISBN-10 check digit' };
-      }
-      
-      return { valid: true, error: '' };
-      
-    } else if (cleanISBN.length === 13) {
-      // ISBN-13 validation
-      if (!/^\d{13}$/.test(cleanISBN)) {
-        return { valid: false, error: 'ISBN must be exactly 13 digits' };
-      }
-      
-      let sum = 0;
-      for (let i = 0; i < 12; i++) {
-        const digit = parseInt(cleanISBN[i], 10);
-        sum += (i % 2 === 0) ? digit : digit * 3;
-      }
-      const checkDigit = (10 - (sum % 10)) % 10;
-      const actualCheckDigit = parseInt(cleanISBN[12], 10);
-      
-      if (checkDigit !== actualCheckDigit) {
-        return { valid: false, error: `Invalid check digit. Expected: ${checkDigit}` };
-      }
-      
-      return { valid: true, error: '' };
-      
-    } else {
-      return { valid: false, error: 'ISBN must be 10 or 13 digits' };
+    } catch (error) {
+      console.error('❌ Error fetching donations:', error);
+      // Fallback to mock data if API fails
+      setDonations(getMockDonations());
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ====== HANDLE ISBN CHANGE WITH VALIDATION ======
-  const handleIsbnChange = (e) => {
-    const value = e.target.value;
-    setFlagForm({...flagForm, isbn: value});
-    
-    const cleanValue = value.replace(/[-\s]/g, '');
-    
-    if (cleanValue.length === 0) {
-      setIsbnError('');
-    } else if (cleanValue.length < 10) {
-      setIsbnError(`ISBN needs ${10 - cleanValue.length} more digit(s)`);
-    } else if (cleanValue.length === 10 || cleanValue.length === 13) {
-      const result = validateISBN(value);
-      if (result.valid) {
-        setIsbnError('');
-        // Auto-detect ISBN type
-        const isbnType = cleanValue.length === 10 ? 'ISBN-10' : 'ISBN-13';
-        console.log(`Valid ${isbnType} detected`);
-      } else {
-        setIsbnError(result.error);
+  // ===== MOCK DATA (Fallback) =====
+  const getMockDonations = () => {
+    return [
+      {
+        id: 'don_001',
+        donor: 'Kasun Kalhara',
+        email: 'kkasun@gmail.com',
+        phone: '+94771234567',
+        type: 'Collection',
+        bookCount: 15,
+        category: 'Academic',
+        collectionName: 'O/L Science Past Papers 2018-2024',
+        estimatedPoints: 150,
+        submittedAt: new Date().toISOString(),
+        status: 'PENDING',
+        notes: 'All books in good condition',
+        userLevel: 3,
+        currentPoints: 450,
+        userId: 'usr_001',
+        verifiedCount: 0,
+        pointsAwarded: 0,
+        awardedMysteryBox: false
+      },
+      {
+        id: 'don_002',
+        donor: 'Savinthi Minaya',
+        email: 'savinthi@test.com',
+        phone: '+94773456789',
+        type: 'Single Book',
+        bookCount: 3,
+        category: 'Fiction',
+        collectionName: 'Classic Literature',
+        estimatedPoints: 30,
+        submittedAt: new Date().toISOString(),
+        status: 'PENDING',
+        notes: 'Fragile books',
+        userLevel: 1,
+        currentPoints: 120,
+        userId: 'usr_002',
+        verifiedCount: 0,
+        pointsAwarded: 0,
+        awardedMysteryBox: false
       }
-    } else if (cleanValue.length > 13) {
-      setIsbnError('ISBN cannot exceed 13 digits');
-    }
+    ];
   };
 
-  // ====== GET COUNTRY FROM ISBN ======
-  const getCountryFromISBN = (isbnString) => {
-    const cleanISBN = isbnString.replace(/[-\s]/g, '');
-    const countryCodes = {
-      '0': 'English-speaking countries',
-      '1': 'English-speaking countries',
-      '2': 'French-speaking countries',
-      '3': 'German-speaking countries',
-      '4': 'Japan',
-      '5': 'Russia',
-      '7': 'China',
-      '80': 'Czech Republic',
-      '81': 'India',
-      '82': 'Norway',
-      '83': 'Poland',
-      '84': 'Spain',
-      '85': 'Brazil',
-      '86': 'Yugoslavia',
-      '87': 'Denmark',
-      '88': 'Italy',
-      '89': 'South Korea',
-      '90': 'Netherlands',
-      '91': 'Sweden',
-      '92': 'International',
-      '93': 'India',
-      '94': 'Netherlands',
-      '950': 'Argentina',
-      '951': 'Finland',
-      '952': 'Finland',
-      '953': 'Croatia',
-      '954': 'Bulgaria',
-      '955': 'Sri Lanka',
-      '956': 'Chile',
-      '957': 'Taiwan',
-      '958': 'Colombia',
-      '959': 'Cuba',
-      '960': 'Greece',
-      '961': 'Slovenia',
-      '962': 'Hong Kong',
-      '963': 'Hungary',
-      '964': 'Iran',
-      '965': 'Israel',
-      '966': 'Ukraine',
-      '967': 'Malaysia',
-      '968': 'Mexico',
-      '969': 'Pakistan',
-      '970': 'Mexico',
-      '971': 'Philippines',
-      '972': 'Portugal',
-      '973': 'Romania',
-      '974': 'Thailand',
-      '975': 'Turkey',
-      '976': 'Caribbean',
-      '977': 'Egypt',
-      '978': 'Nigeria',
-      '979': 'Indonesia',
-      '980': 'Venezuela',
-      '981': 'Singapore',
-      '982': 'South Pacific',
-      '983': 'Malaysia',
-      '984': 'Bangladesh',
-      '985': 'Belarus',
-      '986': 'Taiwan',
-      '987': 'Argentina',
-      '988': 'Hong Kong',
-      '989': 'Portugal',
-      '9910': 'Argentina',
-      '9911': 'Colombia',
-      '9912': 'Chile',
-      '9913': 'Costa Rica',
-      '9914': 'Ecuador',
-      '9915': 'Guatemala',
-      '9916': 'Honduras',
-      '9917': 'Mexico',
-      '9918': 'Panama',
-      '9919': 'Paraguay',
-      '9920': 'Peru',
-      '9921': 'Uruguay',
-      '9922': 'Venezuela',
-      '9923': 'Bolivia',
-      '9924': 'Brazil',
-      '9925': 'Nicaragua',
-      '9926': 'Colombia',
-      '9927': 'Argentina',
-      '9928': 'Chile',
-      '9929': 'Ecuador',
-      '9930': 'Peru',
-      '9931': 'Venezuela',
-      '9932': 'Mexico',
-      '9933': 'Costa Rica',
-      '9934': 'Panama',
-      '9935': 'Guatemala',
-      '9936': 'El Salvador',
-      '9937': 'Honduras',
-      '9938': 'Nicaragua',
-      '9939': 'Paraguay',
-      '9940': 'Uruguay',
-      '9941': 'Bolivia',
-      '9942': 'Brazil',
-      '9943': 'Mexico',
-      '9944': 'Argentina',
-      '9945': 'Chile',
-      '9946': 'Ecuador',
-      '9947': 'Peru',
-      '9948': 'Venezuela'
+  // ===== GET LEVEL BADGE =====
+  const getLevelBadge = (level) => {
+    const levelMap = {
+      1: { label: 'Book Lover', color: '#4caf50' },
+      2: { label: 'Bibliophile', color: '#2196f3' },
+      3: { label: 'Grand Librarian', color: '#ff9800' },
+      4: { label: 'Literary Elite', color: '#9c27b0' },
+      5: { label: 'Legendary Reader', color: '#f44336' }
     };
-
-    // For ISBN-13, check the first 3-4 digits after the prefix
-    let prefix = '';
-    if (cleanISBN.length === 13) {
-      const startPrefix = cleanISBN.substring(0, 3);
-      if (startPrefix === '978' || startPrefix === '979') {
-        // Check the next 1-4 digits
-        for (let i = 1; i <= 4; i++) {
-          const code = cleanISBN.substring(3, 3 + i);
-          if (countryCodes[code]) {
-            return countryCodes[code];
-          }
-        }
-        return 'Unknown country (group code not found)';
-      }
-      return 'Unknown country (invalid prefix)';
-    } else if (cleanISBN.length === 10) {
-      // For ISBN-10, check the first 1-4 digits
-      for (let i = 1; i <= 4; i++) {
-        const code = cleanISBN.substring(0, i);
-        if (countryCodes[code]) {
-          return countryCodes[code];
-        }
-      }
-      return 'Unknown country';
-    }
-    return 'Invalid ISBN format';
+    return levelMap[level] || levelMap[1];
   };
 
-  const getMultiplier = () => {
-    switch(condition) {
-      case 'Pristine': return '+20%';
-      case 'Very Good': return '+10%';
-      case 'Good': return '-10%';
-      case 'Damaged': return '-50%';
-      default: return '0%';
+  // ===== GET STATUS BADGE =====
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      'PENDING': { class: 'status-badge pending', label: 'Pending' },
+      'VERIFIED': { class: 'status-badge completed', label: 'Verified' },
+      'REJECTED': { class: 'status-badge cancelled', label: 'Rejected' }
+    };
+    return statusMap[status] || statusMap['PENDING'];
+  };
+
+  // ===== HANDLE VERIFY =====
+  const handleVerify = (donation) => {
+    setSelectedDonation(donation);
+    const basePoints = donation.bookCount * 10;
+    const bonusPoints = donation.type === 'Collection' ? Math.round(basePoints * 0.1) : 0;
+    
+    setVerifyForm({
+      verifiedCount: donation.bookCount || 0,
+      condition: 'good',
+      notes: '',
+      isComplete: donation.type === 'Collection',
+      awardPoints: basePoints + bonusPoints,
+      awardMysteryBox: false,
+      userLevel: donation.userLevel || 0,
+      currentPoints: donation.currentPoints || 0,
+      userId: donation.userId || null
+    });
+    setShowVerifyModal(true);
+  };
+
+  // ===== CONFIRM VERIFICATION - SAVE TO DATABASE =====
+  const handleConfirmVerification = async () => {
+    if (!selectedDonation) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // 1. Update the donation status
+      const response = await fetch(`/api/donations/${selectedDonation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'VERIFIED',
+          verifiedCount: verifyForm.verifiedCount,
+          condition: verifyForm.condition,
+          notes: verifyForm.notes || selectedDonation.notes,
+          pointsAwarded: verifyForm.awardPoints,
+          awardedMysteryBox: verifyForm.awardMysteryBox
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update donation');
+      }
+
+      const updatedDonation = await response.json();
+      console.log('✅ Donation verified:', updatedDonation);
+
+      // 2. If user has a userId, update their points
+      if (verifyForm.userId && verifyForm.awardPoints > 0) {
+        const user = users.find(u => u.id === verifyForm.userId);
+        const newPoints = (user?.points || 0) + verifyForm.awardPoints;
+        
+        await fetch(`/api/users/${verifyForm.userId}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            points: newPoints,
+            level: calculateLevel(newPoints)
+          })
+        });
+        
+        console.log(`✅ Updated user ${verifyForm.userId} points to ${newPoints}`);
+      }
+
+      // 3. Update local state
+      const updatedDonations = donations.map(d => {
+        if (d.id === selectedDonation.id) {
+          return {
+            ...d,
+            status: 'VERIFIED',
+            verifiedCount: verifyForm.verifiedCount,
+            condition: verifyForm.condition,
+            notes: verifyForm.notes || d.notes,
+            pointsAwarded: verifyForm.awardPoints,
+            awardedMysteryBox: verifyForm.awardMysteryBox
+          };
+        }
+        return d;
+      });
+      
+      setDonations(updatedDonations);
+      setShowVerifyModal(false);
+      setSelectedDonation(null);
+      
+      const mysteryBoxMsg = verifyForm.awardMysteryBox ? ' Mystery Box awarded!' : '';
+      alert(`✅ Donation verified! ${verifyForm.verifiedCount} books confirmed. ${verifyForm.awardPoints} points awarded.${mysteryBoxMsg}`);
+      
+      // Refresh data
+      fetchDonations();
+      
+    } catch (error) {
+      console.error('❌ Error verifying donation:', error);
+      alert('Failed to verify donation. Please try again.');
     }
   };
-  
-  const getFinalPoints = () => {
-    switch(condition) {
-      case 'Pristine': return 4200;
-      case 'Very Good': return 3850;
-      case 'Good': return 3150;
-      case 'Damaged': return 1750;
-      default: return 3500;
+
+  // ===== CALCULATE LEVEL =====
+  const calculateLevel = (points) => {
+    if (points >= 1000) return 5;
+    if (points >= 500) return 4;
+    if (points >= 250) return 3;
+    if (points >= 100) return 2;
+    return 1;
+  };
+
+  // ===== HANDLE REJECT =====
+  const handleReject = async (donation) => {
+    if (!window.confirm(`Reject donation from ${donation.donor}?`)) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/donations/${donation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'REJECTED',
+          notes: donation.notes || 'Rejected by staff'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reject donation');
+      }
+
+      const updatedDonations = donations.map(d => {
+        if (d.id === donation.id) {
+          return { ...d, status: 'REJECTED' };
+        }
+        return d;
+      });
+      
+      setDonations(updatedDonations);
+      alert('Donation rejected.');
+      fetchDonations();
+      
+    } catch (error) {
+      console.error('Error rejecting donation:', error);
+      alert('Failed to reject donation.');
     }
+  };
+
+  // ===== HANDLE MYSTERY BOX AWARD =====
+  const handleMysteryBoxAward = (donation) => {
+    setMysteryBoxDonation(donation);
+    setShowMysteryBoxModal(true);
+  };
+
+  const handleConfirmMysteryBox = async () => {
+    if (!mysteryBoxDonation) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Update donation with mystery box award
+      const response = await fetch(`/api/donations/${mysteryBoxDonation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          awardedMysteryBox: true,
+          notes: (mysteryBoxDonation.notes || '') + ' Mystery Box awarded.'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to award mystery box');
+      }
+
+      alert(`✅ Mystery Box awarded to ${mysteryBoxDonation.donor}!`);
+      setShowMysteryBoxModal(false);
+      setMysteryBoxDonation(null);
+      fetchDonations();
+      
+    } catch (error) {
+      console.error('Error awarding mystery box:', error);
+      alert('Failed to award mystery box.');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const getUserInitials = () => {
@@ -276,166 +429,104 @@ function VerifyDonation() {
       }
       return currentUser.name[0].toUpperCase();
     }
-    return 'VD';
+    return 'SU';
   };
 
-  // Placeholder CRUD functions
-  const handleAddFlag = () => {
-    // Validate ISBN before adding
-    const cleanISBN = flagForm.isbn.replace(/[-\s]/g, '');
-    if (![10, 13].includes(cleanISBN.length)) {
-      setIsbnError('Please enter a valid 10 or 13 digit ISBN');
-      return;
-    }
-    const result = validateISBN(flagForm.isbn);
-    if (!result.valid) {
-      setIsbnError(result.error);
-      return;
-    }
-    
-    // Get country info
-    const country = getCountryFromISBN(flagForm.isbn);
-    console.log('Add flag:', flagForm, 'Country:', country);
-    setShowFlagModal(false);
+  const filteredDonations = donations.filter(d => {
+    if (filter === 'all') return true;
+    return d.status === filter.toUpperCase();
+  });
+
+  const stats = {
+    total: donations.length,
+    pending: donations.filter(d => d.status === 'PENDING').length,
+    verified: donations.filter(d => d.status === 'VERIFIED').length,
+    rejected: donations.filter(d => d.status === 'REJECTED').length
   };
 
-  const handleEditFlag = (flag) => {
-    setEditingFlag(flag);
-    setFlagForm(flag);
-    setIsbnError('');
-    setShowFlagModal(true);
-  };
-
-  const handleUpdateFlag = () => {
-    // Validate ISBN before updating
-    const cleanISBN = flagForm.isbn.replace(/[-\s]/g, '');
-    if (![10, 13].includes(cleanISBN.length)) {
-      setIsbnError('Please enter a valid 10 or 13 digit ISBN');
-      return;
-    }
-    const result = validateISBN(flagForm.isbn);
-    if (!result.valid) {
-      setIsbnError(result.error);
-      return;
-    }
-    
-    console.log('Update flag:', editingFlag, flagForm);
-    setShowFlagModal(false);
-    setEditingFlag(null);
-  };
-
-  const handleDeleteFlag = (id) => {
-    console.log('Delete flag:', id);
-  };
-
-  // Get country for main ISBN display
-  const mainIsbnCountry = isbn ? getCountryFromISBN(isbn) : '';
+  if (loading) {
+    return (
+      <StaffLayout>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <h2>Loading donations...</h2>
+        </div>
+      </StaffLayout>
+    );
+  }
 
   return (
     <StaffLayout>
       <div className="content-header">
         <div>
-          <h1>Donation Verification - International</h1>
-          <p className="page-subtitle">Verify and assess donated books for quality and authenticity</p>
+          <h1>Verify Donations</h1>
+          <p className="page-subtitle">Review and verify donor submissions with points & level management</p>
         </div>
         <div className="user-info">
-          <span className="user-role">{currentUser.name || 'Verification Staff'}</span>
-          <span className="user-title">{currentUser.role || 'VERIFICATION LEAD'}</span>
+          <span className="user-role">{currentUser.name}</span>
+          <span className="user-title">{currentUser.role}</span>
           <div className="user-avatar">{getUserInitials()}</div>
         </div>
       </div>
 
-      <div className="verification-two-column">
-        <div className="donor-info-card">
-          <h3>DONOR INFORMATION</h3>
-          <div className="donor-field">
-            <label>Full Name</label>
-            <p className="field-value">Malini Perera</p>
-          </div>
-          <div className="donor-field">
-            <label>Email Address</label>
-            <p className="field-value">malini.perera@example.com</p>
-          </div>
-          <div className="donor-field">
-            <label>Location</label>
-            <p className="field-value">Colombo, Sri Lanka</p>
-          </div>
-          <div className="donor-row">
-            <div className="donor-field half">
-              <label>Total Contributions</label>
-              <p className="field-value large">248 Books</p>
-            </div>
-            <div className="donor-field half">
-              <label>Status</label>
-              <p className="status-gold">Platinum Donor</p>
-            </div>
-          </div>
-          <div className="recurring-badge">
-            <span className="recurring-icon">⟳</span>
-            <span>RECURRING DONOR SINCE 2022</span>
-          </div>
+      {/* Stats Cards */}
+      <div className="cards-grid">
+        <div className="stat-card">
+          <h3>Total Donations</h3>
+          <div className="stat-value">{stats.total}</div>
+          <div className="stat-sub">All submissions</div>
         </div>
-
-        <div className="manifested-card">
-          <div className="manifest-header">
-            <h3>MANIFESTED ITEMS ({flaggedItems.length + 3})</h3>
-            <span className="batch-id">Batch ID: #SL-B-2024-001</span>
-          </div>
-
-          <div className="manifest-item">
-            <div className="item-header">
-              <h4>Madol Doowa - Martin Wickramasinghe</h4>
-              <span className="item-points">4200 pts</span>
-            </div>
-            <p className="item-meta">Author: Martin Wickramasinghe</p>
-            <p className="item-meta">ISBN: 978-955-551-123-4</p>
-            <div className="item-tags">
-              <span className="tag">First Edition</span>
-              <span className="tag">Hardcover</span>
-              <span className="tag">Sinhala Literature</span>
-            </div>
-          </div>
-
-          {flaggedItems.map((flag) => (
-            <div key={flag.id} className="manifest-item flagged">
-              <div className="item-header">
-                <h4>{flag.title}</h4>
-                <span className="item-points muted">-- pts</span>
-              </div>
-              <p className="item-meta">Author: {flag.author}</p>
-              <p className="item-meta">ISBN: {flag.isbn}</p>
-              <p className="item-meta" style={{ color: '#d97706' }}>⚠️ {flag.notes}</p>
-              <div className="item-tags">
-                <span className="tag">Leatherbound</span>
-                <span className="tag">Rare Edition</span>
-                <span className="tag flagged-tag">Flagged Condition</span>
-                <button className="btn-small" onClick={() => handleEditFlag(flag)} style={{ marginLeft: '8px' }}>Edit</button>
-                <button className="btn-small" onClick={() => handleDeleteFlag(flag.id)} style={{ marginLeft: '4px', background: '#dc3545', color: 'white' }}>Remove</button>
-              </div>
-            </div>
-          ))}
+        <div className="stat-card accent-warning">
+          <h3>Pending Review</h3>
+          <div className="stat-value">{stats.pending}</div>
+          <div className="stat-sub">Waiting for verification</div>
+        </div>
+        <div className="stat-card accent-success">
+          <h3>Verified</h3>
+          <div className="stat-value">{stats.verified}</div>
+          <div className="stat-sub">Points awarded</div>
+        </div>
+        <div className="stat-card accent-danger">
+          <h3>Rejected</h3>
+          <div className="stat-value">{stats.rejected}</div>
+          <div className="stat-sub">Not accepted</div>
         </div>
       </div>
 
-      <div className="verification-protocol">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>VERIFICATION PROTOCOL</h3>
-          <button className="btn-secondary" onClick={() => { setEditingFlag(null); setFlagForm({ title: '', author: '', isbn: '', notes: '' }); setIsbnError(''); setShowFlagModal(true); }}>
-            + Flag Item
-          </button>
-        </div>
-        <div className="isbn-verification">
-          <div className="isbn-label">Scan or Verify ISBN (International Standard)</div>
-          <div className="isbn-input-group">
-            <input 
-              type="text" 
-              className="isbn-input" 
-              value={isbn}
-              onChange={(e) => setIsbn(e.target.value)}
-              placeholder="Enter ISBN-10 or ISBN-13"
-            />
-            <button className="verify-btn">Verify</button>
+      {/* Filter Tabs */}
+      <div className="filter-bar">
+        <span 
+          className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => setFilter('all')}
+        >
+          All ({stats.total})
+        </span>
+        <span 
+          className={`filter-chip ${filter === 'pending' ? 'active' : ''}`}
+          onClick={() => setFilter('pending')}
+        >
+          Pending ({stats.pending})
+        </span>
+        <span 
+          className={`filter-chip ${filter === 'verified' ? 'active' : ''}`}
+          onClick={() => setFilter('verified')}
+        >
+          Verified ({stats.verified})
+        </span>
+        <span 
+          className={`filter-chip ${filter === 'rejected' ? 'active' : ''}`}
+          onClick={() => setFilter('rejected')}
+        >
+          Rejected ({stats.rejected})
+        </span>
+      </div>
+
+      {/* Donation Cards */}
+      <div style={{ display: 'grid', gap: '16px' }}>
+        {filteredDonations.length === 0 ? (
+          <div className="card-panel" style={{ padding: '40px', textAlign: 'center' }}>
+            <p style={{ color: '#64748b' }}>No donations to display</p>
           </div>
+<<<<<<< HEAD
           <div className="isbn-match">
             <span className="match-icon">✓</span>
             <span>Matched: The History of Ceylon (Collector's Edition)</span>
@@ -530,57 +621,331 @@ function VerifyDonation() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingFlag ? 'Edit Flagged Item' : 'Flag Item for Review'}</h2>
+=======
+        ) : (
+          filteredDonations.map((donation) => {
+            const statusInfo = getStatusBadge(donation.status);
+            const isPending = donation.status === 'PENDING';
+            const isVerified = donation.status === 'VERIFIED';
+            const levelInfo = getLevelBadge(donation.userLevel || 0);
+>>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
             
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Title</label>
-              <input type="text" className="form-control" value={flagForm.title} onChange={(e) => setFlagForm({...flagForm, title: e.target.value})} />
-            </div>
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Author</label>
-              <input type="text" className="form-control" value={flagForm.author} onChange={(e) => setFlagForm({...flagForm, author: e.target.value})} />
-            </div>
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>ISBN (10 or 13 digits)</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={flagForm.isbn} 
-                onChange={handleIsbnChange}
-                placeholder="978-3-16-148410-0 or 0-306-40615-2"
-                style={{
-                  borderColor: isbnError ? '#dc3545' : '#e5e5e5'
+            return (
+              <div 
+                key={donation.id} 
+                className="card-panel"
+                style={{ 
+                  padding: '20px',
+                  borderLeft: `4px solid ${isPending ? '#ff9800' : isVerified ? '#4caf50' : '#dc3545'}`,
+                  opacity: isVerified ? 0.85 : 1,
+                  transition: 'all 0.2s ease'
                 }}
-              />
-              {flagForm.isbn && flagForm.isbn.replace(/[-\s]/g, '').length > 0 && !isbnError && (
-                <div style={{ color: '#28a745', fontSize: '12px', marginTop: '4px' }}>
-                  ✓ Valid ISBN - {getCountryFromISBN(flagForm.isbn)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', color: '#1E4D4B' }}>
+                        {donation.donor}
+                      </h3>
+                      <span className={statusInfo.class}>
+                        {statusInfo.label}
+                      </span>
+                      {/* Level Badge */}
+                      <span style={{ 
+                        padding: '2px 12px', 
+                        borderRadius: '20px', 
+                        background: levelInfo.color + '20',
+                        color: levelInfo.color,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        border: `1px solid ${levelInfo.color}40`
+                      }}>
+                        {levelInfo.label}
+                      </span>
+                    </div>
+                    
+                    <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '14px' }}>
+                      <span>{donation.email}</span>
+                      <span>{donation.phone}</span>
+                      <span>{formatDate(donation.submittedAt)}</span>
+                      <span>{donation.currentPoints || 0} pts</span>
+                    </div>
+                    
+                    <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '14px', color: '#555' }}>
+                      <span><strong>Type:</strong> {donation.type}</span>
+                      <span><strong>Category:</strong> {donation.category}</span>
+                      <span><strong>Books:</strong> {donation.bookCount}</span>
+                      <span><strong>Est. Points:</strong> {donation.estimatedPoints}</span>
+                    </div>
+
+                    {donation.collectionName && (
+                      <div style={{ marginTop: '4px', fontSize: '13px', color: '#1E4D4B' }}>
+                        Collection: {donation.collectionName}
+                      </div>
+                    )}
+
+                    {donation.notes && (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#64748b' }}>
+                        Notes: {donation.notes}
+                      </div>
+                    )}
+
+                    {isVerified && donation.verifiedCount && (
+                      <div style={{ marginTop: '8px', padding: '8px 12px', background: '#e8f5e9', borderRadius: '6px', fontSize: '13px', color: '#2e7d32' }}>
+                        Verified: {donation.verifiedCount} books confirmed • {donation.pointsAwarded || 0} pts awarded
+                        {donation.awardedMysteryBox && ' Mystery Box awarded'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {isPending && (
+                      <>
+                        <button 
+                          className="btn-verify" 
+                          onClick={() => handleVerify(donation)}
+                        >
+                          Verify
+                        </button>
+                        <button 
+                          className="btn-reject" 
+                          onClick={() => handleReject(donation)}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {isVerified && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span style={{ padding: '8px 16px', background: '#e8f5e9', borderRadius: '6px', color: '#2e7d32', fontWeight: '500' }}>
+                          Done
+                        </span>
+                        <button 
+                          className="btn-small" 
+                          onClick={() => handleMysteryBoxAward(donation)}
+                          style={{ background: '#9c27b0', padding: '8px 16px', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          Award Box
+                        </button>
+                      </div>
+                    )}
+                    {donation.status === 'REJECTED' && (
+                      <span style={{ padding: '8px 16px', background: '#fce4ec', borderRadius: '6px', color: '#c62828', fontWeight: '500' }}>
+                        Rejected
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
-              {isbnError && (
-                <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
-                  {isbnError}
-                </div>
-              )}
-            </div>
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Notes (Reason for flagging)</label>
-              <textarea className="form-control" value={flagForm.notes} onChange={(e) => setFlagForm({...flagForm, notes: e.target.value})} style={{ minHeight: '80px' }} />
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Verification Modal */}
+      {showVerifyModal && selectedDonation && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '550px' }}>
+            <h2>Verify Donation</h2>
+            <p className="modal-subtitle">
+              Review donation from <strong>{selectedDonation.donor}</strong>
+            </p>
+
+            {/* Donor Info with Level */}
+            <div className="user-submitted-info">
+              <h4>Donation Summary</h4>
+              <div className="info-grid">
+                <p><strong>Type:</strong> {selectedDonation.type}</p>
+                <p><strong>Category:</strong> {selectedDonation.category}</p>
+                <p><strong>Books Submitted:</strong> {selectedDonation.bookCount}</p>
+                <p><strong>Est. Points:</strong> {selectedDonation.estimatedPoints}</p>
+                <p><strong>Current Level:</strong> {getLevelBadge(selectedDonation.userLevel || 0).label}</p>
+                <p><strong>Current Points:</strong> {selectedDonation.currentPoints || 0}</p>
+                {selectedDonation.collectionName && (
+                  <p><strong>Collection:</strong> {selectedDonation.collectionName}</p>
+                )}
+                {selectedDonation.notes && (
+                  <p><strong>Notes:</strong> {selectedDonation.notes}</p>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => { setShowFlagModal(false); setEditingFlag(null); setIsbnError(''); }}>Cancel</button>
-              <button className="btn-primary" onClick={editingFlag ? handleUpdateFlag : handleAddFlag}>{editingFlag ? 'Update' : 'Add'}</button>
+            {/* Verification Form */}
+            <div className="form-group">
+              <label>Actual Books Received</label>
+              <input
+                type="number"
+                className="form-control"
+                value={verifyForm.verifiedCount}
+                onChange={(e) => {
+                  const count = parseInt(e.target.value) || 0;
+                  const basePoints = count * 10;
+                  const bonusPoints = selectedDonation.type === 'Collection' && verifyForm.isComplete ? Math.round(basePoints * 0.1) : 0;
+                  setVerifyForm({ 
+                    ...verifyForm, 
+                    verifiedCount: count,
+                    awardPoints: basePoints + bonusPoints
+                  });
+                }}
+                min="0"
+                style={{ fontSize: '18px', fontWeight: '600' }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Book Condition</label>
+              <select
+                className="form-control"
+                value={verifyForm.condition}
+                onChange={(e) => setVerifyForm({ ...verifyForm, condition: e.target.value })}
+              >
+                <option value="excellent">Excellent</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="poor">Poor</option>
+              </select>
+            </div>
+
+            {selectedDonation.type === 'Collection' && (
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={verifyForm.isComplete}
+                    onChange={(e) => {
+                      const isComplete = e.target.checked;
+                      const basePoints = verifyForm.verifiedCount * 10;
+                      const bonusPoints = isComplete ? Math.round(basePoints * 0.1) : 0;
+                      setVerifyForm({ 
+                        ...verifyForm, 
+                        isComplete,
+                        awardPoints: basePoints + bonusPoints
+                      });
+                    }}
+                  />
+                  Collection Complete? (10% bonus if complete)
+                </label>
+              </div>
+            )}
+
+            {/* Award Mystery Box Option */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={verifyForm.awardMysteryBox}
+                  onChange={(e) => setVerifyForm({ ...verifyForm, awardMysteryBox: e.target.checked })}
+                />
+                Award Mystery Box (Bonus reward for exceptional donations)
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label>Staff Notes</label>
+              <textarea
+                className="form-control"
+                value={verifyForm.notes}
+                onChange={(e) => setVerifyForm({ ...verifyForm, notes: e.target.value })}
+                placeholder="Optional notes..."
+                rows="2"
+              />
+            </div>
+
+            {/* Points Calculation */}
+            <div style={{ 
+              padding: '16px', 
+              background: '#e8f5e9', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div>
+                <span style={{ fontWeight: '500' }}>Points to Award:</span>
+                {verifyForm.awardMysteryBox && (
+                  <span style={{ marginLeft: '12px', fontSize: '12px', color: '#9c27b0', fontWeight: '600' }}>
+                    + Mystery Box
+                  </span>
+                )}
+              </div>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: '#1E4D4B' }}>
+                {verifyForm.awardPoints}
+              </span>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-cancel" 
+                onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={handleConfirmVerification}
+              >
+                Verify & Award
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="system-advisory">
-        <span className="advisory-icon">ℹ️</span>
-        <p>
-          System Advisory: International editions require manual ISBN confirmation and expert condition assessment. Supports both ISBN-10 and ISBN-13 formats.
-        </p>
-      </div>
+      {/* Mystery Box Modal */}
+      {showMysteryBoxModal && mysteryBoxDonation && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <h2>Award Mystery Box</h2>
+            <p className="modal-subtitle">
+              Award a mystery box to <strong>{mysteryBoxDonation.donor}</strong>
+            </p>
+
+            <div className="user-submitted-info">
+              <h4>Donor Info</h4>
+              <div className="info-grid">
+                <p><strong>Name:</strong> {mysteryBoxDonation.donor}</p>
+                <p><strong>Email:</strong> {mysteryBoxDonation.email}</p>
+                <p><strong>Current Level:</strong> {getLevelBadge(mysteryBoxDonation.userLevel || 0).label}</p>
+                <p><strong>Current Points:</strong> {mysteryBoxDonation.currentPoints || 0}</p>
+                <p><strong>Books Donated:</strong> {mysteryBoxDonation.bookCount}</p>
+              </div>
+            </div>
+
+            <div style={{ 
+              padding: '16px', 
+              background: '#f3e5f5', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎁</div>
+              <p style={{ fontWeight: '600', color: '#6a1b9a' }}>Mystery Box Contents</p>
+              <p style={{ fontSize: '14px', color: '#4a148c' }}>
+                Random selection of books + bonus points
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-cancel" 
+                onClick={() => { setShowMysteryBoxModal(false); setMysteryBoxDonation(null); }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={handleConfirmMysteryBox}
+                style={{ background: '#9c27b0' }}
+              >
+                Award Mystery Box
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </StaffLayout>
   );
 }
