@@ -22,17 +22,24 @@ async function calculateDonationPoints(bookCount, isCollection) {
 }
 
 async function calculateLevelByBooks(booksDonated) {
+  const count = Number(booksDonated) || 0;
+  if (count < 10) return 0;
+
   const levels = await prisma.level.findMany({ orderBy: { level: 'asc' } });
   if (levels.length === 0) {
-    if (booksDonated >= 100) return 5;
-    if (booksDonated >= 50) return 4;
-    if (booksDonated >= 25) return 3;
-    if (booksDonated >= 10) return 2;
-    return 1;
+    if (count >= 100) return 5;
+    if (count >= 75) return 4;
+    if (count >= 50) return 3;
+    if (count >= 25) return 2;
+    if (count >= 10) return 1;
+    return 0;
   }
-  let currentLevel = 1;
+  let currentLevel = 0;
   for (const lvl of levels) {
-    if (booksDonated >= lvl.minPoints) currentLevel = lvl.level;
+    const minRequired = lvl.minPoints !== undefined && lvl.minPoints !== null ? lvl.minPoints : 0;
+    if (count >= minRequired && count >= 10) {
+      currentLevel = lvl.level;
+    }
   }
   return currentLevel;
 }

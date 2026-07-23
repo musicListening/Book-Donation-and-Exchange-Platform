@@ -178,6 +178,10 @@ const UserDashboard = () => {
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
               </Link>
+              <Link to="/mystery-boxes" style={styles.actionBtn}>
+                <i className="fa-solid fa-gift" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
+                <span>Mystery Boxes</span>
+              </Link>
               <Link to="/profile" style={styles.actionBtn}>
                 <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
                 <span>Profile</span>

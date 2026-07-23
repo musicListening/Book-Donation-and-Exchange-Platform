@@ -514,4 +514,19 @@ router.get('/:id/details', async (req, res) => {
   }
 });
 
+// GET USER POINT TRANSACTIONS
+router.get('/:id/transactions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transactions = await prisma.pointTransaction.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(transactions);
+  } catch (error) {
+    console.error('Error fetching point transactions:', error);
+    res.status(500).json({ error: 'Failed to fetch point transactions' });
+  }
+});
+
 module.exports = router;

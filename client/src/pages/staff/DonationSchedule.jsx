@@ -11,6 +11,8 @@ function DonationSchedule() {
   const [refreshing, setRefreshing] = useState(false);
   const [systemConfig, setSystemConfig] = useState({});
   const [levels, setLevels] = useState([]);
+  const [mysteryBoxLocks, setMysteryBoxLocks] = useState([]);
+  const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
   const [leveledUpResult, setLeveledUpResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -60,6 +62,12 @@ function DonationSchedule() {
       setSystemConfig(config);
       if (config.LEVEL_THRESHOLDS) {
         try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
+      }
+      if (config.MYSTERY_BOX_LOCKS) {
+        try { setMysteryBoxLocks(JSON.parse(config.MYSTERY_BOX_LOCKS)); } catch {}
+      }
+      if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+        try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
       }
     } catch (err) {
       console.warn('Could not load system config');
@@ -156,6 +164,10 @@ function DonationSchedule() {
 
   // ===== GET LEVEL BADGE =====
   const getLevelBadge = (level) => {
+    if (levels.length > 0) {
+      const found = levels.find(l => l.level === level);
+      if (found) return { label: found.name || `Level ${level}`, color: '#4caf50' };
+    }
     const levelMap = {
       1: { label: 'Book Lover', color: '#4caf50' },
       2: { label: 'Bibliophile', color: '#2196f3' },
@@ -164,6 +176,18 @@ function DonationSchedule() {
       5: { label: 'Legendary Reader', color: '#f44336' }
     };
     return levelMap[level] || levelMap[1];
+  };
+
+  // ===== GET MYSTERY BOX INFO FOR A LEVEL =====
+  const getMysteryBoxInfoForLevel = (level) => {
+    const lock = mysteryBoxLocks.find(l => parseInt(l.level) === level);
+    const config = mysteryBoxConfigs.find(c => c.level === level);
+    if (!lock && !config) return null;
+    return {
+      unlock: lock?.unlock || null,
+      points: config?.points || 0,
+      books: config?.books || 0
+    };
   };
 
   // ===== CALCULATE POINTS (from system config) =====
@@ -514,6 +538,28 @@ function DonationSchedule() {
                   <p><strong>Notes:</strong> {selectedDonation.notes}</p>
                 )}
               </div>
+              {(() => {
+                const newBooksDonated = (selectedDonation.booksDonated || 0) + (verifyForm.verifiedCount || 0);
+                const predictedLevel = calculateLevelByBooks(newBooksDonated);
+                const willLevelUp = predictedLevel > (selectedDonation.userLevel || 0);
+                const mbInfo = getMysteryBoxInfoForLevel(predictedLevel);
+                return (
+                  <div style={{ marginTop: '12px', padding: '12px', background: willLevelUp ? '#FFF3E0' : '#F5F5F5', borderRadius: '8px', fontSize: '13px' }}>
+                    <p style={{ margin: '0 0 4px', fontWeight: '600' }}>
+                      After Verification: Level {predictedLevel} ({getLevelBadge(predictedLevel).label})
+                      {willLevelUp && <span style={{ color: '#E65100', marginLeft: 8 }}>&#8593; Level Up!</span>}
+                    </p>
+                    {willLevelUp && mbInfo && (
+                      <p style={{ margin: 0, color: '#E65100' }}>
+                        Mystery Box: {mbInfo.unlock} ({mbInfo.books} books) — Costs {mbInfo.points} pts to claim
+                      </p>
+                    )}
+                    {willLevelUp && !mbInfo && (
+                      <p style={{ margin: 0, color: '#666' }}>No mystery box configured for Level {predictedLevel}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>

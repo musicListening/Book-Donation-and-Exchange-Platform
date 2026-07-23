@@ -39,7 +39,6 @@ router.post('/', upload.array('images', 5), async (req, res) => {
                 notes,
                 dropOffDate: dropOffDate ? new Date(dropOffDate) : null,
                 pointsAwarded: 0,
-                images: images || [],
             }
         });
 
@@ -249,7 +248,7 @@ router.patch('/:id/verify', async (req, res) => {
         const newBooksDonated = (user.booksDonated || 0) + (parseInt(verifiedCount) || 0);
         const newLevel = await calculateLevelByBooks(newBooksDonated);
         const newPoints = (user.points || 0) + points.total;
-        const leveledUp = newLevel > (user.level || 1);
+        const leveledUp = newLevel > (user.level !== undefined && user.level !== null ? user.level : 0);
 
         const updated = await prisma.donationRequest.update({
             where: { id },
@@ -297,50 +296,56 @@ router.patch('/:id/verify', async (req, res) => {
         }
 
         if (leveledUp) {
+            const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
+            const hasMysteryBox = levelConfig?.mysteryBoxUnlock && levelConfig.mysteryBoxUnlock.trim() !== '';
+
             await prisma.notification.create({
                 data: {
                     userId: user.id,
                     type: 'LEVEL_UP',
                     title: 'Level Up!',
-                    message: `Congratulations! You've reached Level ${newLevel}! A Mystery Box has been assigned to you.`
+                    message: hasMysteryBox
+                        ? `Congratulations! You've reached Level ${newLevel} (${levelConfig.name})! A Mystery Box has been assigned to you.`
+                        : `Congratulations! You've reached Level ${newLevel} (${levelConfig?.name || ''})!`
                 }
             });
 
-            const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
-            const boxBookCount = levelConfig?.mysteryBoxBooks || 5;
+            if (hasMysteryBox) {
+                const boxBookCount = levelConfig.mysteryBoxBooks || 5;
 
-            const availableBooks = await prisma.bookItem.findMany({
-                where: { isAvailable: true, condition: { in: ['NEW', 'LIKE_NEW', 'GOOD'] } }
-            });
+                const availableBooks = await prisma.bookItem.findMany({
+                    where: { isAvailable: true, condition: { in: ['NEW', 'LIKE_NEW', 'GOOD'] } }
+                });
 
-            const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
-            const selectedBooks = shuffled.slice(0, Math.min(boxBookCount, shuffled.length));
+                const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
+                const selectedBooks = shuffled.slice(0, Math.min(boxBookCount, shuffled.length));
 
-            const mysteryBox = await prisma.mysteryBox.create({
-                data: {
-                    userId: user.id,
-                    level: newLevel,
-                    status: 'UNCLAIMED',
-                    assignedBy: staffId || null,
-                    description: `Mystery Box (Level ${newLevel}) - ${selectedBooks.length} books`
+                const mysteryBox = await prisma.mysteryBox.create({
+                    data: {
+                        userId: user.id,
+                        level: newLevel,
+                        status: 'UNCLAIMED',
+                        assignedBy: staffId || null,
+                        description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
+                    }
+                });
+
+                for (const book of selectedBooks) {
+                    await prisma.bookItem.update({
+                        where: { id: book.id },
+                        data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+                    });
                 }
-            });
 
-            for (const book of selectedBooks) {
-                await prisma.bookItem.update({
-                    where: { id: book.id },
-                    data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+                await prisma.notification.create({
+                    data: {
+                        userId: user.id,
+                        type: 'MYSTERY_BOX_REWARD',
+                        title: 'Mystery Box Awarded!',
+                        message: `You've received a ${levelConfig.mysteryBoxUnlock} with ${selectedBooks.length} books! Points cost to claim: ${levelConfig.mysteryBoxPoints || 0}.`
+                    }
                 });
             }
-
-            await prisma.notification.create({
-                data: {
-                    userId: user.id,
-                    type: 'MYSTERY_BOX_REWARD',
-                    title: 'Mystery Box Awarded!',
-                    message: `You've received a Mystery Box with ${selectedBooks.length} books! Go to your dashboard to claim it.`
-                }
-            });
         }
 
         res.json({
@@ -371,7 +376,10 @@ router.post('/:id/mystery-box', async (req, res) => {
 
         const user = donation.user;
         const levelConfig = await prisma.level.findUnique({ where: { level: user.level } });
-        const bookCount = levelConfig?.mysteryBoxBooks || 5;
+        const hasMysteryBox = levelConfig?.mysteryBoxUnlock && levelConfig.mysteryBoxUnlock.trim() !== '';
+        if (!hasMysteryBox) return res.status(400).json({ error: `Level ${user.level} does not have a mystery box configured. Configure one in System Config.` });
+
+        const bookCount = levelConfig.mysteryBoxBooks || 5;
 
         const availableBooks = await prisma.bookItem.findMany({
             where: { isAvailable: true, condition: { in: ['NEW', 'LIKE_NEW', 'GOOD'] } }
@@ -386,7 +394,7 @@ router.post('/:id/mystery-box', async (req, res) => {
                 level: user.level,
                 status: 'UNCLAIMED',
                 assignedBy: staffId || null,
-                description: `Mystery Box (Level ${user.level}) - ${selectedBooks.length} books`
+                description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
             }
         });
 

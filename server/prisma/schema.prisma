@@ -357,22 +357,6 @@ model Level {
   updatedAt        DateTime @updatedAt
 }
 
-model MysteryBox {
-  id          String            @id @default(uuid())
-  userId      String
-  level       Int
-  status      MysteryBoxStatus  @default(UNCLAIMED)
-  assignedBy  String?
-  assignedAt  DateTime          @default(now())
-  claimedAt   DateTime?
-  description String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  books       BookItem[]
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  staff       User?             @relation("MysteryBoxStaff", fields: [assignedBy], references: [id])
-}
-
 model SystemConfig {
   id          String   @id @default(dbgenerated("gen_random_uuid()"))
   key         String   @unique
@@ -413,7 +397,7 @@ model Task {
 }
 
 model MysteryBox {
-  id                               String           @id
+  id                               String           @id @default(uuid())
   userId                           String
   level                            Int
   status                           MysteryBoxStatus @default(UNCLAIMED)
@@ -423,9 +407,9 @@ model MysteryBox {
   description                      String?
   createdAt                        DateTime         @default(now())
   updatedAt                        DateTime
-  BookItem                         BookItem[]
-  User_MysteryBox_assignedByToUser User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
-  User_MysteryBox_userIdToUser     User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+  books                            BookItem[]
+  user                             User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+  staff                            User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
 }
 
 enum UserRole {
