@@ -3,22 +3,6 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 
 function VerifyDonation() {
-<<<<<<< HEAD
-  const [currentUser, setCurrentUser] = useState({ name: '', role: '' });
-  const [isbn, setIsbn] = useState('978-3-16-148410-0');
-  const [condition, setCondition] = useState('Pristine');
-  const [basePoints] = useState(3500.00);
-  const [flaggedItems] = useState([
-    { id: 1, title: 'The History of Ceylon (Collector\'s Edition)', author: 'Various Authors', isbn: '978-955-0020-14-8', notes: 'Water damage on spine' },
-  ]);
-  const [showFlagModal, setShowFlagModal] = useState(false);
-  const [flagForm, setFlagForm] = useState({ title: '', author: '', isbn: '', notes: '' });
-  const [editingFlag, setEditingFlag] = useState(null);
-  const [donationImages, setDonationImages] = useState([]);
-
-  // ====== ISBN VALIDATION STATE ======
-  const [isbnError, setIsbnError] = useState('');
-=======
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +25,6 @@ function VerifyDonation() {
     currentPoints: 0,
     userId: null
   });
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -68,20 +51,7 @@ function VerifyDonation() {
         id: 'staff-123'
       });
     }
-<<<<<<< HEAD
-
-    fetch('/api/donations')
-      .then(res => res.json())
-      .then(data => {
-         if (Array.isArray(data)) {
-           const latestWithImages = data.find(d => d.images && d.images.length > 0);
-           if (latestWithImages) setDonationImages(latestWithImages.images);
-         }
-      })
-      .catch(console.error);
-=======
     fetchDonations();
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
   }, []);
 
   // ===== FETCH DONATIONS FROM DATABASE =====
@@ -526,109 +496,12 @@ function VerifyDonation() {
           <div className="card-panel" style={{ padding: '40px', textAlign: 'center' }}>
             <p style={{ color: '#64748b' }}>No donations to display</p>
           </div>
-<<<<<<< HEAD
-          <div className="isbn-match">
-            <span className="match-icon">✓</span>
-            <span>Matched: The History of Ceylon (Collector's Edition)</span>
-          </div>
-          {mainIsbnCountry && mainIsbnCountry !== 'Invalid ISBN format' && (
-            <div style={{ marginTop: '8px', fontSize: '14px', color: '#1E4D4B' }}>
-              <span style={{ fontWeight: '500' }}>Country/Region:</span> {mainIsbnCountry}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="verification-protocol">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>DONATION IMAGES</h3>
-        </div>
-        {donationImages.length > 0 ? (
-          <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-             {donationImages.map((img, i) => (
-                <img key={i} src={img.startsWith('http') ? img : `http://localhost:5000${img}`} alt={`Donation ${i}`} style={{ height: '150px', borderRadius: '8px', border: '1px solid #ccc', objectFit: 'cover' }} />
-             ))}
-          </div>
-        ) : (
-          <p style={{ color: '#6C757D', fontSize: '14px' }}>No images provided for this donation.</p>
-        )}
-      </div>
-
-      <div className="condition-assessment">
-        <h3>Condition Assessment</h3>
-
-        <div className="condition-options">
-          {['Pristine','Very Good','Good','Damaged'].map((c) => (
-            <label key={c} className={`condition-option ${condition === c ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="condition"
-                value={c}
-                checked={condition === c}
-                onChange={() => setCondition(c)}
-              />
-              <div className="condition-content">
-                <span className="condition-name">{c}</span>
-                <span className="condition-desc">
-                  {c === 'Pristine' && 'Like New / Unread / Collector Quality'}
-                  {c === 'Very Good' && 'Minimal wear / Well maintained'}
-                  {c === 'Good' && 'Readable / Aged but intact'}
-                  {c === 'Damaged' && 'Unsellable / Needs restoration'}
-                </span>
-              </div>
-            </label>
-          ))}
-        </div>
-
-        <div className="condition-checks">
-          <label className="check-label">
-            <input type="checkbox" /> Cover spine is intact and rigid
-          </label>
-          <label className="check-label">
-            <input type="checkbox" /> No internal highlighting or notes
-          </label>
-          <label className="check-label">
-            <input type="checkbox" /> No water damage or mold
-          </label>
-        </div>
-      </div>
-
-      <div className="points-calculation">
-        <div className="points-row">
-          <span className="points-label">Base Value Points</span>
-          <span className="points-value">Rs. {basePoints.toFixed(2)}</span>
-        </div>
-
-        <div className="points-row">
-          <span className="points-label">Condition Multiplier ({condition})</span>
-          <span className="points-multiplier">{getMultiplier()}</span>
-        </div>
-
-        <div className="points-row total">
-          <span className="points-label">Final Calculation</span>
-          <span className="points-total">Rs. {getFinalPoints()} pts</span>
-        </div>
-      </div>
-
-      <div className="action-buttons-verify">
-        <button className="calc-points-btn">Calculate Points</button>
-        <button className="flag-review-btn">Flag Review</button>
-        <button className="approve-btn">Approve</button>
-      </div>
-
-      {/* Flag Modal - with International ISBN Validation */}
-      {showFlagModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingFlag ? 'Edit Flagged Item' : 'Flag Item for Review'}</h2>
-=======
         ) : (
           filteredDonations.map((donation) => {
             const statusInfo = getStatusBadge(donation.status);
             const isPending = donation.status === 'PENDING';
             const isVerified = donation.status === 'VERIFIED';
             const levelInfo = getLevelBadge(donation.userLevel || 0);
->>>>>>> 680666c4f96cb4e27bda8f9cbc32a08608e2d3f1
             
             return (
               <div 
@@ -768,6 +641,17 @@ function VerifyDonation() {
                   <p><strong>Notes:</strong> {selectedDonation.notes}</p>
                 )}
               </div>
+              
+              {selectedDonation.images && selectedDonation.images.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <strong>Attached Images:</strong>
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginTop: '8px' }}>
+                    {selectedDonation.images.map((img, i) => (
+                      <img key={i} src={img.startsWith('http') ? img : `http://localhost:5000${img}`} alt={`Donation ${i}`} style={{ height: '100px', borderRadius: '4px', border: '1px solid #ccc', objectFit: 'cover' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Verification Form */}
