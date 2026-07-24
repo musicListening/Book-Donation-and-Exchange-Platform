@@ -51,30 +51,64 @@ const UserDashboard = () => {
 
   // Build level info from dynamic thresholds (based on books donated)
   const getLevelInfo = () => {
-    if (levels.length === 0) {
-      const booksDonated = user?.booksDonated || 0;
-      if (booksDonated >= 100) return { name: 'Legendary Reader', min: 50, next: 100, nextName: 'Max Level', progress: 100 };
-      if (booksDonated >= 50) return { name: 'Literary Elite', min: 25, next: 50, nextName: 'Legendary Reader', progress: Math.min(100, ((booksDonated - 25) / 25) * 100) };
-      if (booksDonated >= 25) return { name: 'Grand Librarian', min: 10, next: 25, nextName: 'Literary Elite', progress: ((booksDonated - 10) / 15) * 100 };
-      if (booksDonated >= 10) return { name: 'Bibliophile', min: 0, next: 10, nextName: 'Grand Librarian', progress: (booksDonated / 10) * 100 };
-      return { name: 'Book Lover', min: 0, next: 10, nextName: 'Bibliophile', progress: Math.max(5, (booksDonated / 10) * 100) };
+    const booksDonated = Number(user?.booksDonated) || 0;
+    
+    const sorted = Array.isArray(levels) && levels.length > 0
+      ? [...levels].sort((a, b) => (Number(a.minBooks || a.minPoints) || 0) - (Number(b.minBooks || b.minPoints) || 0))
+      : [
+          { level: 1, minBooks: 10, name: 'Book Lover' },
+          { level: 2, minBooks: 25, name: 'Bibliophile' },
+          { level: 3, minBooks: 50, name: 'Grand Librarian' },
+          { level: 4, minBooks: 75, name: 'Literary Elite' },
+          { level: 5, minBooks: 100, name: 'Legendary Reader' }
+        ];
+
+    const firstLevel = sorted[0] || { level: 1, minBooks: 10, name: 'Book Lover' };
+    const firstMin = Number(firstLevel.minBooks || firstLevel.minPoints) || 10;
+
+    // Level 0: User has not reached Level 1 threshold (10 books)
+    if (booksDonated < firstMin) {
+      return {
+        name: 'New Reader (Level 0)',
+        shortName: 'New Reader',
+        level: 0,
+        min: 0,
+        next: firstMin,
+        nextName: `${firstLevel.name || 'Book Lover'} (Lvl 1)`,
+        booksNeeded: firstMin - booksDonated,
+        progress: Math.max(5, Math.min(100, (booksDonated / firstMin) * 100))
+      };
     }
-    const sorted = [...levels].sort((a, b) => (a.minPoints || a.minBooks || 0) - (b.minPoints || b.minBooks || 0));
-    const currentLevel = user?.level || 1;
-    const idx = sorted.findIndex(l => l.level === currentLevel);
-    const current = sorted[idx] || sorted[0];
-    const next = sorted[idx + 1] || sorted[idx];
-    const min = current.minBooks || current.minPoints || 0;
-    const nextMin = next.minBooks || next.minPoints || min;
-    const books = user?.booksDonated || 0;
+
+    let currentIdx = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const minReq = Number(sorted[i].minBooks || sorted[i].minPoints) || 0;
+      if (booksDonated >= minReq) {
+        currentIdx = i;
+      }
+    }
+
+    const current = sorted[currentIdx];
+    const next = sorted[currentIdx + 1] || current;
+
+    const min = Number(current.minBooks || current.minPoints) || 0;
+    const nextMin = Number(next.minBooks || next.minPoints) || min;
+    const isMaxLevel = current === next;
+
     const range = nextMin - min;
-    const progress = range > 0 ? Math.min(100, Math.max(5, ((books - min) / range) * 100)) : 100;
+    const progress = isMaxLevel || range <= 0
+      ? 100
+      : Math.min(100, Math.max(5, ((booksDonated - min) / range) * 100));
+
     return {
-      name: current.name || `Level ${current.level}`,
+      name: `Level ${current.level} (${current.name || 'Donor'})`,
+      shortName: current.name || `Level ${current.level}`,
+      level: current.level,
       min,
       next: nextMin,
-      nextName: next !== current ? (next.name || `Level ${next.level}`) : 'Max Level',
-      progress,
+      nextName: isMaxLevel ? 'Max Level' : `${next.name || `Level ${next.level}`} (Lvl ${next.level})`,
+      booksNeeded: isMaxLevel ? 0 : Math.max(0, nextMin - booksDonated),
+      progress
     };
   };
 
@@ -158,8 +192,8 @@ const UserDashboard = () => {
                     <div style={styles.progressFill}></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 8, opacity: 0.8 }}>
-                    <span>{Math.max(0, currentLevelInfo.next - (user.booksDonated || 0))} books to next level</span>
-                    <span>{currentLevelInfo.nextName}</span>
+                    <span>{currentLevelInfo.booksNeeded} books to {currentLevelInfo.nextName}</span>
+                    <span>Lvl {currentLevelInfo.level}</span>
                   </div>
                 </div>
               </div>
@@ -177,6 +211,10 @@ const UserDashboard = () => {
               <Link to="/orders" style={styles.actionBtn}>
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
+              </Link>
+              <Link to="/mystery-boxes" style={styles.actionBtn}>
+                <i className="fa-solid fa-gift" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
+                <span>Mystery Boxes</span>
               </Link>
               <Link to="/profile" style={styles.actionBtn}>
                 <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>

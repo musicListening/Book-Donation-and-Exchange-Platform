@@ -350,7 +350,7 @@ export default function SystemConfig() {
 
                     <div className="sc-mystery-box-fields">
                       <div className="sc-input-group">
-                        <label className="sc-label">Points Awarded</label>
+                        <label className="sc-label">Points Cost to Claim</label>
                         <div className="sc-input-wrapper">
                           <input className="sc-input" type="number" min="0" value={config.points} onChange={(e) => handleMysteryBoxConfigChange(config.level, 'points', parseInt(e.target.value) || 0)} />
                           <span className="sc-input-suffix">pts</span>
