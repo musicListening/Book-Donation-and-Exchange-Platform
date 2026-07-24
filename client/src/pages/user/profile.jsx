@@ -178,33 +178,46 @@ const Profile = () => {
   };
 
   const getLevelName = () => {
-    const books = user.booksDonated || 0;
-    const userLvl = (user.level !== undefined && user.level !== null && user.level !== 1) ? user.level : (books >= 10 ? 1 : 0);
-    if (userLvl === 0 || books < 10) return 'Level 0 (New Reader)';
-    if (levels.length === 0) return `Level ${userLvl}`;
-    const sorted = [...levels].sort((a, b) => a.level - b.level);
-    const found = sorted.find(l => l.level === userLvl);
-    return found ? `Level ${userLvl} (${found.name})` : `Level ${userLvl}`;
+    const books = Number(user.booksDonated) || 0;
+    if (books < 10) return 'New Reader (Level 0)';
+    if (levels.length === 0) return 'Level 1 (Book Lover)';
+    const sorted = [...levels].sort((a, b) => (Number(a.minBooks || a.minPoints) || 0) - (Number(b.minBooks || b.minPoints) || 0));
+    let current = sorted[0];
+    for (const l of sorted) {
+      if (books >= (Number(l.minBooks || l.minPoints) || 0)) {
+        current = l;
+      }
+    }
+    return `Level ${current.level} (${current.name || 'Donor'})`;
   };
 
   const getLevelProgress = () => {
-    const books = user.booksDonated || 0;
-    if (levels.length === 0) {
-      if (books < 10) return Math.max(5, (books / 10) * 100);
-      return 100;
+    const books = Number(user.booksDonated) || 0;
+    const sorted = Array.isArray(levels) && levels.length > 0
+      ? [...levels].sort((a, b) => (Number(a.minBooks || a.minPoints) || 0) - (Number(b.minBooks || b.minPoints) || 0))
+      : [{ level: 1, minBooks: 10, name: 'Book Lover' }];
+
+    const firstLevel = sorted.find(l => l.level === 1) || sorted[0] || { minBooks: 10 };
+    const firstMin = Number(firstLevel.minBooks || firstLevel.minPoints) || 10;
+
+    if (books < firstMin) {
+      return Math.max(5, Math.min(100, (books / firstMin) * 100));
     }
-    const sorted = [...levels].sort((a, b) => (a.minBooks || a.minPoints || 0) - (b.minBooks || b.minPoints || 0));
-    const lvl1Min = sorted[0] ? (sorted[0].minBooks || sorted[0].minPoints || 10) : 10;
-    if (books < lvl1Min) {
-      return Math.max(5, (books / lvl1Min) * 100);
+
+    let currentIdx = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const minReq = Number(sorted[i].minBooks || sorted[i].minPoints) || 0;
+      if (books >= minReq) {
+        currentIdx = i;
+      }
     }
-    const current = [...sorted].reverse().find(l => (l.minBooks || l.minPoints || 0) <= books) || sorted[0];
-    const idx = sorted.indexOf(current);
-    const next = sorted[idx + 1] || current;
-    const min = current.minBooks || current.minPoints || 0;
-    const nextMin = next.minBooks || next.minPoints || min;
+
+    const current = sorted[currentIdx];
+    const next = sorted[currentIdx + 1] || current;
+    const min = Number(current.minBooks || current.minPoints) || 0;
+    const nextMin = Number(next.minBooks || next.minPoints) || min;
     const range = nextMin - min;
-    if (range <= 0) return 100;
+    if (range <= 0 || current === next) return 100;
     return Math.min(100, Math.max(5, ((books - min) / range) * 100));
   };
 

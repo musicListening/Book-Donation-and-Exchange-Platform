@@ -23,10 +23,10 @@ async function calculateDonationPoints(bookCount, isCollection) {
 
 async function calculateLevelByBooks(booksDonated) {
   const count = Number(booksDonated) || 0;
-  if (count < 10) return 0;
 
   const levels = await prisma.level.findMany({ orderBy: { level: 'asc' } });
   if (levels.length === 0) {
+    // Fallback to hardcoded defaults if no levels configured
     if (count >= 100) return 5;
     if (count >= 75) return 4;
     if (count >= 50) return 3;
@@ -34,10 +34,18 @@ async function calculateLevelByBooks(booksDonated) {
     if (count >= 10) return 1;
     return 0;
   }
+
+  // Find the minimum threshold for level 1 (or first level)
+  const firstLevel = levels.find(l => l.level === 1) || levels[0];
+  const firstMinRequired = firstLevel ? (Number(firstLevel.minPoints) || 10) : 10;
+
+  // User hasn't reached the first level threshold yet
+  if (count < firstMinRequired) return 0;
+
   let currentLevel = 0;
   for (const lvl of levels) {
-    const minRequired = lvl.minPoints !== undefined && lvl.minPoints !== null ? lvl.minPoints : 0;
-    if (count >= minRequired && count >= 10) {
+    const minRequired = lvl.minPoints !== undefined && lvl.minPoints !== null ? Number(lvl.minPoints) : 0;
+    if (count >= minRequired) {
       currentLevel = lvl.level;
     }
   }

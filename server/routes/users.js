@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
         phoneNumber: true, address: true, createdAt: true, profileImage: true,
-        status: true, activeOrders: true
+        status: true, activeOrders: true, booksDonated: true
       }
     });
     res.json(users);
@@ -82,7 +82,7 @@ router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
         phoneNumber: true, address: true, createdAt: true, profileImage: true,
-        status: true, activeOrders: true
+        status: true, activeOrders: true, booksDonated: true
       }
     });
     res.json(user);
