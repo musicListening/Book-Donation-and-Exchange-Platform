@@ -205,6 +205,7 @@
   background: linear-gradient(135deg, var(--teal-primary), var(--teal-dark));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .user-profile-details {
@@ -394,6 +395,7 @@
   font-size: 11px;
   color: #ffffff;
   background: linear-gradient(135deg, var(--teal-primary), var(--teal-dark));
+  overflow: hidden;
 }
 
 .user-name-label {
