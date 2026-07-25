@@ -14,6 +14,7 @@ import Marketplace from './pages/user/marketplace';
 import Notifications from './pages/user/notifications';
 import Orders from './pages/user/orders';
 import Profile from './pages/user/profile';
+import MysteryBoxes from './pages/user/MysteryBoxes';
 
 // Public Pages
 import HomePage from './pages/public/HomePage';
@@ -30,7 +31,7 @@ import BundleManagement from './pages/staff/BundleManagement';
 import DonationSchedule from './pages/staff/DonationSchedule';
 import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
-import VerifyDonation from './pages/staff/VerifyDonation';
+
 
 // Delivery & Logistics Pages
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
@@ -71,6 +72,7 @@ function App() {
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/mystery-boxes" element={<ProtectedRoute><MysteryBoxes /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminDashboard /></ProtectedRoute>} />
@@ -85,7 +87,7 @@ function App() {
         <Route path="/staff/donation-schedule" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><DonationSchedule /></ProtectedRoute>} />
         <Route path="/staff/inventory-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><InventoryManagement /></ProtectedRoute>} />
         <Route path="/staff/order-fulfillment" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><OrderFulfillment /></ProtectedRoute>} />
-        <Route path="/staff/verify-donation" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><VerifyDonation /></ProtectedRoute>} />
+        
 
         {/* Community Admin Routes */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />

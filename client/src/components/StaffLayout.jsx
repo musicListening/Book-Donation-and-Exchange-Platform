@@ -9,7 +9,7 @@ const navItems = [
   { path: '/staff/donation-schedule', label: 'Donation Schedule' },
   { path: '/staff/inventory-management', label: 'Inventory Management' },
   { path: '/staff/order-fulfillment', label: 'Order Fulfillment' },
-  { path: '/staff/verify-donation', label: 'Verify Donation' },
+
 ];
 
 function StaffLayout({ children, title }) {
