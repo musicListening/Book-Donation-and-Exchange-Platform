@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://book-donation-and-exchange-platform.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 // ===== USER API =====
 export const userAPI = {
@@ -287,6 +287,108 @@ export const shipmentAPI = {
             const error = await response.json();
             throw new Error(error.error || `HTTP ${response.status}`);
         }
+        return response.json();
+    },
+};
+
+// ===== COMMUNITY API =====
+const communityRequest = async (path, options = {}) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/community${path}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...options.headers,
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    return response.status === 204 ? null : response.json();
+};
+
+export const communityAPI = {
+    getEvents: () => communityRequest('/events'),
+    createEvent: (data) => communityRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
+    updateEvent: (id, data) => communityRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteEvent: (id) => communityRequest(`/events/${id}`, { method: 'DELETE' }),
+    participateInEvent: (id) => communityRequest(`/events/${id}/participate`, { method: 'POST' }),
+    getMessages: () => communityRequest('/messages'),
+    sendMessage: (content) => communityRequest('/messages', { method: 'POST', body: JSON.stringify({ content }) }),
+    deleteMessage: (id) => communityRequest(`/messages/${id}`, { method: 'DELETE' }),
+    updateMessage: (id, content) => communityRequest(`/messages/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+    getStats: () => communityRequest('/stats'),
+};
+
+// ===== DONATION API =====
+export const donationAPI = {
+    getAll: async () => {
+        const response = await fetch(`${API_BASE}/donations`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    verify: async (donationId, data) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/verify`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    reject: async (donationId, notes) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/reject`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ notes }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    assignMysteryBox: async (donationId, staffId) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/mystery-box`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ staffId }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+};
+
+// ===== MYSTERY BOX API =====
+export const mysteryBoxAPI = {
+    getByUser: async (userId) => {
+        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    claim: async (boxId) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/mystery-boxes/${boxId}/claim`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
     },
 };

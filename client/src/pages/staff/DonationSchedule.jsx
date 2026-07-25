@@ -1,40 +1,36 @@
 // pages/staff/DonationSchedule.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
+import { systemConfigAPI } from '../../services/api';
 
 function DonationSchedule() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [donations, setDonations] = useState([]);
-  const [appointments, setAppointments] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [systemConfig, setSystemConfig] = useState({});
+  const [levels, setLevels] = useState([]);
+  const [mysteryBoxLocks, setMysteryBoxLocks] = useState([]);
+  const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
+  const [leveledUpResult, setLeveledUpResult] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState(null);
-  const [editingAppointment, setEditingAppointment] = useState(null);
   
   // Verification form
   const [verifyForm, setVerifyForm] = useState({
-    actualCount: 0,
-    isCollectionComplete: false,
-    staffNotes: '',
-    status: 'VERIFIED'
-  });
-
-  // Appointment form
-  const [appointmentForm, setAppointmentForm] = useState({ 
-    donorName: '', 
-    donationType: '', 
-    status: 'SCHEDULED',
-    appointmentDate: new Date().toISOString().split('T')[0],
-    timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-    contactInfo: '',
+    verifiedCount: 0,
+    condition: 'good',
     notes: '',
-    estimatedBooks: 0,
-    userId: ''
+    isComplete: true,
+    awardPoints: 0,
+    userLevel: 0,
+    currentPoints: 0,
+    userId: null,
+    booksDonated: 0
   });
 
   useEffect(() => {
@@ -57,7 +53,26 @@ function DonationSchedule() {
       }
     }
     fetchAllData();
+    fetchConfig();
   }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const config = await systemConfigAPI.getAll();
+      setSystemConfig(config);
+      if (config.LEVEL_THRESHOLDS) {
+        try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
+      }
+      if (config.MYSTERY_BOX_LOCKS) {
+        try { setMysteryBoxLocks(JSON.parse(config.MYSTERY_BOX_LOCKS)); } catch {}
+      }
+      if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+        try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
+      }
+    } catch (err) {
+      console.warn('Could not load system config');
+    }
+  };
 
   // ===== FETCH ALL DATA FROM DATABASE =====
   const fetchAllData = async () => {
@@ -65,7 +80,16 @@ function DonationSchedule() {
     try {
       const token = localStorage.getItem('token');
       
-      // Fetch all users first
+      if (!token) {
+        console.error('❌ No token found');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      let usersData = [];
+
+      // Fetch users
       const usersResponse = await fetch('/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -74,142 +98,76 @@ function DonationSchedule() {
       });
       
       if (usersResponse.ok) {
-        const usersData = await usersResponse.json();
+        usersData = await usersResponse.json();
         setUsers(usersData);
         console.log('👤 Users loaded:', usersData.length);
       }
 
-      // Fetch donations from database
-      const donationsResponse = await fetch('/api/donations', {
+      // Fetch donations - ONLY PENDING ones
+      const donationsResponse = await fetch('/api/donations?status=PENDING', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (donationsResponse.ok) {
-        const donationsData = await donationsResponse.json();
-        console.log('📦 Donations loaded:', donationsData.length);
-        processDonations(donationsData);
+      if (!donationsResponse.ok) {
+        throw new Error('Failed to fetch donations');
       }
 
-      // Fetch appointments (if you have an appointments endpoint)
-      // const appointmentsResponse = await fetch('/api/appointments/today', {
-      //   headers: { 'Authorization': `Bearer ${token}` }
-      // });
-      // if (appointmentsResponse.ok) {
-      //   const appointmentsData = await appointmentsResponse.json();
-      //   setAppointments(appointmentsData);
-      // }
+      const donationsData = await donationsResponse.json();
+      console.log('📦 Pending donations loaded:', donationsData.length);
+      
+      const processedDonations = donationsData.map(donation => {
+        const user = usersData?.find(u => u.id === donation.userId);
+        
+        return {
+          id: donation.id,
+          userId: donation.userId,
+          donor: user?.name || donation.donor || donation.user?.name || 'Unknown Donor',
+          email: user?.email || donation.email || donation.user?.email || 'No email',
+          phone: user?.phoneNumber || donation.phone || donation.user?.phoneNumber || 'No phone',
+          userLevel: user?.level || donation.user?.level || 0,
+          userPoints: user?.points || donation.user?.points || 0,
+          location: user?.address || donation.location || donation.user?.address || 'Not specified',
+          dropOffDate: donation.dropOffDate || donation.createdAt || new Date().toISOString(),
+          timeSlot: donation.timeSlot || 'Morning (10:00 AM - 12:00 PM)',
+          requestedCount: donation.requestedCount || donation.bookCount || 0,
+          type: donation.type || 'SINGLE_BOOK',
+          books: `${donation.requestedCount || donation.bookCount || 0} Books`,
+          category: donation.category || 'General',
+          notes: donation.notes || '',
+          collectionName: donation.collectionName || null,
+          status: donation.status || 'PENDING',
+          estimatedPoints: donation.estimatedPoints || (donation.requestedCount || 0) * 10 || 0,
+          verifiedCount: donation.verifiedCount || 0,
+          pointsAwarded: donation.pointsAwarded || 0,
+          staffNotes: donation.staffNotes || '',
+          createdAt: donation.createdAt || new Date().toISOString(),
+          isCollectionComplete: donation.isCollectionComplete || false,
+          awardedMysteryBox: donation.awardedMysteryBox || false,
+          condition: donation.condition || null,
+          booksDonated: user?.booksDonated || donation.user?.booksDonated || 0
+        };
+      });
+      
+      setDonations(processedDonations);
 
     } catch (error) {
-      console.error('Error fetching data:', error);
-      // Fallback to mock data
-      setDonations(getMockDonations());
-      setAppointments(getMockAppointments());
+      console.error('❌ Error fetching data:', error);
+      setDonations([]);
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
   };
 
-  // ===== PROCESS DONATIONS WITH USER DATA =====
-  const processDonations = (donationsData) => {
-    const processedDonations = donationsData.map(donation => {
-      // Find user for this donation
-      const user = users.find(u => u.id === donation.userId);
-      
-      return {
-        id: donation.id,
-        userId: donation.userId,
-        donor: user?.name || donation.donor || 'Unknown Donor',
-        email: user?.email || donation.email || 'No email',
-        phone: user?.phoneNumber || donation.phone || 'No phone',
-        userLevel: user?.level || 0,
-        userPoints: user?.points || 0,
-        location: user?.address || donation.location || 'Not specified',
-        dropOffDate: donation.dropOffDate || donation.createdAt || new Date().toISOString(),
-        timeSlot: donation.timeSlot || 'Morning (10:00 AM - 12:00 PM)',
-        requestedCount: donation.requestedCount || donation.bookCount || 0,
-        books: `${donation.requestedCount || donation.bookCount || 0} Books`,
-        category: donation.category || 'General',
-        notes: donation.notes || '',
-        collectionName: donation.collectionName || null,
-        status: donation.status || 'PENDING',
-        estimatedPoints: donation.estimatedPoints || (donation.requestedCount || 0) * 10 || 0,
-        verifiedCount: donation.verifiedCount || 0,
-        pointsAwarded: donation.pointsAwarded || 0,
-        staffNotes: donation.staffNotes || '',
-        createdAt: donation.createdAt || new Date().toISOString(),
-        isCollectionComplete: donation.isCollectionComplete || false,
-        awardedMysteryBox: donation.awardedMysteryBox || false
-      };
-    });
-
-    setDonations(processedDonations);
-  };
-
-  // ===== MOCK APPOINTMENTS (Fallback) =====
-  const getMockAppointments = () => {
-    const today = new Date().toISOString().split('T')[0];
-    return [
-      { 
-        id: 1, 
-        donorName: 'Dr. Anura Bandaranaike', 
-        donationType: 'Personal Collection (50+ units)', 
-        status: 'ARRIVED',
-        appointmentDate: today,
-        timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-        contactInfo: '+94 77 123 4567',
-        notes: 'Arrived in white van',
-        estimatedBooks: 50,
-        donationId: null,
-        createdAt: new Date().toISOString()
-      },
-      { 
-        id: 2, 
-        donorName: 'Royal College Colombo', 
-        donationType: 'Textbook Drive 300+ units', 
-        status: 'IN_TRANSIT',
-        appointmentDate: today,
-        timeSlot: 'Afternoon (02:00 PM - 04:00 PM)',
-        contactInfo: '+94 11 234 5678',
-        notes: 'Large collection - need 2 staff members',
-        estimatedBooks: 300,
-        donationId: 2,
-        createdAt: new Date().toISOString()
-      },
-      { 
-        id: 3, 
-        donorName: 'Galle Heritage Foundation', 
-        donationType: 'Historical Collection (25+ units)', 
-        status: 'SCHEDULED',
-        appointmentDate: today,
-        timeSlot: 'Evening (04:00 PM - 06:00 PM)',
-        contactInfo: '+94 91 345 6789',
-        notes: 'Fragile books - handle with care',
-        estimatedBooks: 25,
-        donationId: null,
-        createdAt: new Date().toISOString()
-      }
-    ];
-  };
-
-  // ===== GET STATUS BADGE =====
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      'PENDING': { class: 'draft', label: 'Pending' },
-      'VERIFIED': { class: 'published', label: 'Verified' },
-      'REJECTED': { class: 'rejected', label: 'Rejected' },
-      'SCHEDULED': { class: 'draft', label: 'Scheduled' },
-      'IN_TRANSIT': { class: 'in-transit', label: 'In Transit' },
-      'ARRIVED': { class: 'published', label: 'Arrived' }
-    };
-    return statusMap[status] || { class: 'draft', label: status };
-  };
-
   // ===== GET LEVEL BADGE =====
   const getLevelBadge = (level) => {
+    if (levels.length > 0) {
+      const found = levels.find(l => l.level === level);
+      if (found) return { label: found.name || `Level ${level}`, color: '#4caf50' };
+    }
     const levelMap = {
       1: { label: 'Book Lover', color: '#4caf50' },
       2: { label: 'Bibliophile', color: '#2196f3' },
@@ -220,138 +178,147 @@ function DonationSchedule() {
     return levelMap[level] || levelMap[1];
   };
 
-  // ===== CALCULATE POINTS =====
+  // ===== GET MYSTERY BOX INFO FOR A LEVEL =====
+  const getMysteryBoxInfoForLevel = (level) => {
+    const lock = mysteryBoxLocks.find(l => parseInt(l.level) === level);
+    const config = mysteryBoxConfigs.find(c => c.level === level);
+    if (!lock && !config) return null;
+    return {
+      unlock: lock?.unlock || null,
+      points: config?.points || 0,
+      books: config?.books || 0
+    };
+  };
+
+  // ===== CALCULATE POINTS (from system config) =====
   const calculatePoints = (actualCount, isCollectionComplete) => {
-    const basePoints = actualCount * 10;
-    const bonus = isCollectionComplete ? Math.round(basePoints * 0.1) : 0;
-    return basePoints + bonus;
+    const baseRate = parseInt(systemConfig.BASE_POINTS_PER_BOOK) || 10;
+    const bonusPct = parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10;
+    const basePoints = actualCount * baseRate;
+    const bonus = isCollectionComplete ? Math.round(basePoints * (bonusPct / 100)) : 0;
+    return { basePoints, bonus, total: basePoints + bonus, baseRate, bonusPct };
+  };
+
+  // ===== CALCULATE LEVEL (from level config, based on books donated) =====
+  const calculateLevelByBooks = (booksDonated) => {
+    if (levels.length === 0) {
+      if (booksDonated >= 100) return 5;
+      if (booksDonated >= 50) return 4;
+      if (booksDonated >= 25) return 3;
+      if (booksDonated >= 10) return 2;
+      return 1;
+    }
+    const sorted = [...levels].sort((a, b) => (a.minPoints || a.minBooks || 0) - (b.minPoints || b.minBooks || 0));
+    let currentLevel = 1;
+    for (const lvl of sorted) {
+      const threshold = lvl.minBooks || lvl.minPoints || 0;
+      if (booksDonated >= threshold) currentLevel = lvl.level;
+    }
+    return currentLevel;
   };
 
   // ===== HANDLE VERIFY DONATION =====
   const handleVerifyDonation = (donation) => {
     setSelectedDonation(donation);
+    const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
+    
     setVerifyForm({
-      actualCount: donation.requestedCount || 0,
-      isCollectionComplete: !!donation.collectionName,
-      staffNotes: '',
-      status: 'VERIFIED'
+      verifiedCount: donation.requestedCount || 0,
+      condition: donation.condition || 'good',
+      notes: '',
+      isComplete: donation.type === 'COLLECTION',
+      awardPoints: points.total,
+      userLevel: donation.userLevel || 0,
+      currentPoints: donation.userPoints || 0,
+      userId: donation.userId || null,
+      booksDonated: donation.booksDonated || 0
     });
     setShowVerifyModal(true);
   };
 
-  // ===== CONFIRM VERIFICATION - SAVE TO DATABASE =====
+  // ===== CONFIRM VERIFICATION - SERVER-SIDE POINTS CALCULATION =====
   const handleConfirmVerification = async () => {
-    if (!selectedDonation) return;
-
-    const { actualCount, isCollectionComplete, staffNotes, status } = verifyForm;
-    const pointsAwarded = calculatePoints(actualCount, isCollectionComplete);
+    if (!selectedDonation) {
+      alert('No donation selected');
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
       
-      // Update donation in database
-      const response = await fetch(`/api/donations/${selectedDonation.id}`, {
-        method: 'PUT',
+      if (!token) {
+        alert('No token found. Please login again.');
+        return;
+      }
+
+      const response = await fetch(`/api/donations/${selectedDonation.id}/verify`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          verifiedCount: actualCount,
-          isCollectionComplete: isCollectionComplete,
-          staffNotes: staffNotes,
-          status: status,
-          pointsAwarded: pointsAwarded,
-          userId: selectedDonation.userId
+          verifiedCount: verifyForm.verifiedCount,
+          condition: verifyForm.condition,
+          notes: verifyForm.notes,
+          staffId: currentUser.id,
+          isCollectionComplete: verifyForm.isComplete
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to verify donation');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to verify donation';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {}
+        throw new Error(errorMessage);
       }
 
-      const updatedDonation = await response.json();
-      console.log('✅ Donation verified:', updatedDonation);
+      const result = await response.json();
+      const { points, leveledUp, newLevel, newBooksDonated } = result;
 
-      // Update user points if donation is verified
-      if (selectedDonation.userId && pointsAwarded > 0) {
-        const user = users.find(u => u.id === selectedDonation.userId);
-        if (user) {
-          const newPoints = (user.points || 0) + pointsAwarded;
-          await fetch(`/api/users/${selectedDonation.userId}`, {
-            method: 'PATCH',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              points: newPoints,
-              level: calculateLevel(newPoints)
-            })
-          });
-          console.log(`✅ Updated user ${user.name} points to ${newPoints}`);
-        }
-      }
+      setLeveledUpResult(leveledUp ? { newLevel, newBooksDonated } : null);
 
-      // Update local state
-      const updatedDonations = donations.map(d => {
-        if (d.id === selectedDonation.id) {
-          return {
-            ...d,
-            verifiedCount: actualCount,
-            isCollectionComplete,
-            staffNotes,
-            status,
-            pointsAwarded
-          };
-        }
-        return d;
-      });
-      setDonations(updatedDonations);
+      setDonations(prevDonations => 
+        prevDonations.filter(d => d.id !== selectedDonation.id)
+      );
+      
       setShowVerifyModal(false);
       setSelectedDonation(null);
       
+      const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
+      alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}`);
+      
       setVerifyForm({
-        actualCount: 0,
-        isCollectionComplete: false,
-        staffNotes: '',
-        status: 'VERIFIED'
+        verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
+        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
-
-      alert(`✅ Donation verified! ${pointsAwarded} points awarded to ${selectedDonation.donor}`);
+      
       fetchAllData();
       
     } catch (error) {
       console.error('Error verifying donation:', error);
-      alert('Error verifying donation. Please try again.');
+      alert(`Failed to verify: ${error.message}`);
     }
   };
 
-  // ===== CALCULATE LEVEL =====
-  const calculateLevel = (points) => {
-    if (points >= 1000) return 5;
-    if (points >= 500) return 4;
-    if (points >= 250) return 3;
-    if (points >= 100) return 2;
-    return 1;
-  };
-
-  // ===== HANDLE REJECT DONATION =====
+  // ===== HANDLE REJECT DONATION - REMOVE FROM UI =====
   const handleRejectDonation = async () => {
     if (!selectedDonation) return;
 
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`/api/donations/${selectedDonation.id}`, {
-        method: 'PUT',
+      const response = await fetch(`/api/donations/${selectedDonation.id}/reject`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          status: 'REJECTED',
-          staffNotes: verifyForm.staffNotes || 'Rejected during verification'
+          notes: verifyForm.notes || 'Rejected by staff'
         })
       });
 
@@ -359,25 +326,23 @@ function DonationSchedule() {
         throw new Error('Failed to reject donation');
       }
 
-      const updatedDonations = donations.map(d => {
-        if (d.id === selectedDonation.id) {
-          return {
-            ...d,
-            status: 'REJECTED',
-            staffNotes: verifyForm.staffNotes || 'Rejected during verification'
-          };
-        }
-        return d;
-      });
-      setDonations(updatedDonations);
+      // ✅ REMOVE the rejected donation from UI immediately
+      setDonations(prevDonations => 
+        prevDonations.filter(d => d.id !== selectedDonation.id)
+      );
+      
       setShowVerifyModal(false);
       setSelectedDonation(null);
       
       setVerifyForm({
-        actualCount: 0,
-        isCollectionComplete: false,
-        staffNotes: '',
-        status: 'VERIFIED'
+        verifiedCount: 0,
+        condition: 'good',
+        notes: '',
+        isComplete: true,
+        awardPoints: 0,
+        userLevel: 0,
+        currentPoints: 0,
+        userId: null
       });
 
       alert('Donation rejected.');
@@ -387,128 +352,6 @@ function DonationSchedule() {
       console.error('Error rejecting donation:', error);
       alert('Error rejecting donation. Please try again.');
     }
-  };
-
-  // ===== APPOINTMENT CRUD =====
-  const handleAddAppointment = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...appointmentForm,
-          createdBy: currentUser.id
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add appointment');
-      }
-
-      const newAppointment = await response.json();
-      setAppointments([newAppointment, ...appointments]);
-      setShowAppointmentModal(false);
-      setAppointmentForm({ 
-        donorName: '', 
-        donationType: '', 
-        status: 'SCHEDULED',
-        appointmentDate: new Date().toISOString().split('T')[0],
-        timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-        contactInfo: '',
-        notes: '',
-        estimatedBooks: 0,
-        userId: ''
-      });
-      alert('✅ Appointment added successfully!');
-      fetchAllData();
-    } catch (error) {
-      console.error('Error adding appointment:', error);
-      alert('Error adding appointment.');
-    }
-  };
-
-  const handleEditAppointment = (appt) => {
-    setEditingAppointment(appt);
-    setAppointmentForm(appt);
-    setShowAppointmentModal(true);
-  };
-
-  const handleUpdateAppointment = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(`/api/appointments/${editingAppointment.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(appointmentForm)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update appointment');
-      }
-
-      const updatedAppointment = await response.json();
-      setAppointments(appointments.map(a => 
-        a.id === editingAppointment.id ? updatedAppointment : a
-      ));
-      setShowAppointmentModal(false);
-      setEditingAppointment(null);
-      setAppointmentForm({ 
-        donorName: '', 
-        donationType: '', 
-        status: 'SCHEDULED',
-        appointmentDate: new Date().toISOString().split('T')[0],
-        timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-        contactInfo: '',
-        notes: '',
-        estimatedBooks: 0,
-        userId: ''
-      });
-      alert('✅ Appointment updated successfully!');
-      fetchAllData();
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      alert('Error updating appointment.');
-    }
-  };
-
-  const handleDeleteAppointment = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this appointment?')) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete appointment');
-      }
-
-      setAppointments(appointments.filter(a => a.id !== id));
-      alert('Appointment deleted.');
-      fetchAllData();
-    } catch (error) {
-      console.error('Error deleting appointment:', error);
-      alert('Error deleting appointment.');
-    }
-  };
-
-  // ===== MANUAL REFRESH =====
-  const handleRefresh = () => {
-    fetchAllData();
   };
 
   const getUserInitials = () => {
@@ -523,14 +366,7 @@ function DonationSchedule() {
   };
 
   // ===== STATS =====
-  const pendingCount = donations.filter(d => d.status === 'PENDING').length;
-  const verifiedCount = donations.filter(d => d.status === 'VERIFIED').length;
-  const totalDonations = donations.length;
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments.filter(a => a.appointmentDate === today);
-  const arrivedCount = todayAppointments.filter(a => a.status === 'ARRIVED').length;
-  const inTransitCount = todayAppointments.filter(a => a.status === 'IN_TRANSIT').length;
-  const scheduledCount = todayAppointments.filter(a => a.status === 'SCHEDULED').length;
+  const pendingCount = donations.length;
 
   if (loading) {
     return (
@@ -547,7 +383,7 @@ function DonationSchedule() {
       <div className="content-header">
         <div>
           <h1>Donation Management</h1>
-          <p className="page-subtitle">Manage donation submissions and drop-off appointments</p>
+          <p className="page-subtitle">Review and award points for pending donation submissions</p>
         </div>
         <div className="user-info">
           <span className="user-role">{currentUser.name}</span>
@@ -556,280 +392,143 @@ function DonationSchedule() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Only Pending */}
       <div className="cards-grid">
         <div className="stat-card accent-warning">
-          <h3>Pending Verification</h3>
+          <h3>⏳ Pending Donations</h3>
           <div className="stat-value">{pendingCount}</div>
-          <div className="stat-trend">+{totalDonations} Total</div>
-          <div className="stat-sub">Donations waiting for staff review</div>
+          <div className="stat-trend">Awaiting review</div>
+          <div className="stat-sub">Donations waiting for staff verification</div>
         </div>
-        <div className="stat-card today-stats">
-          <h3>Today's Drop-offs</h3>
-          <div className="stat-value">{todayAppointments.length}</div>
-          <div className="stat-trend">
-            {arrivedCount} arrived • {inTransitCount} in transit • {scheduledCount} scheduled
-          </div>
-          <div className="stat-sub">Scheduled for {new Date().toLocaleDateString()}</div>
-        </div>
-        <div className="stat-card accent-success">
-          <h3>Verified Donations</h3>
-          <div className="stat-value">{verifiedCount}</div>
-          <div className="stat-sub">Points awarded: {verifiedCount * 10}+</div>
+        <div className="stat-card">
+          <h3>📊 Total Pending</h3>
+          <div className="stat-value">{pendingCount}</div>
+          <div className="stat-trend">To be reviewed</div>
+          <div className="stat-sub">Donations pending approval</div>
         </div>
       </div>
 
-      <div className="two-column">
-        {/* LEFT COLUMN: User Donation Submissions */}
-        <div className="card-panel">
-          <div className="panel-header">
-            <h3>User Donation Submissions</h3>
-            <span className="pending-count">{pendingCount} pending verification</span>
+      {/* Donation List - Table Style */}
+      <div className="card-panel">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0 }}>Pending Donations</h3>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by donor name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                border: '1px solid #DEE2E6',
+                borderRadius: '8px',
+                fontSize: '13px',
+                width: '220px',
+                outline: 'none'
+              }}
+            />
+            <span style={{ 
+              padding: '4px 12px', 
+              borderRadius: '20px', 
+              background: '#fff3e0', 
+              color: '#ff9800',
+              fontSize: '13px',
+              fontWeight: '600'
+            }}>
+              {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending
+            </span>
           </div>
-          {donations.length === 0 ? (
-            <p className="empty-state">No donations submitted yet</p>
-          ) : (
-            donations.map((d) => {
-              const statusInfo = getStatusBadge(d.status);
-              const isPending = d.status === 'PENDING';
-              const isVerified = d.status === 'VERIFIED';
-              const isRejected = d.status === 'REJECTED';
-              const levelInfo = getLevelBadge(d.userLevel || 0);
-              
-              return (
-                <div 
-                  key={d.id} 
-                  className={`donation-item ${isPending ? 'pending' : ''} ${isVerified ? 'verified' : ''} ${isRejected ? 'rejected' : ''}`}
-                >
-                  <div className="donation-content">
-                    <div className="donation-info">
-                      <div className="donation-meta">
-                        <span className="donation-date">
-                          {d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A'} • {d.timeSlot || 'No time slot'}
-                        </span>
-                        <span className={`status-badge ${statusInfo.class}`}>
-                          {statusInfo.label}
-                        </span>
-                        {/* Level Badge */}
-                        <span style={{ 
-                          padding: '2px 10px', 
-                          borderRadius: '20px', 
-                          background: levelInfo.color + '20',
-                          color: levelInfo.color,
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          border: `1px solid ${levelInfo.color}40`
-                        }}>
-                          {levelInfo.label}
-                        </span>
-                      </div>
-                      <h4 className="donor-name">{d.donor}</h4>
-                      <p className="donation-details">
-                        <strong>{d.category || 'General'}</strong> • {d.books || `${d.requestedCount || 0} Books`}
-                        {d.collectionName && (
-                          <span className="collection-badge">
-                            Collection: {d.collectionName}
-                          </span>
-                        )}
-                      </p>
-                      <p className="donation-location">📍 {d.location || 'Not specified'}</p>
-                      {d.notes && (
-                        <p className="donation-notes">📝 {d.notes}</p>
-                      )}
-                      {isVerified && d.pointsAwarded && (
-                        <p className="points-awarded">
-                          ⭐ {d.pointsAwarded} points awarded ({d.verifiedCount} books verified)
-                        </p>
-                      )}
-                      {isRejected && (
-                        <p className="rejection-notes">
-                          {d.staffNotes && `Notes: ${d.staffNotes}`}
-                        </p>
-                      )}
-                      <p className="submitted-time">
-                        Submitted: {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'N/A'}
-                      </p>
-                    </div>
-                    {isPending && (
-                      <div className="donation-action">
-                        <button 
-                          className="btn-verify" 
-                          onClick={() => handleVerifyDonation(d)}
-                        >
-                          Verify
-                        </button>
-                      </div>
-                    )}
-                    {isVerified && (
-                      <div className="verified-badge">Verified</div>
-                    )}
-                    {isRejected && (
-                      <div className="rejected-badge">Rejected</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
         </div>
 
-        {/* RIGHT COLUMN: Today's Drop-off Appointments */}
-        <div className="card-panel">
-          <div className="panel-header">
-            <h3>Today's Drop-off Appointments</h3>
-            <div className="panel-actions">
-              <button 
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="refresh-btn"
-                title="Refresh appointments"
-              >
-                {refreshing ? '⟳' : '↻'}
-              </button>
-              <button 
-                className="btn-add-appointment" 
-                onClick={() => { 
-                  setEditingAppointment(null); 
-                  setAppointmentForm({ 
-                    donorName: '', 
-                    donationType: '', 
-                    status: 'SCHEDULED',
-                    appointmentDate: today,
-                    timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-                    contactInfo: '',
-                    notes: '',
-                    estimatedBooks: 0,
-                    userId: ''
-                  }); 
-                  setShowAppointmentModal(true); 
-                }}
-              >
-                + Add Drop-off
-              </button>
-            </div>
+        {donations.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+            <p style={{ fontSize: '24px' }}>✅</p>
+            <p>All caught up! No pending donations.</p>
+            <p style={{ fontSize: '13px' }}>Check back later for new submissions.</p>
           </div>
-
-          {/* Today's date display */}
-          <div className="today-date-display">
-            {new Date().toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-            {todayAppointments.length > 0 && (
-              <span className="appointment-count">
-                • {todayAppointments.length} appointment{todayAppointments.length > 1 ? 's' : ''}
-              </span>
-            )}
+        ) : donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+            <p style={{ fontSize: '24px' }}>🔍</p>
+            <p>No donations found matching "{searchTerm}"</p>
+            <p style={{ fontSize: '13px' }}>Try a different search term.</p>
           </div>
-
-          {todayAppointments.length === 0 ? (
-            <div className="empty-appointments">
-              <p>No drop-offs scheduled for today</p>
-              <p className="empty-subtext">Click "Add Drop-off" to schedule a new appointment</p>
-            </div>
-          ) : (
-            <>
-              {/* Status summary chips */}
-              <div className="status-chips">
-                {arrivedCount > 0 && (
-                  <span className="chip arrived">
-                    Arrived: {arrivedCount}
-                  </span>
-                )}
-                {inTransitCount > 0 && (
-                  <span className="chip in-transit">
-                    In Transit: {inTransitCount}
-                  </span>
-                )}
-                {scheduledCount > 0 && (
-                  <span className="chip scheduled">
-                    Scheduled: {scheduledCount}
-                  </span>
-                )}
-              </div>
-
-              {todayAppointments.map((a) => {
-                const statusInfo = getStatusBadge(a.status);
-                
-                return (
-                  <div 
-                    key={a.id} 
-                    className={`appointment-item status-${a.status.toLowerCase()}`}
-                  >
-                    <div className="appointment-info">
-                      <div className="appointment-header">
-                        <strong className="donor-name">{a.donorName}</strong>
-                        {a.donationId && (
-                          <span className="donation-id-badge">
-                            Donation #{a.donationId}
-                          </span>
-                        )}
-                      </div>
-                      <div className="appointment-type">
-                        <span>{a.donationType}</span>
-                        {a.estimatedBooks > 0 && (
-                          <span className="book-count">
-                            • {a.estimatedBooks} books
-                          </span>
-                        )}
-                      </div>
-                      <div className="appointment-details">
-                        <span>{a.timeSlot}</span>
-                        {a.contactInfo && (
-                          <span className="contact-info">{a.contactInfo}</span>
-                        )}
-                        {a.notes && (
-                          <span className="appointment-notes">{a.notes}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="appointment-actions">
-                      <span className={`status-badge ${statusInfo.class}`}>
-                        {statusInfo.label}
-                      </span>
-                      <button 
-                        className="btn-edit" 
-                        onClick={() => handleEditAppointment(a)}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="btn-delete" 
-                        onClick={() => handleDeleteAppointment(a.id)} 
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
+        ) : (
+          <div className="data-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Donor Name</th>
+                  <th>Category</th>
+                  <th>Books</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {donations
+                  .filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map((d) => {
+                  const levelInfo = getLevelBadge(d.userLevel || 0);
+                  
+                  return (
+                    <tr key={d.id}>
+                      <td>
+                        <div>
+                          <strong>{d.donor}</strong>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>
+                            {levelInfo.label}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{d.category || 'General'}</td>
+                      <td>{d.requestedCount || 0} books</td>
+                      <td>
+                        <span className="status-badge draft">
+                          Pending
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '13px', color: '#64748b' }}>
+                        {d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td>
+                        <div className="action-group">
+                          <button 
+                            className="btn-small"
+                            onClick={() => handleVerifyDonation(d)}
+                          >
+                            Award
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="table-footer">
+          <span>Showing {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending donations{searchTerm ? ` (filtered by "${searchTerm}")` : ''}</span>
         </div>
       </div>
 
-      {/* Verification Modal */}
+      {/* ===== VERIFICATION MODAL ===== */}
       {showVerifyModal && selectedDonation && (
         <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>Verify Donation</h2>
-            <p className="modal-subtitle">
-              Review and verify the donation from <strong>{selectedDonation.donor}</strong>
+          <div className="modal-content" style={{ maxWidth: '550px' }}>
+            <h2 style={{ color: '#1E4D4B', marginBottom: '8px' }}>Award Points</h2>
+            <p className="modal-subtitle" style={{ color: '#64748b', marginBottom: '20px' }}>
+              Review donation from <strong>{selectedDonation.donor}</strong>
             </p>
 
-            {/* User Submitted Info - Read Only */}
-            <div className="user-submitted-info">
-              <h4>User Submitted Information</h4>
-              <div className="info-grid">
-                <p><strong>Donor:</strong> {selectedDonation.donor}</p>
-                <p><strong>Email:</strong> {selectedDonation.email}</p>
-                <p><strong>Phone:</strong> {selectedDonation.phone}</p>
+            <div className="user-submitted-info" style={{ marginBottom: '20px' }}>
+              <h4 style={{ color: '#1E4D4B', marginBottom: '12px' }}>Donation Summary</h4>
+              <div className="info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
+                <p><strong>Type:</strong> {selectedDonation.type || 'SINGLE_BOOK'}</p>
                 <p><strong>Category:</strong> {selectedDonation.category}</p>
-                <p><strong>Submitted Count:</strong> {selectedDonation.requestedCount} books</p>
-                <p><strong>Drop-off Date:</strong> {selectedDonation.dropOffDate ? new Date(selectedDonation.dropOffDate).toLocaleDateString() : 'N/A'}</p>
-                <p><strong>Time Slot:</strong> {selectedDonation.timeSlot}</p>
+                <p><strong>Books Submitted:</strong> {selectedDonation.requestedCount}</p>
+                <p><strong>Est. Points:</strong> {selectedDonation.estimatedPoints}</p>
                 <p><strong>Current Level:</strong> {getLevelBadge(selectedDonation.userLevel || 0).label}</p>
                 <p><strong>Current Points:</strong> {selectedDonation.userPoints || 0}</p>
                 {selectedDonation.collectionName && (
@@ -838,74 +537,129 @@ function DonationSchedule() {
                 {selectedDonation.notes && (
                   <p><strong>Notes:</strong> {selectedDonation.notes}</p>
                 )}
-                <p><strong>Estimated Points:</strong> ~{selectedDonation.estimatedPoints} pts</p>
               </div>
-            </div>
-
-            {/* Staff Verification Fields */}
-            <div className="staff-verification">
-              <h4>Staff Verification</h4>
-              
-              <div className="form-group">
-                <label>Actual Count Received</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  value={verifyForm.actualCount} 
-                  onChange={(e) => setVerifyForm({...verifyForm, actualCount: parseInt(e.target.value) || 0})} 
-                  min="0"
-                />
-              </div>
-
-              <div className="form-group checkbox-group">
-                <label>
-                  <input 
-                    type="checkbox" 
-                    checked={verifyForm.isCollectionComplete} 
-                    onChange={(e) => setVerifyForm({...verifyForm, isCollectionComplete: e.target.checked})} 
-                  />
-                  Collection Complete? (10% bonus if complete)
-                </label>
-              </div>
-
-              <div className="form-group">
-                <label>Staff Notes</label>
-                <textarea 
-                  className="form-control" 
-                  value={verifyForm.staffNotes} 
-                  onChange={(e) => setVerifyForm({...verifyForm, staffNotes: e.target.value})} 
-                  placeholder="Optional notes for audit purposes..."
-                />
-              </div>
-
-              {/* Points Calculation */}
-              {verifyForm.actualCount > 0 && (
-                <div className="points-calculation">
-                  <h4>Points Awarded</h4>
-                  <div className="points-details">
-                    <p>
-                      Base: {verifyForm.actualCount} × 10 = {verifyForm.actualCount * 10} pts
+              {(() => {
+                const newBooksDonated = (selectedDonation.booksDonated || 0) + (verifyForm.verifiedCount || 0);
+                const predictedLevel = calculateLevelByBooks(newBooksDonated);
+                const willLevelUp = predictedLevel > (selectedDonation.userLevel || 0);
+                const mbInfo = getMysteryBoxInfoForLevel(predictedLevel);
+                return (
+                  <div style={{ marginTop: '12px', padding: '12px', background: willLevelUp ? '#FFF3E0' : '#F5F5F5', borderRadius: '8px', fontSize: '13px' }}>
+                    <p style={{ margin: '0 0 4px', fontWeight: '600' }}>
+                      After Verification: Level {predictedLevel} ({getLevelBadge(predictedLevel).label})
+                      {willLevelUp && <span style={{ color: '#E65100', marginLeft: 8 }}>&#8593; Level Up!</span>}
                     </p>
-                    {verifyForm.isCollectionComplete && (
-                      <p className="bonus-points">
-                        + Bonus (10%): +{Math.round(verifyForm.actualCount * 10 * 0.1)} pts
+                    {willLevelUp && mbInfo && (
+                      <p style={{ margin: 0, color: '#E65100' }}>
+                        Mystery Box: {mbInfo.unlock} ({mbInfo.books} books) — Costs {mbInfo.points} pts to claim
                       </p>
                     )}
-                    <p className="total-points">
-                      Total: {calculatePoints(verifyForm.actualCount, verifyForm.isCollectionComplete)} pts
-                    </p>
+                    {willLevelUp && !mbInfo && (
+                      <p style={{ margin: 0, color: '#666' }}>No mystery box configured for Level {predictedLevel}</p>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
-            <div className="modal-actions">
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Actual Books Received</label>
+              <input
+                type="number"
+                className="form-control"
+                value={verifyForm.verifiedCount}
+                onChange={(e) => {
+                  const count = parseInt(e.target.value) || 0;
+                  const points = calculatePoints(count, verifyForm.isComplete && selectedDonation.type === 'COLLECTION');
+                  setVerifyForm({ 
+                    ...verifyForm, 
+                    verifiedCount: count,
+                    awardPoints: points.total
+                  });
+                }}
+                min="0"
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: '1px solid #e5e5e5', 
+                  borderRadius: '8px',
+                  fontSize: '18px',
+                  fontWeight: '600'
+                }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Book Condition</label>
+              <select
+                className="form-control"
+                value={verifyForm.condition}
+                onChange={(e) => setVerifyForm({ ...verifyForm, condition: e.target.value })}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+              >
+                <option value="excellent">Excellent</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="poor">Poor</option>
+              </select>
+            </div>
+
+            {selectedDonation.type === 'COLLECTION' && (
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={verifyForm.isComplete}
+                    onChange={(e) => {
+                      const isComplete = e.target.checked;
+                      const points = calculatePoints(verifyForm.verifiedCount, isComplete);
+                      setVerifyForm({ 
+                        ...verifyForm, 
+                        isComplete,
+                        awardPoints: points.total
+                      });
+                    }}
+                  />
+                  Collection Complete? ({parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10}% bonus if complete)
+                </label>
+              </div>
+            )}
+
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Staff Notes</label>
+              <textarea
+                className="form-control"
+                value={verifyForm.notes}
+                onChange={(e) => setVerifyForm({ ...verifyForm, notes: e.target.value })}
+                placeholder="Optional notes..."
+                rows="2"
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div style={{ 
+              padding: '16px', 
+              background: '#e8f5e9', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div>
+                <span style={{ fontWeight: '500' }}>Points to Award:</span>
+              </div>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: '#1E4D4B' }}>
+                {verifyForm.awardPoints}
+              </span>
+            </div>
+
+            <div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button 
                 className="btn-cancel" 
-                onClick={() => { 
-                  setShowVerifyModal(false); 
-                  setSelectedDonation(null); 
-                }}
+                onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}
               >
                 Cancel
               </button>
@@ -919,127 +673,7 @@ function DonationSchedule() {
                 className="btn-save" 
                 onClick={handleConfirmVerification}
               >
-                Verify & Award Points
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Appointment Modal */}
-      {showAppointmentModal && (
-        <div className="modal-overlay">
-          <div className="modal-content appointment-modal">
-            <h2>
-              {editingAppointment ? 'Edit Drop-off Appointment' : 'Add New Drop-off Appointment'}
-            </h2>
-            
-            <div className="form-group">
-              <label>Donor Name *</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={appointmentForm.donorName} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, donorName: e.target.value})} 
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Donation Type *</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={appointmentForm.donationType} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, donationType: e.target.value})} 
-                placeholder="e.g., Textbook Drive 300+ units"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Estimated Books</label>
-              <input 
-                type="number" 
-                className="form-control" 
-                value={appointmentForm.estimatedBooks} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, estimatedBooks: parseInt(e.target.value) || 0})} 
-                min="0"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Date *</label>
-              <input 
-                type="date" 
-                className="form-control" 
-                value={appointmentForm.appointmentDate} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, appointmentDate: e.target.value})} 
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Time Slot *</label>
-              <select 
-                className="form-control" 
-                value={appointmentForm.timeSlot} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, timeSlot: e.target.value})} 
-              >
-                <option value="Morning (10:00 AM - 12:00 PM)">Morning (10:00 AM - 12:00 PM)</option>
-                <option value="Afternoon (02:00 PM - 04:00 PM)">Afternoon (02:00 PM - 04:00 PM)</option>
-                <option value="Evening (04:00 PM - 06:00 PM)">Evening (04:00 PM - 06:00 PM)</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Status</label>
-              <select 
-                className="form-control" 
-                value={appointmentForm.status} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, status: e.target.value})} 
-              >
-                <option value="SCHEDULED">SCHEDULED</option>
-                <option value="IN_TRANSIT">IN TRANSIT</option>
-                <option value="ARRIVED">ARRIVED</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Contact Info</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={appointmentForm.contactInfo} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, contactInfo: e.target.value})} 
-                placeholder="Phone number or email"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Notes</label>
-              <textarea 
-                className="form-control" 
-                value={appointmentForm.notes} 
-                onChange={(e) => setAppointmentForm({...appointmentForm, notes: e.target.value})} 
-                placeholder="Special instructions or notes..."
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                className="btn-cancel" 
-                onClick={() => { 
-                  setShowAppointmentModal(false); 
-                  setEditingAppointment(null); 
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-save" 
-                onClick={editingAppointment ? handleUpdateAppointment : handleAddAppointment}
-              >
-                {editingAppointment ? 'Update' : 'Add'}
+                Award Points
               </button>
             </div>
           </div>

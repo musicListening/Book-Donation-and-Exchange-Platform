@@ -1,8 +1,20 @@
-// server/routes/users.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../db');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 const MAX_ORDERS_PER_DRIVER = 5;
 
@@ -41,14 +53,42 @@ router.get('/', async (req, res) => {
       select: {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
-        phoneNumber: true, address: true, createdAt: true,
-        status: true, activeOrders: true
+        phoneNumber: true, address: true, createdAt: true, profileImage: true,
+        status: true, activeOrders: true, booksDonated: true
       }
     });
     res.json(users);
   } catch (error) {
     console.error("Fetch users error:", error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// UPDATE USER PROFILE
+router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    let profileImage = req.body.profileImage; // In case it's a string URL fallback
+
+    if (req.file) {
+      profileImage = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { name, profileImage },
+      select: {
+        id: true, name: true, email: true, role: true,
+        points: true, level: true, isActive: true,
+        phoneNumber: true, address: true, createdAt: true, profileImage: true,
+        status: true, activeOrders: true, booksDonated: true
+      }
+    });
+    res.json(user);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 });
 
@@ -471,6 +511,21 @@ router.get('/:id/details', async (req, res) => {
   } catch (error) {
     console.error('Error fetching driver details:', error);
     res.status(500).json({ error: 'Failed to fetch driver details' });
+  }
+});
+
+// GET USER POINT TRANSACTIONS
+router.get('/:id/transactions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transactions = await prisma.pointTransaction.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(transactions);
+  } catch (error) {
+    console.error('Error fetching point transactions:', error);
+    res.status(500).json({ error: 'Failed to fetch point transactions' });
   }
 });
 
