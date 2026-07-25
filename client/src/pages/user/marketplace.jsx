@@ -84,7 +84,7 @@ const Marketplace = () => {
       <Navbar variant="user" user={user} cartCount={cart.length} />
 
       <main style={styles.mainContent}>
-        <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Redeem your hard-earned points for curated treasures.</p></div>
+        <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Purchase curated book bundles and handmade crafts.</p></div>
 
         <div style={styles.tabs}>
           <button style={{ ...styles.tabBtn, ...(currentTab === 'bundles' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('bundles')}>📚 Book Bundles</button>
@@ -135,7 +135,9 @@ const Marketplace = () => {
                 <p style={styles.productMeta}>{currentTab === 'bundles' ? `Curated by ${item.curator}` : `By ${item.seller}`}</p>
                 <h3 style={styles.productTitle}>{item.title}</h3>
                 <div style={styles.productPriceRow}>
-                  <span style={styles.productPrice}><i className="fa-solid fa-coins"></i> {item.price}</span>
+                  <span style={styles.productPrice}>
+                    {currentTab === 'bundles' ? `LKR ${item.price}` : <><i className="fa-solid fa-coins" style={{ marginRight: 6 }}></i> {item.price}</>}
+                  </span>
                   <button style={styles.btnAdd} onClick={() => addToCart(item, currentTab)}><i className="fa-solid fa-cart-plus"></i> Add</button>
                 </div>
               </div>
