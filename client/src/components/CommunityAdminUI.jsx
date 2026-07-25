@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ============================================================
 // SHARED DESIGN TOKENS — used by every Community Admin screen
@@ -200,6 +201,11 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
 
 // One sticky header reused by every Community Admin page.
 export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) {
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const navigate = useNavigate ? useNavigate() : null;
+  const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CA';
+
   return (
     <header style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0, backdropFilter: "blur(10px)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -215,15 +221,51 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {action}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}` }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", color: colors.onPrimary, fontWeight: 600, position: "relative" }}>
-            <Icon name="person" size={18} />
-            <span style={{ position: "absolute", right: 1, bottom: 1, width: 8, height: 8, borderRadius: "50%", background: "#19c37d", boxShadow: "0 0 0 2px rgba(255,255,255,0.9)" }} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 11, textTransform: "uppercase", color: colors.inkSoft, letterSpacing: "0.08em" }}>Admin</p>
-            <p style={{ fontSize: 13, fontWeight: 700, color: colors.primaryDeep }}>Community Admin</p>
-          </div>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, cursor: 'pointer' }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: colors.primary, overflow: 'hidden', display: "flex", alignItems: "center", justifyContent: "center", color: colors.onPrimary, fontWeight: 600, position: "relative", flexShrink: 0 }}>
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : <Icon name="person" size={18} />}
+              <span style={{ position: "absolute", right: 1, bottom: 1, width: 8, height: 8, borderRadius: "50%", background: "#19c37d", boxShadow: "0 0 0 2px rgba(255,255,255,0.9)" }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 11, textTransform: "uppercase", color: colors.inkSoft, letterSpacing: "0.08em" }}>Admin</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: colors.primaryDeep }}>{user?.name || 'Community Admin'}</p>
+            </div>
+          </button>
+          {userMenuOpen && (
+            <>
+              <div onClick={() => setUserMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                background: 'white', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                border: '1px solid #E9ECEF', minWidth: 160, zIndex: 100, overflow: 'hidden'
+              }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid #F1F3F5' }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{user?.name}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: '#6C757D' }}>Community Admin</p>
+                </div>
+                <button
+                  onClick={() => { if (navigate) navigate('/community-admin/profile'); else window.location.href = '/community-admin/profile'; setUserMenuOpen(false); }}
+                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                  onMouseEnter={e => e.target.style.background = '#F8F9FA'}
+                  onMouseLeave={e => e.target.style.background = 'none'}
+                >
+                  Profile
+                </button>
+                <div style={{ height: 1, background: '#F1F3F5' }} />
+                <button
+                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/login'; }}
+                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#E63946' }}
+                  onMouseEnter={e => e.target.style.background = '#FFF5F5'}
+                  onMouseLeave={e => e.target.style.background = 'none'}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>
