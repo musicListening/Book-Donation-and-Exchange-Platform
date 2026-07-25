@@ -2,31 +2,11 @@ const express = require('express');
 const { prisma } = require('../db');
 const { calculateDonationPoints, calculateLevelByBooks } = require('../utils/pointsCalculator');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
 
 // ===== CREATE Donation Request =====
-router.post('/', upload.array('images', 5), async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { userId, type, collectionName, category, requestedCount, notes, dropOffDate } = req.body;
-        
-        let images = [];
-        if (req.files && req.files.length > 0) {
-            images = req.files.map(file => `/uploads/${file.filename}`);
-        } else if (req.body.images) { // Fallback for URLs
-            images = Array.isArray(req.body.images) ? req.body.images : req.body.images.split(',').map(url => url.trim()).filter(Boolean);
-        }
 
         const donation = await prisma.donationRequest.create({
             data: {
