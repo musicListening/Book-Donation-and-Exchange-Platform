@@ -12,6 +12,12 @@ const DriverProfile = () => {
     reliabilityScore: 0
   });
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [profileFile, setProfileFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -19,6 +25,7 @@ const DriverProfile = () => {
       try {
         const user = JSON.parse(userData);
         setCurrentUser(user);
+        setEditName(user.name || '');
         fetchDriverStats(user.id || user.userId);
       } catch (e) {
         console.error('Error parsing user data:', e);
@@ -80,6 +87,40 @@ const DriverProfile = () => {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    setProfileFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const formData = new FormData();
+      formData.append('name', editName.trim());
+      if (profileFile) formData.append('profileImage', profileFile);
+      const res = await fetch(`/api/users/${currentUser.id}/profile`, { method: 'PUT', body: formData });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
+      const updated = await res.json();
+      setCurrentUser(updated);
+      setProfileFile(null);
+      setPreviewUrl('');
+      setEditMode(false);
+      localStorage.setItem('user', JSON.stringify(updated));
+      localStorage.setItem('ss_current_user', JSON.stringify(updated));
+      setMessage({ type: 'success', text: 'Profile updated!' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message });
+      setTimeout(() => setMessage(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -101,13 +142,47 @@ const DriverProfile = () => {
         <p>Manage your professional credentials and delivery performance.</p>
       </div>
 
-      <div className="profile-grid">
+      {message && (
+        <div style={{
+          padding: '12px 20px', borderRadius: 8, marginBottom: 16, fontWeight: 600, fontSize: 14,
+          background: message.type === 'success' ? '#E8F5E9' : '#FFEBEE',
+          color: message.type === 'success' ? '#2E7D32' : '#C62828',
+        }}>
+          {message.type === 'success' ? '✓' : '⚠'} {message.text}
+        </div>
+      )}
+
+      <div className="profile-grid" style={{ marginTop: 16 }}>
         {/* Identity */}
         <section className="col-span-8 identity-card">
           <div className="info">
-            <div className="name-title">
-              <h3>{currentUser?.name || 'Delivery Driver'}</h3>
-              <p>{currentUser?.role || 'Delivery Personnel'}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: '50%', background: '#1E4D4B', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                fontWeight: 700, overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer'
+              }} onClick={() => !editMode && setEditMode(true)}>
+                {(previewUrl || currentUser?.profileImage) ? (
+                  <img src={previewUrl || currentUser?.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (currentUser?.name?.charAt(0) || 'D')}
+                {editMode && (
+                  <label style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'rgba(0,0,0,0.6)', color: 'white', textAlign: 'center',
+                    fontSize: 10, fontWeight: 600, padding: '3px 0', cursor: 'pointer'
+                  }}>
+                    <i className="fa-solid fa-camera"></i>
+                    <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                  </label>
+                )}
+              </div>
+              <div className="name-title">
+                {editMode ? (
+                  <input value={editName} onChange={e => setEditName(e.target.value)}
+                    style={{ fontSize: 18, fontWeight: 700, padding: '4px 8px', border: '1px solid #DEE2E6', borderRadius: 6, width: '100%' }} />
+                ) : <h3>{currentUser?.name || 'Delivery Driver'}</h3>}
+                <p>{currentUser?.role || 'Delivery Personnel'}</p>
+              </div>
             </div>
             <div className="details-grid">
               <div>
@@ -127,6 +202,23 @@ const DriverProfile = () => {
                 <div className="field-value">Based on assigned deliveries</div>
               </div>
             </div>
+            {editMode ? (
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button onClick={handleSaveProfile} disabled={saving}
+                  style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#1E4D4B', color: 'white', fontWeight: 600, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+                <button onClick={() => { setEditMode(false); setEditName(currentUser?.name || ''); setProfileFile(null); setPreviewUrl(''); }}
+                  style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid #DEE2E6', background: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setEditMode(true)}
+                style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid #DEE2E6', background: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginTop: 16 }}>
+                Edit Profile
+              </button>
+            )}
           </div>
         </section>
 
