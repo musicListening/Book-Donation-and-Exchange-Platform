@@ -30,9 +30,7 @@ import AdminProfile from './pages/admin/AdminProfile';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import BundleManagement from './pages/staff/BundleManagement';
 import DonationSchedule from './pages/staff/DonationSchedule';
-import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
-
 
 // Delivery & Logistics Pages
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
@@ -91,10 +89,8 @@ function App() {
         <Route path="/staff/dashboard" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffDashboard /></ProtectedRoute>} />
         <Route path="/staff/bundle-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><BundleManagement /></ProtectedRoute>} />
         <Route path="/staff/donation-schedule" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><DonationSchedule /></ProtectedRoute>} />
-        <Route path="/staff/inventory-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><InventoryManagement /></ProtectedRoute>} />
         <Route path="/staff/order-fulfillment" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><OrderFulfillment /></ProtectedRoute>} />
         <Route path="/staff/profile" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffProfile /></ProtectedRoute>} />
-        
 
         {/* Community Admin Routes */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />
