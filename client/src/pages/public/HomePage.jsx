@@ -11,6 +11,7 @@ const Home = () => {
   // ── Stats state ──
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
+  const [topReviews, setTopReviews] = useState([]);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -44,6 +45,11 @@ const Home = () => {
     fetch(`${API_URL}/stats`)
       .then(res => res.json())
       .then(data => setStats(data))
+      .catch(() => {});
+      
+    fetch(`${API_URL}/reviews/top`)
+      .then(res => res.json())
+      .then(data => setTopReviews(data))
       .catch(() => {});
   }, []);
 
@@ -373,7 +379,11 @@ const Home = () => {
     testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
     testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
-    testimonialAvatar: { width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, margin: '0 auto 20px', color: '#343A40', boxShadow: '0 6px 20px rgba(233,196,106,0.3)' },
+    testimonialAvatar: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', margin: '0 auto 16px', fontWeight: 'bold', objectFit: 'cover' },
+    testimonialAuthor: { marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' },
+    authorName: { margin: 0, fontSize: 16, color: '#343A40', fontWeight: 700 },
+    authorRole: { fontSize: 13, color: '#6C757D', marginTop: 4 },
+    testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
     stars: { color: '#E9C46A', marginBottom: 16 },
     
     levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
@@ -484,7 +494,7 @@ const Home = () => {
 
       {/* ============ HOW IT WORKS ============ */}
       <section id="how-it-works" style={styles.howItWorks}>
-        <h2 className="reveal" style={styles.sectionTitle}>How Projenius Works</h2>
+        <h2 className="reveal" style={styles.sectionTitle}>How ShareShelf Works</h2>
         <p className="reveal" style={styles.sectionSubtitle}>Four simple steps to turn your books into new adventures.</p>
         <div className="reveal-stagger" style={styles.stepsGrid}>
           <div className="card-hover-lift" style={styles.stepCard}>
@@ -588,7 +598,37 @@ const Home = () => {
           <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
         </div>
         <div className="reveal-stagger" style={styles.testimonialGrid}>
-          {/* Testimonials will be loaded dynamically from the database */}
+          {topReviews.length > 0 ? topReviews.map((review, idx) => (
+            <div key={review.id || idx} className="card-hover-lift" style={styles.testimonialCard}>
+              <div style={styles.testimonialStars}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <i key={i} className={`fa-star ${i < review.rating ? 'fa-solid' : 'fa-regular'}`} style={{ color: '#E9C46A' }}></i>
+                ))}
+              </div>
+              <p style={styles.testimonialText}>"{review.comment || 'Great experience!'}"</p>
+              <div style={styles.testimonialAuthor}>
+                {review.user?.profileImage ? (
+                  <img 
+                    src={review.user.profileImage.startsWith('http') ? review.user.profileImage : `http://localhost:5000${review.user.profileImage.startsWith('/') ? '' : '/'}${review.user.profileImage}`} 
+                    alt="Profile" 
+                    style={styles.testimonialAvatar} 
+                  />
+                ) : (
+                  <div style={{...styles.testimonialAvatar, background: `hsl(${idx * 40}, 70%, 50%)`}}>
+                    {review.user?.name?.charAt(0) || 'U'}
+                  </div>
+                )}
+                <div>
+                  <h4 style={styles.authorName}>{review.user?.name || 'Anonymous User'}</h4>
+                  <span style={styles.authorRole}>ShareShelf Member</span>
+                </div>
+              </div>
+            </div>
+          )) : (
+            <div style={{ textAlign: 'center', width: '100%', color: '#6C757D' }}>
+              No reviews yet. Be the first to leave one!
+            </div>
+          )}
         </div>
       </section>
 
@@ -648,7 +688,7 @@ const Home = () => {
       <footer id="about" style={styles.footer}>
         <div style={styles.footerGrid}>
           <div>
-            <div style={styles.footerLogo}>📚 Projenius</div>
+            <div style={styles.footerLogo}>📚 ShareShelf</div>
             <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
               Building a sustainable ecosystem to reduce book waste, promote literacy, 
               and create a circular economy for books through donations and point-based exchanges.
@@ -672,14 +712,14 @@ const Home = () => {
           <div>
             <h4 style={{ color: 'white', fontSize: 18, marginBottom: 16 }}>Contact</h4>
             <ul style={styles.footerLinks}>
-              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> hello@projenius.com</li>
+              <li style={{ marginBottom: 8 }}><i className="fa-solid fa-envelope"></i> hello@shareshelf.com</li>
               <li style={{ marginBottom: 8 }}><i className="fa-solid fa-phone"></i> +94 77 123 4567</li>
               <li style={{ marginBottom: 8 }}><i className="fa-solid fa-location-dot"></i> Colombo, Sri Lanka</li>
             </ul>
           </div>
         </div>
         <div style={styles.footerBottom}>
-          <p>&copy; 2025 Projenius. Built with ❤️ for book lovers everywhere.</p>
+          <p>&copy; 2025 ShareShelf. Built with ❤️ for book lovers everywhere.</p>
         </div>
       </footer>
 
