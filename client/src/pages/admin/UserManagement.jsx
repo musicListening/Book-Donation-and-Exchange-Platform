@@ -260,7 +260,11 @@ export default function UserManagement() {
                             <td className="font-mono">{user.id.substring(0, 8).toUpperCase()}</td>
                             <td>
                               <div className="user-cell">
-                                <div className="user-avatar"><span>{userInitials}</span></div>
+                                <div className="user-avatar">
+                                  {user.profileImage ? (
+                                    <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} />
+                                  ) : <span>{userInitials}</span>}
+                                </div>
                                 <div>
                                   <span className="user-name">{user.name}</span>
                                   <br />
