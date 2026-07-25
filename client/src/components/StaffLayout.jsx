@@ -57,7 +57,11 @@ function StaffLayout({ children, title }) {
         <div className="sidebar-footer">
           {user?.name && (
             <div className="sidebar-user-info">
-              <div className="sidebar-user-avatar">{initials}</div>
+              <div className="sidebar-user-avatar">
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : initials}
+              </div>
               <div className="sidebar-user-details">
                 {/* Only show first letter of name */}
               <strong>{user.name || 'Staff User'}</strong>
@@ -74,11 +78,69 @@ function StaffLayout({ children, title }) {
       {/* MAIN CONTENT */}
       <div className="main-content">
         
-        {/* TOP BAR - Only title, no user info/date/time */}
+        {/* TOP BAR */}
         <div className="content-header">
           <div>
             <h1>{title || 'Staff Portal'}</h1>
-          
+          </div>
+          <div style={{ position: 'relative', marginLeft: 'auto' }}>
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
+                border: '1px solid #DEE2E6', borderRadius: 8, background: 'white',
+                cursor: 'pointer', fontSize: 13, fontWeight: 500
+              }}
+            >
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', overflow: 'hidden',
+                background: '#1E4D4B', color: 'white', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
+              }}>
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : initials}
+              </div>
+              <span>{user?.name || 'Staff'}</span>
+            </button>
+            {userMenuOpen && (
+              <>
+                <div onClick={() => setUserMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                  background: 'white', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                  border: '1px solid #E9ECEF', minWidth: 160, zIndex: 100, overflow: 'hidden'
+                }}>
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #F1F3F5' }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{user?.name}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: '#6C757D' }}>Operations Staff</p>
+                  </div>
+                  <button
+                    onClick={() => { navigate('/staff/profile'); setUserMenuOpen(false); }}
+                    style={{
+                      display: 'block', width: '100%', padding: '10px 16px', border: 'none',
+                      background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500
+                    }}
+                    onMouseEnter={e => e.target.style.background = '#F8F9FA'}
+                    onMouseLeave={e => e.target.style.background = 'none'}
+                  >
+                    Profile
+                  </button>
+                  <div style={{ height: 1, background: '#F1F3F5' }} />
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      display: 'block', width: '100%', padding: '10px 16px', border: 'none',
+                      background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#E63946'
+                    }}
+                    onMouseEnter={e => e.target.style.background = '#FFF5F5'}
+                    onMouseLeave={e => e.target.style.background = 'none'}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
         
