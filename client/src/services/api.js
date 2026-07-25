@@ -323,3 +323,72 @@ export const communityAPI = {
     updateMessage: (id, content) => communityRequest(`/messages/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
     getStats: () => communityRequest('/stats'),
 };
+
+// ===== DONATION API =====
+export const donationAPI = {
+    getAll: async () => {
+        const response = await fetch(`${API_BASE}/donations`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    verify: async (donationId, data) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/verify`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    reject: async (donationId, notes) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/reject`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ notes }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    assignMysteryBox: async (donationId, staffId) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/donations/${donationId}/mystery-box`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ staffId }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+};
+
+// ===== MYSTERY BOX API =====
+export const mysteryBoxAPI = {
+    getByUser: async (userId) => {
+        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+    claim: async (boxId) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/mystery-boxes/${boxId}/claim`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+};

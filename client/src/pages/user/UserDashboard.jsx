@@ -28,7 +28,7 @@ const UserDashboard = () => {
         }
         // Try to get fresh user data
         try {
-          const res = await fetch(`http://localhost:5000/api/users`);
+          const res = await fetch(`/api/users`);
           const users = await res.json();
           const freshUser = users.find(u => u.id === storedUser.id);
           if (freshUser) {
@@ -49,27 +49,66 @@ const UserDashboard = () => {
     navigate('/login');
   };
 
-  // Build level info from dynamic thresholds
+  // Build level info from dynamic thresholds (based on books donated)
   const getLevelInfo = () => {
-    if (levels.length === 0) {
-      return { name: 'Book Lover', min: 0, next: 250, nextName: 'Bibliophile', progress: 50 };
+    const booksDonated = Number(user?.booksDonated) || 0;
+    
+    const sorted = Array.isArray(levels) && levels.length > 0
+      ? [...levels].sort((a, b) => (Number(a.minBooks || a.minPoints) || 0) - (Number(b.minBooks || b.minPoints) || 0))
+      : [
+          { level: 1, minBooks: 10, name: 'Book Lover' },
+          { level: 2, minBooks: 25, name: 'Bibliophile' },
+          { level: 3, minBooks: 50, name: 'Grand Librarian' },
+          { level: 4, minBooks: 75, name: 'Literary Elite' },
+          { level: 5, minBooks: 100, name: 'Legendary Reader' }
+        ];
+
+    const firstLevel = sorted[0] || { level: 1, minBooks: 10, name: 'Book Lover' };
+    const firstMin = Number(firstLevel.minBooks || firstLevel.minPoints) || 10;
+
+    // Level 0: User has not reached Level 1 threshold (10 books)
+    if (booksDonated < firstMin) {
+      return {
+        name: 'New Reader (Level 0)',
+        shortName: 'New Reader',
+        level: 0,
+        min: 0,
+        next: firstMin,
+        nextName: `${firstLevel.name || 'Book Lover'} (Lvl 1)`,
+        booksNeeded: firstMin - booksDonated,
+        progress: Math.max(5, Math.min(100, (booksDonated / firstMin) * 100))
+      };
     }
-    const sorted = [...levels].sort((a, b) => a.minPoints - b.minPoints);
-    const currentLevel = user?.level || 1;
-    const idx = sorted.findIndex(l => l.level === currentLevel);
-    const current = sorted[idx] || sorted[0];
-    const next = sorted[idx + 1] || sorted[idx];
-    const min = parseInt(current.minPoints) || 0;
-    const nextMin = parseInt(next.minPoints) || min;
-    const pts = user?.points || 0;
+
+    let currentIdx = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const minReq = Number(sorted[i].minBooks || sorted[i].minPoints) || 0;
+      if (booksDonated >= minReq) {
+        currentIdx = i;
+      }
+    }
+
+    const current = sorted[currentIdx];
+    const next = sorted[currentIdx + 1] || current;
+
+    const min = Number(current.minBooks || current.minPoints) || 0;
+    const nextMin = Number(next.minBooks || next.minPoints) || min;
+    const isMaxLevel = current === next;
+
     const range = nextMin - min;
-    const progress = range > 0 ? Math.min(100, Math.max(5, ((pts - min) / range) * 100)) : 100;
+    const progress = isMaxLevel || range <= 0
+      ? 100
+      : Math.min(100, Math.max(5, ((booksDonated - min) / range) * 100));
+
     return {
-      name: current.name || `Level ${current.level}`,
+      name: `Level ${current.level} (${current.name || 'Donor'})`,
+      shortName: current.name || `Level ${current.level}`,
+      level: current.level,
       min,
       next: nextMin,
-      nextName: next !== current ? (next.name || `Level ${next.level}`) : 'Max Level',
-      progress,
+      nextName: isMaxLevel ? 'Max Level' : `${next.name || `Level ${next.level}`} (Lvl ${next.level})`,
+      booksNeeded: isMaxLevel ? 0 : Math.max(0, nextMin - booksDonated),
+      progress
     };
   };
 
@@ -93,7 +132,7 @@ const UserDashboard = () => {
     progressContainer: { marginTop: 20, width: '100%' },
     progressBar: { height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },
     progressFill: { height: '100%', background: '#E9C46A', width: `${progress}%` },
-    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 },
+    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 },
     actionBtn: { background: 'white', border: '1px solid #DEE2E6', borderRadius: 12, padding: 24, textAlign: 'center', textDecoration: 'none', color: '#343A40', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
     actionIcon: { fontSize: 32, color: '#1E4D4B' },
     card: { background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
@@ -143,7 +182,7 @@ const UserDashboard = () => {
           <div>
             <div style={styles.pointsCard}>
               <div>
-                <h3 style={{ fontSize: 16, opacity: 0.8 }}>Your Balance</h3>
+                <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
                 <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>
@@ -153,8 +192,8 @@ const UserDashboard = () => {
                     <div style={styles.progressFill}></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 8, opacity: 0.8 }}>
-                    <span>{Math.max(0, currentLevelInfo.next - user.points)} pts to next level</span>
-                    <span>{currentLevelInfo.nextName}</span>
+                    <span>{currentLevelInfo.booksNeeded} books to {currentLevelInfo.nextName}</span>
+                    <span>Lvl {currentLevelInfo.level}</span>
                   </div>
                 </div>
               </div>
@@ -168,13 +207,18 @@ const UserDashboard = () => {
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
                 <span>Browse Books</span>
               </Link>
-              <Link to="/my-crafts" style={styles.actionBtn}>
-                <i className="fa-solid fa-palette" style={{ ...styles.actionIcon, color: '#C4941A' }}></i>
-                <span>My Crafts</span>
-              </Link>
+
               <Link to="/orders" style={styles.actionBtn}>
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
+              </Link>
+              <Link to="/mystery-boxes" style={styles.actionBtn}>
+                <i className="fa-solid fa-gift" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
+                <span>Mystery Boxes</span>
+              </Link>
+              <Link to="/profile" style={styles.actionBtn}>
+                <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
+                <span>Profile</span>
               </Link>
             </div>
             <div style={{ ...styles.card, marginTop: 32 }}>
@@ -227,11 +271,11 @@ const UserDashboard = () => {
             <div style={styles.card}>
               <h3 style={{ marginBottom: 20 }}>Your Impact</h3>
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#2A9D8F' }}>12</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#2A9D8F' }}>{user.booksDonated || 0}</div>
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Books Donated Total</p>
               </div>
               <div style={{ borderTop: '1px solid #DEE2E6', paddingTop: 20, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#1E4D4B' }}>1.2</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#1E4D4B' }}>{((user.booksDonated || 0) * 0.1).toFixed(1)}</div>
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Trees Saved (Approx.)</p>
               </div>
             </div>

@@ -23,8 +23,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// 2. Parse JSON bodies (Also must be before routes)
+// 2. Parse JSON bodies and serve static uploads
 app.use(express.json());
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 3. Import routes
 const authRoutes = require('./routes/auth');
@@ -38,6 +40,7 @@ const donationRoutes = require('./routes/donations');
 const orderRoutes = require('./routes/orders');
 const statsRoutes = require('./routes/stats');
 const communityRoutes = require('./routes/community');
+const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 
 // 4. Register routes
 app.use('/api/auth', authRoutes);
@@ -53,6 +56,7 @@ app.use('/api/donations', donationRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/mystery-boxes', mysteryBoxRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {

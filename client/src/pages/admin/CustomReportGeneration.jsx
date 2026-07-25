@@ -5,8 +5,8 @@ import "../../styles/CustomReportGeneration.css";
 
 export default function CustomReportGeneration() {
   const [reportType, setReportType] = useState("Total Points Provided");
-  const [startDate, setStartDate] = useState("2026-06-01");
-  const [endDate, setEndDate] = useState("2026-06-11");
+  const [startDate, setStartDate] = useState("2026-01-01");
+  const [endDate, setEndDate] = useState("2026-12-31");
   const [exportFormat, setExportFormat] = useState("PDF");
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [anonymizeUsers, setAnonymizeUsers] = useState(false);
@@ -21,8 +21,10 @@ export default function CustomReportGeneration() {
     setNotification("");
     try {
       const data = await adminAPI.getReport(reportType, startDate, endDate);
+      if (!data || !data.rows) throw new Error("No data returned");
       setCurrentReport(data);
-      setNotification(`Report generated successfully as ${exportFormat}!`);
+      exportReport(data, exportFormat);
+      setNotification(`Report generated and downloaded as ${exportFormat}!`);
       setTimeout(() => setNotification(""), 4000);
     } catch (err) {
       setError("Failed to generate report. Please try again.");
@@ -30,6 +32,102 @@ export default function CustomReportGeneration() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // ── Export helpers (real file output) ──
+  const downloadBlob = (content, filename, mime) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const sanitize = (v) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const toCSV = (report) => {
+    const headers = report.headers || [];
+    const lines = [headers.map(sanitize).join(",")];
+    for (const row of report.rows || []) {
+      lines.push(headers.map((_, i) => sanitize(row[`col${i + 1}`])).join(","));
+    }
+    return lines.join("\n");
+  };
+
+  const exportReport = (report, format) => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const base = `report_${reportType.replace(/\s+/g, "_").toLowerCase()}_${stamp}`;
+
+    if (format === "JSON") {
+      const payload = {
+        title: report.title,
+        subtitle: report.subtitle,
+        generatedAt: new Date().toISOString(),
+        dateSpan: { startDate, endDate },
+        headers: report.headers,
+        rows: report.rows,
+      };
+      downloadBlob(JSON.stringify(payload, null, 2), `${base}.json`, "application/json");
+      return;
+    }
+
+    if (format === "CSV") {
+      downloadBlob(toCSV(report), `${base}.csv`, "text/csv;charset=utf-8;");
+      return;
+    }
+
+    // PDF — render a print-friendly document and trigger browser print (Save as PDF)
+    const html = `
+      <html>
+        <head>
+          <title>${report.title}</title>
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; padding: 32px; color: #1a1a1a; }
+            h1 { font-size: 22px; margin: 0 0 6px; color: #1A6B68; }
+            p.sub { color: #555; margin: 0 0 4px; font-size: 13px; }
+            p.meta { color: #888; font-size: 12px; margin: 0 0 18px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #d0d0d0; padding: 9px 10px; text-align: left; font-size: 13px; }
+            th { background: #1A6B68; color: #fff; }
+            tr:nth-child(even) td { background: #f6f8f8; }
+          </style>
+        </head>
+        <body>
+          <h1>${report.title}</h1>
+          <p class="sub">${report.subtitle || ""}</p>
+          <p class="meta">Date Span: ${startDate} to ${endDate} &nbsp;|&nbsp; Generated: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead><tr>${(report.headers || []).map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+            <tbody>
+              ${(report.rows || []).map((r) => `<tr>${(report.headers || []).map((_, i) => `<td>${r[`col${i + 1}`] ?? ""}</td>`).join("")}</tr>`).join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>`;
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => {
+      if (iframe.parentNode) document.body.removeChild(iframe);
+    }, 2000);
   };
 
   const maskUserIdentity = (text) => {

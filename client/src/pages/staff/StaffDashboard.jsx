@@ -1,21 +1,23 @@
 // pages/staff/StaffDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
-import { taskAPI } from '../../services/api';
 
 function StaffDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
-  const [tasks, setTasks] = useState([]);
+  const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const [showModal, setShowModal] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
-  const [formData, setFormData] = useState({
-    donor: '',
-    location: '',
-    volume: '',
-    status: 'Pending'
+  const [stats, setStats] = useState({
+    pending: 0,
+    verified: 0,
+    rejected: 0,
+    total: 0
   });
+  
+  // ===== MYSTERY BOX STATE =====
+  const [mysteryBoxDonations, setMysteryBoxDonations] = useState([]);
+  const [showMysteryBoxModal, setShowMysteryBoxModal] = useState(false);
+  const [selectedDonation, setSelectedDonation] = useState(null);
+  const [awardingBox, setAwardingBox] = useState(false);
 
   // Load user from localStorage
   useEffect(() => {
@@ -25,35 +27,136 @@ function StaffDashboard() {
         const user = JSON.parse(userData);
         setCurrentUser({
           name: user.name || user.email || 'Staff User',
-          role: user.role || 'OPERATIONS STAFF',
+          role: user.role || 'OPERATIONS_STAFF',
           id: user.id || user.userId || 'test-user-123'
         });
       } catch (e) {
         console.error('Error parsing user data:', e);
-        setCurrentUser({ name: 'Test Staff', role: 'OPERATIONS STAFF', id: 'test-user-123' });
+        setCurrentUser({ name: 'Test Staff', role: 'OPERATIONS_STAFF', id: 'test-user-123' });
       }
     } else {
-      setCurrentUser({ name: 'Test Staff', role: 'OPERATIONS STAFF', id: 'test-user-123' });
+      setCurrentUser({ name: 'Test Staff', role: 'OPERATIONS_STAFF', id: 'test-user-123' });
     }
   }, []);
 
-  // ===== LOAD TASKS FROM DATABASE =====
-  const loadTasks = async () => {
+  // ===== LOAD DONATIONS FROM DATABASE =====
+  const loadDonations = async () => {
     setLoading(true);
     try {
-      const data = await taskAPI.getAll();
-      setTasks(data);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('/api/donations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load donations');
+      }
+
+      const data = await response.json();
+      console.log('📦 Donations loaded:', data.length);
+
+      // Process donations
+      const pending = data.filter(d => d.status === 'PENDING');
+      const verified = data.filter(d => d.status === 'VERIFIED');
+      const rejected = data.filter(d => d.status === 'REJECTED');
+      
+      setStats({
+        pending: pending.length,
+        verified: verified.length,
+        rejected: rejected.length,
+        total: data.length
+      });
+
+      // Get verified donations eligible for mystery box (not yet awarded)
+      const eligibleForBox = data.filter(d => 
+        d.status === 'VERIFIED' && 
+        d.awardedMysteryBox !== true &&
+        (d.verifiedCount || d.bookCount || 0) >= 10
+      );
+      
+      setMysteryBoxDonations(eligibleForBox);
+      setDonations(data);
+
     } catch (error) {
-      console.error('❌ Error loading tasks:', error);
-      alert('Failed to load tasks: ' + error.message);
+      console.error('❌ Error loading donations:', error);
+      // Fallback mock data
+      const mockDonations = [
+        { id: '1', donor: 'Kasun Kalhara', status: 'PENDING', bookCount: 15, createdAt: new Date().toISOString() },
+        { id: '2', donor: 'Savinthi Minaya', status: 'VERIFIED', bookCount: 3, createdAt: new Date().toISOString() },
+        { id: '3', donor: 'Amal Perera', status: 'PENDING', bookCount: 50, createdAt: new Date().toISOString() },
+        { id: '4', donor: 'Nimal Fernando', status: 'VERIFIED', bookCount: 25, createdAt: new Date().toISOString() }
+      ];
+      setDonations(mockDonations);
+      setStats({
+        pending: 2,
+        verified: 2,
+        rejected: 0,
+        total: 4
+      });
+      setMysteryBoxDonations([
+        { id: '4', donor: 'Nimal Fernando', verifiedCount: 25, bookCount: 25, awardedMysteryBox: false },
+        { id: '2', donor: 'Savinthi Minaya', verifiedCount: 3, bookCount: 3, awardedMysteryBox: false }
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTasks();
+    loadDonations();
   }, []);
+
+  // ===== AWARD MYSTERY BOX =====
+  const handleAwardMysteryBox = async (donation) => {
+    setSelectedDonation(donation);
+    setShowMysteryBoxModal(true);
+  };
+
+  const handleConfirmMysteryBox = async () => {
+    if (!selectedDonation) return;
+    
+    setAwardingBox(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/donations/${selectedDonation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          awardedMysteryBox: true,
+          status: 'VERIFIED',
+          notes: (selectedDonation.notes || '') + ' 🎁 Mystery Box awarded by staff.'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to award mystery box');
+      }
+
+      alert(`🎁 Mystery Box awarded to ${selectedDonation.donor}!`);
+      
+      // Remove from list
+      setMysteryBoxDonations(mysteryBoxDonations.filter(d => d.id !== selectedDonation.id));
+      setShowMysteryBoxModal(false);
+      setSelectedDonation(null);
+      
+      // Refresh data
+      loadDonations();
+      
+    } catch (error) {
+      console.error('Error awarding mystery box:', error);
+      alert('Failed to award mystery box. Please try again.');
+    } finally {
+      setAwardingBox(false);
+    }
+  };
 
   const getUserInitials = () => {
     if (currentUser.name) {
@@ -74,89 +177,28 @@ function StaffDashboard() {
     return 'Staff';
   };
 
-  // ===== CREATE Task =====
-  const handleCreate = async () => {
-    try {
-      const newTask = await taskAPI.create({ ...formData, userId: currentUser.id });
-      setTasks([newTask, ...tasks]);
-      setShowModal(false);
-      resetForm();
-      alert('Task created successfully!');
-    } catch (error) {
-      console.error('❌ Error creating task:', error);
-      alert('Failed to create task: ' + error.message);
-    }
-  };
-
-  // ===== EDIT Task (open modal) =====
-  const handleEdit = (task) => {
-    setEditingTask(task);
-    setFormData({
-      donor: task.donor,
-      location: task.location,
-      volume: task.volume,
-      status: task.status
-    });
-    setShowModal(true);
-  };
-
-  // ===== UPDATE Task =====
-  const handleUpdate = async () => {
-    try {
-      const updated = await taskAPI.update(editingTask.id, formData);
-      setTasks(tasks.map(task => task.id === updated.id ? updated : task));
-      setShowModal(false);
-      setEditingTask(null);
-      resetForm();
-      alert('Task updated successfully!');
-    } catch (error) {
-      console.error('❌ Error updating task:', error);
-      alert('Failed to update task: ' + error.message);
-    }
-  };
-
-  // ===== DELETE Task =====
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
-    try {
-      await taskAPI.delete(id);
-      setTasks(tasks.filter(task => task.id !== id));
-      alert('Task deleted successfully!');
-    } catch (error) {
-      console.error('❌ Error deleting task:', error);
-      alert('Failed to delete task: ' + error.message);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ donor: '', location: '', volume: '', status: 'Pending' });
-  };
-
-  const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'In Review').length;
-  const completedTasks = tasks.filter(t => t.status === 'Approved' || t.status === 'Rejected').length;
-
-  // ===== GET STATUS BADGE CLASS =====
-  const getStatusBadgeClass = (status) => {
+  // ===== GET STATUS BADGE =====
+  const getStatusBadge = (status) => {
     switch(status) {
-      case 'Pending':
-        return 'status-pending';
-      case 'In Review':
-        return 'status-review';
-      case 'Approved':
-        return 'status-approved';
-      case 'Rejected':
-        return 'status-rejected';
-      default:
-        return 'status-pending';
+      case 'PENDING': return 'draft';
+      case 'VERIFIED': return 'published';
+      case 'REJECTED': return 'rejected';
+      default: return 'draft';
     }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <StaffLayout>
       <div className="content-header">
         <div>
-          <h1>Operations Overview </h1>
-          
+          <h1>Operations Dashboard</h1>
+          <p className="page-subtitle">Welcome back, {getFirstName()}! Here's your donation overview.</p>
         </div>
         <div className="user-info">
           <span className="user-role">{currentUser.name}</span>
@@ -165,165 +207,268 @@ function StaffDashboard() {
         </div>
       </div>
 
-    
-
-      {/* ===== STATS CARDS WITH BUNDLE MANAGEMENT COLORS ===== */}
+      {/* ===== STATS CARDS ===== */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>TOTAL TASKS</h3>
-          <div className="stat-value">{tasks.length}</div>
-          <div className="stat-trend">{loading ? 'Loading...' : 'Live from database'}</div>
-          <div className="stat-sub">Across all locations</div>
+          <h3>📥 PENDING</h3>
+          <div className="stat-value" style={{ color: '#ffc107' }}>{stats.pending}</div>
+          <div className="stat-trend">Awaiting verification</div>
+          <div className="stat-sub">Donations need review</div>
         </div>
 
         <div className="stat-card">
-          <h3>PENDING VERIFICATIONS</h3>
-          <div className="stat-value" style={{ color: '#ffc107' }}>{pendingTasks}</div>
-          <div className="stat-trend" style={{ color: '#ffc107' }}>▲ Awaiting action</div>
-          <div className="stat-sub">Books awaiting condition assessment</div>
+          <h3>✅ VERIFIED</h3>
+          <div className="stat-value" style={{ color: '#28a745' }}>{stats.verified}</div>
+          <div className="stat-trend">Points awarded</div>
+          <div className="stat-sub">Completed donations</div>
         </div>
 
         <div className="stat-card">
-          <h3>COMPLETED</h3>
-          <div className="stat-value" style={{ color: '#28a745' }}>{completedTasks}</div>
-          <div className="stat-trend" style={{ color: '#28a745' }}>✓ Reviewed</div>
-          <div className="stat-sub">Reviewed tasks</div>
+          <h3>❌ REJECTED</h3>
+          <div className="stat-value" style={{ color: '#dc3545' }}>{stats.rejected}</div>
+          <div className="stat-trend">Not accepted</div>
+          <div className="stat-sub">Rejected donations</div>
+        </div>
+
+        <div className="stat-card" style={{ border: '2px solid #9c27b0' }}>
+          <h3>🎁 MYSTERY BOX</h3>
+          <div className="stat-value" style={{ color: '#9c27b0' }}>{mysteryBoxDonations.length}</div>
+          <div className="stat-trend">Eligible donors</div>
+          <div className="stat-sub">10+ books verified</div>
         </div>
       </div>
 
-      <div className="task-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
-          <h3 style={{ margin: 0 }}>Urgent Task Queue</h3>
-          <button className="new-donation-btn" onClick={() => { resetForm(); setEditingTask(null); setShowModal(true); }}>
-            + Add Task
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading tasks...</div>
-        ) : tasks.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            No tasks yet. Click "Add Task" to create one!
+      {/* ===== TWO COLUMN LAYOUT ===== */}
+      <div className="two-column">
+        {/* LEFT: Recent Donations - NO VERIFY BUTTON */}
+        <div className="card-panel">
+          <div className="panel-header">
+            <h3>📋 Recent Donations</h3>
+            <span className="pending-count">{stats.pending} pending</span>
           </div>
-        ) : (
-          <div className="data-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>DONATION ID</th>
-                  <th>DONOR NAME</th>
-                  <th>LOCATION</th>
-                  <th>VOLUME</th>
-                  <th>SUBMISSION DATE</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((task) => (
-                  <tr key={task.id}>
-                    <td>{task.taskId}</td>
-                    <td>{task.donor}</td>
-                    <td>{task.location}</td>
-                    <td>{task.volume}</td>
-                    <td>{task.date}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusBadgeClass(task.status)}`}>
-                        {task.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="action-group">
-                        <button className="btn-small" onClick={() => handleEdit(task)}>Edit</button>
-                        <button className="btn-small-danger" onClick={() => handleDelete(task.id)}>Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="table-footer">
-          Showing {tasks.length} tasks across Sri Lanka
-        </div>
-      </div>
 
-      {/* Modal for Create/Edit */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingTask ? 'Edit Task' : 'Add New Task'}</h2>
-
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Donor Name</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formData.donor}
-                onChange={(e) => setFormData({ ...formData, donor: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Location</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Volume</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formData.volume}
-                onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
-                placeholder="e.g., 45 Books"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Status</label>
-              <select
-                className="form-control"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+          {loading ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
+          ) : donations.length === 0 ? (
+            <p className="empty-state">No donations yet</p>
+          ) : (
+            donations.slice(0, 10).map((donation) => (
+              <div 
+                key={donation.id} 
+                className="donation-item"
+                style={{ 
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
               >
-                <option value="Pending">Pending</option>
-                <option value="In Review">In Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+                <div>
+                  <div style={{ fontWeight: '500' }}>{donation.donor || donation.user?.name || 'Unknown'}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    {donation.bookCount || donation.verifiedCount || 0} books • {formatDate(donation.createdAt)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className={`status-badge ${getStatusBadge(donation.status)}`}>
+                    {donation.status || 'PENDING'}
+                  </span>
+                  {/* ✅ VERIFY BUTTON REMOVED - Only status badge remains */}
+                </div>
+              </div>
+            ))
+          )}
+
+          <div className="table-footer">
+            <span>Showing last {Math.min(10, donations.length)} of {stats.total} donations</span>
+            <button 
+              className="btn-small" 
+              onClick={() => window.location.href = '/staff/donation-schedule'}
+              style={{ background: 'transparent', border: '1px solid #1E4D4B', color: '#1E4D4B', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              View All →
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT: Mystery Box Eligible Donors */}
+        <div className="card-panel" style={{ border: '2px solid #9c27b0' }}>
+          <div className="panel-header">
+            <h3>🎁 Mystery Box Eligible</h3>
+            <span style={{ 
+              padding: '2px 12px', 
+              borderRadius: '20px', 
+              background: '#f3e5f5', 
+              color: '#9c27b0',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              {mysteryBoxDonations.length} donors
+            </span>
+          </div>
+
+          {mysteryBoxDonations.length === 0 ? (
+            <div style={{ 
+              padding: '30px 20px', 
+              textAlign: 'center', 
+              color: '#64748b'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎁</div>
+              <p>No eligible donors yet</p>
+              <p style={{ fontSize: '13px', marginTop: '4px' }}>
+                Donors with 10+ verified books qualify
+              </p>
+            </div>
+          ) : (
+            mysteryBoxDonations.map((donation) => (
+              <div 
+                key={donation.id} 
+                style={{ 
+                  padding: '14px 16px',
+                  marginBottom: '10px',
+                  borderRadius: '8px',
+                  background: '#faf5ff',
+                  border: '1px solid #e8d5f5',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1E4D4B' }}>
+                    {donation.donor || donation.user?.name || 'Unknown'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>
+                    📚 {donation.verifiedCount || donation.bookCount || 0} books verified
+                  </div>
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#9c27b0',
+                    marginTop: '2px',
+                    fontWeight: '500'
+                  }}>
+                    ⭐ Eligible for Mystery Box!
+                  </div>
+                </div>
+                <button 
+                  className="btn-small" 
+                  onClick={() => handleAwardMysteryBox(donation)}
+                  style={{ 
+                    background: '#9c27b0', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '6px 16px', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '13px'
+                  }}
+                >
+                  🎁 Award
+                </button>
+              </div>
+            ))
+          )}
+
+          <div style={{ 
+            marginTop: '12px', 
+            padding: '10px 16px', 
+            background: '#fff3e0', 
+            borderRadius: '6px',
+            fontSize: '13px',
+            color: '#e65100'
+          }}>
+            💡 Donors with 10+ verified books qualify for a Mystery Box
+          </div>
+        </div>
+      </div>
+
+      {/* ===== MYSTERY BOX AWARD MODAL ===== */}
+      {showMysteryBoxModal && selectedDonation && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <h2 style={{ color: '#9c27b0' }}>🎁 Award Mystery Box</h2>
+            <p className="modal-subtitle">
+              Award a mystery box to <strong>{selectedDonation.donor || selectedDonation.user?.name || 'Unknown'}</strong>
+            </p>
+
+            <div style={{ 
+              padding: '20px', 
+              background: '#faf5ff', 
+              borderRadius: '12px',
+              marginBottom: '20px',
+              border: '2px dashed #9c27b0'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '56px', marginBottom: '8px' }}>📦</div>
+                <h3 style={{ margin: '0', color: '#1E4D4B' }}>Mystery Box</h3>
+                <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+                  Contains random selection of books + bonus points
+                </p>
+              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '8px',
+                marginTop: '12px',
+                padding: '12px',
+                background: 'white',
+                borderRadius: '8px'
+              }}>
+                <div style={{ fontSize: '13px' }}>
+                  <strong>Donor:</strong> {selectedDonation.donor || selectedDonation.user?.name || 'Unknown'}
+                </div>
+                <div style={{ fontSize: '13px' }}>
+                  <strong>Books:</strong> {selectedDonation.verifiedCount || selectedDonation.bookCount || 0}
+                </div>
+                <div style={{ fontSize: '13px' }}>
+                  <strong>Bonus Points:</strong> +50
+                </div>
+                <div style={{ fontSize: '13px' }}>
+                  <strong>Random Books:</strong> 3-5
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                className="btn-secondary"
-                onClick={() => { setShowModal(false); setEditingTask(null); resetForm(); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+            <div style={{ 
+              padding: '12px', 
+              background: '#fff3e0', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              fontSize: '13px'
+            }}>
+              ⚠️ This action will award a mystery box and cannot be undone.
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-secondary" 
+                onClick={() => { setShowMysteryBoxModal(false); setSelectedDonation(null); }}
+                style={{ padding: '10px 24px', borderRadius: '8px', border: '1px solid #e5e5e5', cursor: 'pointer' }}
               >
                 Cancel
               </button>
-              <button
+              <button 
                 className="btn-primary"
-                onClick={editingTask ? handleUpdate : handleCreate}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#1E4D4B', color: 'white' }}
+                onClick={handleConfirmMysteryBox}
+                disabled={awardingBox}
+                style={{ 
+                  padding: '10px 24px', 
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  background: '#9c27b0', 
+                  color: 'white',
+                  fontWeight: '600'
+                }}
               >
-                {editingTask ? 'Update Task' : 'Add Task'}
+                {awardingBox ? 'Awarding...' : '🎁 Award Mystery Box'}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </StaffLayout>
   );
 }

@@ -427,7 +427,7 @@ router.put('/config', async (req, res) => {
           where: { level: Number(lvl.level) },
           update: {
             name: String(lvl.name || ''),
-            minPoints: Number(lvl.minPoints) || 0,
+            minPoints: Number(lvl.minBooks || lvl.minPoints) || 0,
             reward: lvl.reward || null,
             mysteryBoxUnlock: lock ? lock.unlock : null,
             mysteryBoxPoints: boxCfg ? (Number(boxCfg.points) || null) : null,
@@ -436,7 +436,7 @@ router.put('/config', async (req, res) => {
           create: {
             level: Number(lvl.level),
             name: String(lvl.name || ''),
-            minPoints: Number(lvl.minPoints) || 0,
+            minPoints: Number(lvl.minBooks || lvl.minPoints) || 0,
             reward: lvl.reward || null,
             mysteryBoxUnlock: lock ? lock.unlock : null,
             mysteryBoxPoints: boxCfg ? (Number(boxCfg.points) || null) : null,
