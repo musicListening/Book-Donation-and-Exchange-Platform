@@ -15,12 +15,16 @@ function DonationSchedule() {
   const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
   const [leveledUpResult, setLeveledUpResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState(null);
-  
-  // Verification form
+  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
+  const [marketplaceDonation, setMarketplaceDonation] = useState(null);
+  const [marketplaceForm, setMarketplaceForm] = useState({
+    price: 0,
+    condition: 'good',
+    description: '',
+    category: 'General'
+  });
   const [verifyForm, setVerifyForm] = useState({
     verifiedCount: 0,
     condition: 'good',
@@ -44,7 +48,6 @@ function DonationSchedule() {
           id: user.id || user.userId || 'staff-123'
         });
       } catch (e) {
-        console.error('Error parsing user data:', e);
         setCurrentUser({
           name: 'Staff User',
           role: 'LOGISTICS STAFF',
@@ -74,22 +77,18 @@ function DonationSchedule() {
     }
   };
 
-  // ===== FETCH ALL DATA FROM DATABASE =====
   const fetchAllData = async () => {
     setRefreshing(true);
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
-        console.error('❌ No token found');
+        console.error('No token found');
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
       let usersData = [];
-
-      // Fetch users
       const usersResponse = await fetch('/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -100,10 +99,8 @@ function DonationSchedule() {
       if (usersResponse.ok) {
         usersData = await usersResponse.json();
         setUsers(usersData);
-        console.log('👤 Users loaded:', usersData.length);
       }
 
-      // Fetch donations - ONLY PENDING ones
       const donationsResponse = await fetch('/api/donations?status=PENDING', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,11 +113,9 @@ function DonationSchedule() {
       }
 
       const donationsData = await donationsResponse.json();
-      console.log('📦 Pending donations loaded:', donationsData.length);
       
       const processedDonations = donationsData.map(donation => {
         const user = usersData?.find(u => u.id === donation.userId);
-        
         return {
           id: donation.id,
           userId: donation.userId,
@@ -154,7 +149,7 @@ function DonationSchedule() {
       setDonations(processedDonations);
 
     } catch (error) {
-      console.error('❌ Error fetching data:', error);
+      console.error('Error fetching data:', error);
       setDonations([]);
     } finally {
       setRefreshing(false);
@@ -162,7 +157,6 @@ function DonationSchedule() {
     }
   };
 
-  // ===== GET LEVEL BADGE =====
   const getLevelBadge = (level) => {
     if (levels.length > 0) {
       const found = levels.find(l => l.level === level);
@@ -178,7 +172,6 @@ function DonationSchedule() {
     return levelMap[level] || levelMap[1];
   };
 
-  // ===== GET MYSTERY BOX INFO FOR A LEVEL =====
   const getMysteryBoxInfoForLevel = (level) => {
     const lock = mysteryBoxLocks.find(l => parseInt(l.level) === level);
     const config = mysteryBoxConfigs.find(c => c.level === level);
@@ -190,7 +183,6 @@ function DonationSchedule() {
     };
   };
 
-  // ===== CALCULATE POINTS (from system config) =====
   const calculatePoints = (actualCount, isCollectionComplete) => {
     const baseRate = parseInt(systemConfig.BASE_POINTS_PER_BOOK) || 10;
     const bonusPct = parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10;
@@ -199,7 +191,6 @@ function DonationSchedule() {
     return { basePoints, bonus, total: basePoints + bonus, baseRate, bonusPct };
   };
 
-  // ===== CALCULATE LEVEL (from level config, based on books donated) =====
   const calculateLevelByBooks = (booksDonated) => {
     if (levels.length === 0) {
       if (booksDonated >= 100) return 5;
@@ -217,11 +208,9 @@ function DonationSchedule() {
     return currentLevel;
   };
 
-  // ===== HANDLE VERIFY DONATION =====
   const handleVerifyDonation = (donation) => {
     setSelectedDonation(donation);
     const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
-    
     setVerifyForm({
       verifiedCount: donation.requestedCount || 0,
       condition: donation.condition || 'good',
@@ -236,7 +225,6 @@ function DonationSchedule() {
     setShowVerifyModal(true);
   };
 
-  // ===== CONFIRM VERIFICATION - SERVER-SIDE POINTS CALCULATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
       alert('No donation selected');
@@ -245,7 +233,6 @@ function DonationSchedule() {
 
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         alert('No token found. Please login again.');
         return;
@@ -280,13 +267,8 @@ function DonationSchedule() {
       const { points, leveledUp, newLevel, newBooksDonated } = result;
 
       setLeveledUpResult(leveledUp ? { newLevel, newBooksDonated } : null);
-
-      setDonations(prevDonations => 
-        prevDonations.filter(d => d.id !== selectedDonation.id)
-      );
-      
+      setDonations(prevDonations => prevDonations.filter(d => d.id !== selectedDonation.id));
       setShowVerifyModal(false);
-      setSelectedDonation(null);
       
       const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
       alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}`);
@@ -296,6 +278,14 @@ function DonationSchedule() {
         awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
       
+      setMarketplaceDonation(selectedDonation);
+      setMarketplaceForm({
+        price: 0,
+        condition: verifyForm.condition || 'good',
+        description: '',
+        category: selectedDonation.category || 'General'
+      });
+      setShowMarketplaceModal(true);
       fetchAllData();
       
     } catch (error) {
@@ -304,13 +294,48 @@ function DonationSchedule() {
     }
   };
 
-  // ===== HANDLE REJECT DONATION - REMOVE FROM UI =====
+  const handleAddToMarketplace = async () => {
+    if (!marketplaceDonation) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/marketplace/items', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          donationId: marketplaceDonation.id,
+          title: `${marketplaceDonation.category} Book`,
+          description: marketplaceForm.description || `${marketplaceDonation.category} book in ${marketplaceForm.condition} condition`,
+          price: marketplaceForm.price,
+          condition: marketplaceForm.condition,
+          category: marketplaceForm.category,
+          donorId: marketplaceDonation.userId,
+          donorName: marketplaceDonation.donor
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add to marketplace');
+      }
+
+      setShowMarketplaceModal(false);
+      setMarketplaceDonation(null);
+      alert('Book added to marketplace successfully!');
+      
+    } catch (error) {
+      console.error('Error adding to marketplace:', error);
+      alert('Error adding to marketplace. Please try again.');
+    }
+  };
+
   const handleRejectDonation = async () => {
     if (!selectedDonation) return;
 
     try {
       const token = localStorage.getItem('token');
-      
       const response = await fetch(`/api/donations/${selectedDonation.id}/reject`, {
         method: 'PATCH',
         headers: {
@@ -326,14 +351,9 @@ function DonationSchedule() {
         throw new Error('Failed to reject donation');
       }
 
-      // ✅ REMOVE the rejected donation from UI immediately
-      setDonations(prevDonations => 
-        prevDonations.filter(d => d.id !== selectedDonation.id)
-      );
-      
+      setDonations(prevDonations => prevDonations.filter(d => d.id !== selectedDonation.id));
       setShowVerifyModal(false);
       setSelectedDonation(null);
-      
       setVerifyForm({
         verifiedCount: 0,
         condition: 'good',
@@ -354,18 +374,20 @@ function DonationSchedule() {
     }
   };
 
+  const handleSkipMarketplace = () => {
+    setShowMarketplaceModal(false);
+    setMarketplaceDonation(null);
+  };
+
   const getUserInitials = () => {
     if (currentUser.name) {
       const names = currentUser.name.split(' ');
-      if (names.length >= 2) {
-        return (names[0][0] + names[1][0]).toUpperCase();
-      }
+      if (names.length >= 2) return (names[0][0] + names[1][0]).toUpperCase();
       return currentUser.name[0].toUpperCase();
     }
     return 'SU';
   };
 
-  // ===== STATS =====
   const pendingCount = donations.length;
 
   if (loading) {
@@ -386,32 +408,28 @@ function DonationSchedule() {
           <p className="page-subtitle">Review and award points for pending donation submissions</p>
         </div>
         <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
           <div className="user-avatar">{getUserInitials()}</div>
         </div>
       </div>
 
-      {/* Stats Cards - Only Pending */}
       <div className="cards-grid">
         <div className="stat-card accent-warning">
-          <h3>⏳ Pending Donations</h3>
-          <div className="stat-value">{pendingCount}</div>
+          <h3>Pending Donations</h3>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
           <div className="stat-trend">Awaiting review</div>
           <div className="stat-sub">Donations waiting for staff verification</div>
         </div>
         <div className="stat-card">
-          <h3>📊 Total Pending</h3>
+          <h3>Total Pending</h3>
           <div className="stat-value">{pendingCount}</div>
           <div className="stat-trend">To be reviewed</div>
           <div className="stat-sub">Donations pending approval</div>
         </div>
       </div>
 
-      {/* Donation List - Table Style */}
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>Pending Donations</h3>
+          <h3 style={{ margin: 0, color: 'var(--teal)', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <input
               type="text"
@@ -420,20 +438,22 @@ function DonationSchedule() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 padding: '8px 14px',
-                border: '1px solid #DEE2E6',
+                border: '1px solid var(--border-light)',
                 borderRadius: '8px',
                 fontSize: '13px',
                 width: '220px',
-                outline: 'none'
+                outline: 'none',
+                fontFamily: 'var(--font-family)'
               }}
             />
             <span style={{ 
               padding: '4px 12px', 
               borderRadius: '20px', 
               background: '#fff3e0', 
-              color: '#ff9800',
+              color: '#e65100',
               fontSize: '13px',
-              fontWeight: '600'
+              fontWeight: '600',
+              fontFamily: 'var(--font-family)'
             }}>
               {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending
             </span>
@@ -441,16 +461,15 @@ function DonationSchedule() {
         </div>
 
         {donations.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            <p style={{ fontSize: '24px' }}>✅</p>
-            <p>All caught up! No pending donations.</p>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-light)', fontFamily: 'var(--font-family)' }}>
+            <p style={{ fontSize: '24px' }}>All caught up!</p>
+            <p>No pending donations.</p>
             <p style={{ fontSize: '13px' }}>Check back later for new submissions.</p>
           </div>
         ) : donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            <p style={{ fontSize: '24px' }}>🔍</p>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-light)', fontFamily: 'var(--font-family)' }}>
+            <p style={{ fontSize: '24px' }}>No donations found</p>
             <p>No donations found matching "{searchTerm}"</p>
-            <p style={{ fontSize: '13px' }}>Try a different search term.</p>
           </div>
         ) : (
           <div className="data-table">
@@ -470,25 +489,22 @@ function DonationSchedule() {
                   .filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase()))
                   .map((d) => {
                   const levelInfo = getLevelBadge(d.userLevel || 0);
-                  
                   return (
                     <tr key={d.id}>
                       <td>
                         <div>
-                          <strong>{d.donor}</strong>
-                          <div style={{ fontSize: '12px', color: '#64748b' }}>
+                          <strong style={{ fontFamily: 'var(--font-family)' }}>{d.donor}</strong>
+                          <div style={{ fontSize: '12px', color: 'var(--text-light)', fontFamily: 'var(--font-family)' }}>
                             {levelInfo.label}
                           </div>
                         </div>
                       </td>
-                      <td>{d.category || 'General'}</td>
-                      <td>{d.requestedCount || 0} books</td>
+                      <td style={{ fontFamily: 'var(--font-family)' }}>{d.category || 'General'}</td>
+                      <td style={{ fontFamily: 'var(--font-family)' }}>{d.requestedCount || 0} books</td>
                       <td>
-                        <span className="status-badge draft">
-                          Pending
-                        </span>
+                        <span className="status-badge draft">Pending</span>
                       </td>
-                      <td style={{ fontSize: '13px', color: '#64748b' }}>
+                      <td style={{ fontSize: '13px', color: 'var(--text-light)', fontFamily: 'var(--font-family)' }}>
                         {d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
                       <td>
@@ -497,7 +513,7 @@ function DonationSchedule() {
                             className="btn-small"
                             onClick={() => handleVerifyDonation(d)}
                           >
-                            Award
+                            Verify
                           </button>
                         </div>
                       </td>
@@ -513,30 +529,25 @@ function DonationSchedule() {
         </div>
       </div>
 
-      {/* ===== VERIFICATION MODAL ===== */}
       {showVerifyModal && selectedDonation && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '550px' }}>
-            <h2 style={{ color: '#1E4D4B', marginBottom: '8px' }}>Award Points</h2>
-            <p className="modal-subtitle" style={{ color: '#64748b', marginBottom: '20px' }}>
+            <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Verify Donation</h2>
+            <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
               Review donation from <strong>{selectedDonation.donor}</strong>
             </p>
 
-            <div className="user-submitted-info" style={{ marginBottom: '20px' }}>
-              <h4 style={{ color: '#1E4D4B', marginBottom: '12px' }}>Donation Summary</h4>
-              <div className="info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
+            <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '8px' }}>
+              <h4 style={{ color: 'var(--teal)', marginBottom: '12px', fontFamily: 'var(--font-family)' }}>Donation Summary</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px', fontFamily: 'var(--font-family)' }}>
                 <p><strong>Type:</strong> {selectedDonation.type || 'SINGLE_BOOK'}</p>
                 <p><strong>Category:</strong> {selectedDonation.category}</p>
                 <p><strong>Books Submitted:</strong> {selectedDonation.requestedCount}</p>
                 <p><strong>Est. Points:</strong> {selectedDonation.estimatedPoints}</p>
                 <p><strong>Current Level:</strong> {getLevelBadge(selectedDonation.userLevel || 0).label}</p>
                 <p><strong>Current Points:</strong> {selectedDonation.userPoints || 0}</p>
-                {selectedDonation.collectionName && (
-                  <p><strong>Collection:</strong> {selectedDonation.collectionName}</p>
-                )}
-                {selectedDonation.notes && (
-                  <p><strong>Notes:</strong> {selectedDonation.notes}</p>
-                )}
+                {selectedDonation.collectionName && <p><strong>Collection:</strong> {selectedDonation.collectionName}</p>}
+                {selectedDonation.notes && <p><strong>Notes:</strong> {selectedDonation.notes}</p>}
               </div>
               {(() => {
                 const newBooksDonated = (selectedDonation.booksDonated || 0) + (verifyForm.verifiedCount || 0);
@@ -544,14 +555,14 @@ function DonationSchedule() {
                 const willLevelUp = predictedLevel > (selectedDonation.userLevel || 0);
                 const mbInfo = getMysteryBoxInfoForLevel(predictedLevel);
                 return (
-                  <div style={{ marginTop: '12px', padding: '12px', background: willLevelUp ? '#FFF3E0' : '#F5F5F5', borderRadius: '8px', fontSize: '13px' }}>
+                  <div style={{ marginTop: '12px', padding: '12px', background: willLevelUp ? '#FFF3E0' : '#F5F5F5', borderRadius: '8px', fontSize: '13px', fontFamily: 'var(--font-family)' }}>
                     <p style={{ margin: '0 0 4px', fontWeight: '600' }}>
                       After Verification: Level {predictedLevel} ({getLevelBadge(predictedLevel).label})
-                      {willLevelUp && <span style={{ color: '#E65100', marginLeft: 8 }}>&#8593; Level Up!</span>}
+                      {willLevelUp && <span style={{ color: '#E65100', marginLeft: 8 }}>Level Up!</span>}
                     </p>
                     {willLevelUp && mbInfo && (
                       <p style={{ margin: 0, color: '#E65100' }}>
-                        Mystery Box: {mbInfo.unlock} ({mbInfo.books} books) — Costs {mbInfo.points} pts to claim
+                        Mystery Box: {mbInfo.unlock} ({mbInfo.books} books) - Costs {mbInfo.points} pts to claim
                       </p>
                     )}
                     {willLevelUp && !mbInfo && (
@@ -562,8 +573,8 @@ function DonationSchedule() {
               })()}
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Actual Books Received</label>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Actual Books Received</label>
               <input
                 type="number"
                 className="form-control"
@@ -581,21 +592,22 @@ function DonationSchedule() {
                 style={{ 
                   width: '100%', 
                   padding: '10px 14px', 
-                  border: '1px solid #e5e5e5', 
+                  border: '1px solid var(--border-light)', 
                   borderRadius: '8px',
                   fontSize: '18px',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  fontFamily: 'var(--font-family)'
                 }}
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Book Condition</label>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Book Condition</label>
               <select
                 className="form-control"
                 value={verifyForm.condition}
                 onChange={(e) => setVerifyForm({ ...verifyForm, condition: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
               >
                 <option value="excellent">Excellent</option>
                 <option value="good">Good</option>
@@ -605,8 +617,8 @@ function DonationSchedule() {
             </div>
 
             {selectedDonation.type === 'COLLECTION' && (
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-family)' }}>
                   <input
                     type="checkbox"
                     checked={verifyForm.isComplete}
@@ -625,15 +637,15 @@ function DonationSchedule() {
               </div>
             )}
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Staff Notes</label>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Staff Notes</label>
               <textarea
                 className="form-control"
                 value={verifyForm.notes}
                 onChange={(e) => setVerifyForm({ ...verifyForm, notes: e.target.value })}
                 placeholder="Optional notes..."
                 rows="2"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
               />
             </div>
 
@@ -646,35 +658,73 @@ function DonationSchedule() {
               justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
-              gap: '8px'
+              gap: '8px',
+              fontFamily: 'var(--font-family)'
             }}>
-              <div>
-                <span style={{ fontWeight: '500' }}>Points to Award:</span>
-              </div>
-              <span style={{ fontSize: '24px', fontWeight: '700', color: '#1E4D4B' }}>
+              <span style={{ fontWeight: '500' }}>Points to Award:</span>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: 'var(--teal)' }}>
                 {verifyForm.awardPoints}
               </span>
             </div>
 
-            <div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button 
-                className="btn-cancel" 
-                onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-reject" 
-                onClick={handleRejectDonation}
-              >
-                Reject
-              </button>
-              <button 
-                className="btn-save" 
-                onClick={handleConfirmVerification}
-              >
-                Award Points
-              </button>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}>Cancel</button>
+              <button className="btn-reject" onClick={handleRejectDonation}>Reject</button>
+              <button className="btn-save" onClick={handleConfirmVerification}>Verify & Award Points</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMarketplaceModal && marketplaceDonation && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '550px' }}>
+            <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Add to Marketplace</h2>
+            <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
+              Would you like to list this book in the marketplace?
+            </p>
+
+            <div style={{ marginBottom: '20px', padding: '16px', background: '#f5f5f5', borderRadius: '8px', fontFamily: 'var(--font-family)' }}>
+              <p><strong>Book:</strong> {marketplaceDonation.category}</p>
+              <p><strong>Donor:</strong> {marketplaceDonation.donor}</p>
+              <p><strong>Condition:</strong> {marketplaceForm.condition}</p>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Price ($)</label>
+              <input
+                type="number"
+                className="form-control"
+                value={marketplaceForm.price}
+                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.01"
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: '1px solid var(--border-light)', 
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontFamily: 'var(--font-family)'
+                }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Description</label>
+              <textarea
+                className="form-control"
+                value={marketplaceForm.description}
+                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, description: e.target.value })}
+                placeholder="Brief description of the book..."
+                rows="3"
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={handleSkipMarketplace}>Skip</button>
+              <button className="btn-save" style={{ background: '#FF9800', color: 'white' }} onClick={handleAddToMarketplace}>Add to Marketplace</button>
             </div>
           </div>
         </div>

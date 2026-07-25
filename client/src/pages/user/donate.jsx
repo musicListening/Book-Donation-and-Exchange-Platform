@@ -12,6 +12,8 @@ const Donate = () => {
   });
   const [donationFiles, setDonationFiles] = useState(null);
   const [myDonations, setMyDonations] = useState([]);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterType, setFilterType] = useState('All');
   const [donationCategory, setDonationCategory] = useState('books');
   const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1 }]);
   useEffect(() => {
@@ -57,6 +59,15 @@ const Donate = () => {
     });
   };
 
+  const setExactBookCount = (index, value) => {
+    const val = parseInt(value) || 1;
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[index].bookCount = Math.max(1, Math.min(100, val));
+      return { ...prev, collections: newCols };
+    });
+  };
+
   const updateType = (index, value) => {
     setFormData(prev => {
       const newCols = [...prev.collections];
@@ -83,6 +94,15 @@ const Donate = () => {
     setCraftCollections(prev => {
       const newCols = [...prev];
       newCols[index].craftCount = Math.max(1, Math.min(100, newCols[index].craftCount + delta));
+      return newCols;
+    });
+  };
+
+  const setExactCraftCount = (index, value) => {
+    const val = parseInt(value) || 1;
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].craftCount = Math.max(1, Math.min(100, val));
       return newCols;
     });
   };
@@ -350,9 +370,7 @@ const Donate = () => {
                         <div style={{ marginBottom: 0 }}>
                           <label style={styles.label}>Approximate Number of Books</label>
                           <div style={styles.numberInput}>
-                            <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, -1)}>-</button>
-                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} readOnly />
-                            <button type="button" style={styles.numBtn} onClick={() => updateCount(idx, 1)}>+</button>
+                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} onChange={(e) => setExactBookCount(idx, e.target.value)} />
                           </div>
                         </div>
                       </div>
@@ -387,9 +405,7 @@ const Donate = () => {
                         <div style={{ marginBottom: 0 }}>
                           <label style={styles.label}>Number of Items</label>
                           <div style={styles.numberInput}>
-                            <button type="button" style={styles.numBtn} onClick={() => updateCraftCount(idx, -1)}>-</button>
-                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} readOnly />
-                            <button type="button" style={styles.numBtn} onClick={() => updateCraftCount(idx, 1)}>+</button>
+                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} onChange={(e) => setExactCraftCount(idx, e.target.value)} />
                           </div>
                         </div>
                       </div>
@@ -469,21 +485,53 @@ const Donate = () => {
         </div>
 
         <div style={styles.donationsSection}>
-          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, marginBottom: 10 }}>My Donations</h2>
-          <p style={{ color: '#6C757D', marginBottom: 20 }}>Track the status of your recent donations.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, marginBottom: 10 }}>My Donations</h2>
+              <p style={{ color: '#6C757D', margin: 0 }}>Track the status of your recent donations.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #DEE2E6', outline: 'none', background: 'white', color: '#495057', fontWeight: 500 }}
+              >
+                <option value="All">All Types</option>
+                <option value="Books">Books</option>
+                <option value="Crafts">Crafts</option>
+              </select>
+              <select 
+                value={filterStatus} 
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #DEE2E6', outline: 'none', background: 'white', color: '#495057', fontWeight: 500 }}
+              >
+                <option value="All">All Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+          </div>
           
-          {myDonations.length === 0 ? (
+          {myDonations.filter(d => 
+            (filterStatus === 'All' || d.status === filterStatus) && 
+            (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+          ).length === 0 ? (
             <div style={{ background: 'white', padding: 40, borderRadius: 12, textAlign: 'center', border: '1px dashed #DEE2E6' }}>
               <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
-              <p style={{ color: '#6C757D' }}>You haven't made any donations yet.</p>
+              <p style={{ color: '#6C757D' }}>No donations match your filters.</p>
             </div>
           ) : (
             <div style={styles.donationsGrid}>
-              {myDonations.map((donation, idx) => (
+              {myDonations.filter(d => 
+                (filterStatus === 'All' || d.status === filterStatus) && 
+                (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+              ).map((donation, idx) => (
                 <div key={idx} style={styles.donationCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>{donation.type || 'Books'}</h4>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>
+                        {donation.type?.includes('Craft') ? `Crafts: ${donation.type.replace(/Crafts?:\s*/i, '')}` : `Books: ${donation.type || 'General'}`}
+                      </h4>
                       <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

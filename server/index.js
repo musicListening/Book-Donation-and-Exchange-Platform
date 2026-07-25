@@ -41,11 +41,13 @@ const orderRoutes = require('./routes/orders');
 const statsRoutes = require('./routes/stats');
 const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
+const reviewRoutes = require('./routes/reviews');
 
 // 4. Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // CRUD Routes
 app.use('/api/tasks', taskRoutes);

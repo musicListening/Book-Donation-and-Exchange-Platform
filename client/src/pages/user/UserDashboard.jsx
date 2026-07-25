@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import { systemConfigAPI } from '../../services/api';
+import { systemConfigAPI, mysteryBoxAPI } from '../../services/api';
+
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api');
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
   const [levels, setLevels] = useState([]);
+  const [mysteryBoxes, setMysteryBoxes] = useState([]);
+  const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
+  const [defaultPointsCost, setDefaultPointsCost] = useState(200);
+  const [claiming, setClaiming] = useState(null);
+  const [userReview, setUserReview] = useState({ rating: 0, comment: '' });
+  const [reviewSaving, setReviewSaving] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,25 +27,58 @@ const UserDashboard = () => {
     // Fetch fresh user data and level config
     const fetchData = async () => {
       try {
-        const config = await systemConfigAPI.getAll();
-        if (config.LEVEL_THRESHOLDS) {
-          try {
-            const parsed = JSON.parse(config.LEVEL_THRESHOLDS);
-            setLevels(parsed);
-          } catch {}
-        }
-        // Try to get fresh user data
         try {
-          const res = await fetch(`/api/users`);
-          const users = await res.json();
-          const freshUser = users.find(u => u.id === storedUser.id);
-          if (freshUser) {
-            setUser(freshUser);
-            localStorage.setItem('user', JSON.stringify(freshUser));
-            localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
+          await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: storedUser.id })
+          });
+        } catch (autoErr) {}
+
+        const [freshUsers, boxes, config] = await Promise.all([
+          fetch(`/api/users`).then(r => r.ok ? r.json() : []),
+          mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
+          systemConfigAPI.getAll()
+        ]);
+
+        if (config.LEVEL_THRESHOLDS) {
+          try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
+        }
+        if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+          try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
+        }
+        if (config.MYSTERY_BOX_POINTS_COST) {
+          setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
+        }
+
+        const freshUser = Array.isArray(freshUsers) ? freshUsers.find(u => u.id === storedUser.id) : null;
+        if (freshUser) {
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
+        }
+
+        // Fetch user review
+        try {
+          const revRes = await fetch(`${API_BASE}/reviews/me/${storedUser.id}`);
+          if (revRes.ok) {
+            const data = await revRes.json();
+            if (data) {
+              setUserReview({ rating: data.rating, comment: data.comment || '' });
+            }
           }
-        } catch {}
-      } catch {}
+        } catch (err) {
+          console.error("Error fetching review", err);
+        }
+
+        const seen = new Set();
+        const uniqueBoxes = (boxes || []).filter(b => {
+          if (seen.has(b.id)) return false;
+          seen.add(b.id);
+          return true;
+        });
+        setMysteryBoxes(uniqueBoxes);
+      } catch (err) {}
     };
     fetchData();
   }, [navigate]);
@@ -47,6 +88,55 @@ const UserDashboard = () => {
     localStorage.removeItem('ss_current_user');
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const getPointsCostForLevel = (level) => {
+    if (level === 0) return defaultPointsCost;
+    const config = mysteryBoxConfigs.find(c => c.level === level);
+    return config?.points !== undefined ? config.points : defaultPointsCost;
+  };
+
+  const handleClaim = async (boxId) => {
+    setClaiming(boxId);
+    try {
+      await mysteryBoxAPI.claim(boxId);
+      const response = await mysteryBoxAPI.claim(boxId);
+      const updatedBox = response.box || response;
+      const cost = getPointsCostForLevel(updatedBox?.level || 0);
+      const updatedUser = { ...user, points: (user.points || 0) - cost };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setMysteryBoxes(prev => prev.map(b => b.id === boxId ? updatedBox : b));
+      alert('Mystery box claimed successfully! Check the contents.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error claiming:', error);
+      alert('Error claiming box: ' + error.message);
+    } finally {
+      setClaiming(null);
+    }
+  };
+
+  const handleSaveReview = async () => {
+    if (userReview.rating === 0) return alert('Please select a rating star first!');
+    if (!user) return alert('Please log in first.');
+    setReviewSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/reviews`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user.id, rating: userReview.rating, comment: userReview.comment })
+      });
+      if (!res.ok) throw new Error('Failed to save review');
+      alert('Review saved successfully! Thank you.');
+    } catch (error) {
+      console.error('Error saving review:', error);
+      alert('Error saving review. Please try again.');
+    } finally {
+      setReviewSaving(false);
+    }
   };
 
   // Build level info from dynamic thresholds (based on books donated)
@@ -115,11 +205,8 @@ const UserDashboard = () => {
   const currentLevelInfo = getLevelInfo();
   const progress = currentLevelInfo.progress;
 
-  const activities = [
-    { type: 'donation', title: 'Points Credited', desc: 'Verified 5 Fiction books', points: '+50', time: '2 hours ago' },
-    { type: 'order', title: 'Order Shipped', desc: 'Recycled Paper Journal', points: '-90', time: 'Yesterday' },
-    { type: 'points', title: 'Daily Bonus', desc: 'Login streak reward', points: '+5', time: 'Yesterday' }
-  ];
+  const unclaimed = mysteryBoxes.filter(b => b.status === 'UNCLAIMED');
+  const claimed = mysteryBoxes.filter(b => b.status === 'CLAIMED');
 
   const styles = {
     body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', margin: 0 },
@@ -132,7 +219,7 @@ const UserDashboard = () => {
     progressContainer: { marginTop: 20, width: '100%' },
     progressBar: { height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },
     progressFill: { height: '100%', background: '#E9C46A', width: `${progress}%` },
-    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 },
+    actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 },
     actionBtn: { background: 'white', border: '1px solid #DEE2E6', borderRadius: 12, padding: 24, textAlign: 'center', textDecoration: 'none', color: '#343A40', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
     actionIcon: { fontSize: 32, color: '#1E4D4B' },
     card: { background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
@@ -207,67 +294,115 @@ const UserDashboard = () => {
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
                 <span>Browse Books</span>
               </Link>
-
               <Link to="/orders" style={styles.actionBtn}>
                 <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
                 <span>My Orders</span>
-              </Link>
-              <Link to="/mystery-boxes" style={styles.actionBtn}>
-                <i className="fa-solid fa-gift" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
-                <span>Mystery Boxes</span>
               </Link>
               <Link to="/profile" style={styles.actionBtn}>
                 <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
                 <span>Profile</span>
               </Link>
             </div>
-            <div style={{ ...styles.card, marginTop: 32 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h3>Recent Activity</h3>
-                <a href="#" style={{ color: '#1E4D4B', fontSize: 14, textDecoration: 'none', fontWeight: 600 }}>View All</a>
-              </div>
-              <ul style={styles.activityList}>
-                {activities.map((act, idx) => (
-                  <li key={idx} style={styles.activityItem}>
-                    <div style={{ 
-                      ...styles.activityIcon, 
-                      background: act.type === 'donation' ? 'rgba(42,157,143,0.1)' : 
-                                  act.type === 'order' ? 'rgba(30,77,75,0.1)' : 
-                                  'rgba(233,196,106,0.2)', 
-                      color: act.type === 'donation' ? '#2A9D8F' : 
-                             act.type === 'order' ? '#1E4D4B' : 
-                             '#C4941A' 
-                    }}>
-                      <i className={`fa-solid ${
-                        act.type === 'donation' ? 'fa-hand-holding-heart' : 
-                        act.type === 'order' ? 'fa-box' : 
-                        'fa-coins'
-                      }`}></i>
-                    </div>
-                    <div>
-                      <h4>{act.title}</h4>
-                      <p style={{ fontSize: 13, color: '#6C757D' }}>{act.desc}</p>
-                    </div>
-                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                      <div style={{ fontWeight: 700, color: act.points.startsWith('+') ? '#2A9D8F' : '#E63946' }}>
-                        {act.points}
+            {/* Unclaimed Boxes */}
+            <div style={{ marginTop: 32 }}>
+              <h2 style={{ color: '#1E4D4B', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 18 }}>
+                Unclaimed Boxes
+                {unclaimed.length > 0 && (
+                  <span style={{ background: '#9B59B6', color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: 13 }}>
+                    {unclaimed.length}
+                  </span>
+                )}
+              </h2>
+              {unclaimed.length === 0 ? (
+                <div style={{ background: 'white', borderRadius: 12, padding: 30, textAlign: 'center', color: '#6C757D', border: '1px dashed #DEE2E6' }}>
+                  <p style={{ fontSize: 13, margin: 0 }}>Keep donating books to earn mystery boxes!</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {unclaimed.map(box => {
+                    const cost = getPointsCostForLevel(box.level);
+                    const canAfford = (user?.points || 0) >= cost || cost === 0;
+                    return (
+                      <div key={box.id} style={{
+                        background: 'white',
+                        borderRadius: 12,
+                        border: '2px solid #9B59B6',
+                        padding: 16,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <h3 style={{ margin: '0 0 4px', color: '#1E4D4B', fontSize: 16 }}>
+                            {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 12px' }}>
+                            {box.description || `${box.books?.length || 0} books inside`}
+                          </p>
+                          <button
+                            onClick={() => handleClaim(box.id)}
+                            disabled={claiming === box.id || (cost > 0 && !canAfford)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: claiming === box.id ? '#ccc' : (cost > 0 && !canAfford) ? '#f0e8f7' : '#9B59B6',
+                              color: (cost > 0 && !canAfford) ? '#9B59B6' : 'white',
+                              border: (cost > 0 && !canAfford) ? '1px solid #9B59B6' : 'none',
+                              borderRadius: 8,
+                              fontWeight: 600,
+                              cursor: (claiming === box.id || (cost > 0 && !canAfford)) ? 'not-allowed' : 'pointer',
+                              fontSize: 13,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {claiming === box.id ? 'Claiming...' : (cost > 0 && !canAfford) ? `Need ${cost} pts` : `Claim (${cost > 0 ? cost + ' pts' : 'Free'})`}
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#6C757D' }}>{act.time}</div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Claimed Boxes */}
+            <div style={{ marginTop: 32 }}>
+              <h2 style={{ color: '#1E4D4B', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 18 }}>
+                Claimed Boxes
+              </h2>
+              {claimed.length === 0 ? (
+                <div style={{ background: 'white', borderRadius: 12, padding: 30, textAlign: 'center', color: '#6C757D', border: '1px dashed #DEE2E6' }}>
+                  <p style={{ fontSize: 13, margin: 0 }}>No claimed boxes yet.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {claimed.map(box => (
+                    <div key={box.id} style={{ background: 'white', borderRadius: 12, border: '1px solid #DEE2E6', padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ margin: 0, color: '#1E4D4B', fontSize: 14 }}>
+                          {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
+                        </h3>
+                        <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: '#E8F5E9', color: '#2A9D8F' }}>
+                          ✓ Claimed
+                        </span>
+                      </div>
+                      {box.books && box.books.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 6px', color: '#343A40' }}>📚 Books inside ({box.books.length}):</p>
+                          {box.books.map((book, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: idx < box.books.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                              <span style={{ fontSize: 12 }}>{book.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div>
-            <div style={styles.alertCard}>
-              <i className="fa-solid fa-triangle-exclamation" style={{ color: '#F4A261', fontSize: 24 }}></i>
-              <div>
-                <h4>Points Expiring Soon</h4>
-                <p>50 points from your December donation will expire in 5 days. Use them in the marketplace!</p>
-              </div>
-            </div>
             <div style={styles.card}>
               <h3 style={{ marginBottom: 20 }}>Your Impact</h3>
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -279,22 +414,59 @@ const UserDashboard = () => {
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Trees Saved (Approx.)</p>
               </div>
             </div>
-            <div style={styles.featuredBundle}>
-              <h4 style={{ marginBottom: 12, opacity: 0.9 }}>Curated For You</h4>
-              <p style={{ fontSize: 14, marginBottom: 16 }}>The "Mindfulness Collection" bundle is perfect for your reading history.</p>
-              <Link to="/marketplace" style={{ 
-                background: '#E9C46A', 
-                color: '#343A40', 
-                padding: 10, 
-                width: '100%', 
-                borderRadius: 8, 
-                textDecoration: 'none', 
-                display: 'block', 
-                textAlign: 'center', 
-                fontWeight: 700 
-              }}>
-                Explore Now
-              </Link>
+            <div style={{...styles.featuredBundle, background: 'white', border: '1px solid #DEE2E6', color: '#343A40', marginTop: 32}}>
+              <h4 style={{ marginBottom: 12, color: '#1E4D4B' }}>My Review</h4>
+              <p style={{ fontSize: 13, marginBottom: 16, color: '#6C757D' }}>Leave a review of your experience with ShareShelf. Your review might be featured on the homepage!</p>
+              
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <i 
+                    key={star}
+                    className="fa-solid fa-star"
+                    style={{ 
+                      fontSize: 24, 
+                      cursor: 'pointer',
+                      color: star <= userReview.rating ? '#E9C46A' : '#DEE2E6',
+                      transition: 'color 0.2s'
+                    }}
+                    onClick={() => setUserReview(prev => ({ ...prev, rating: star }))}
+                  ></i>
+                ))}
+              </div>
+
+              <textarea 
+                placeholder="Write a small comment (optional)..."
+                value={userReview.comment}
+                onChange={(e) => setUserReview(prev => ({ ...prev, comment: e.target.value }))}
+                style={{ 
+                  width: '100%', 
+                  padding: 12, 
+                  borderRadius: 8, 
+                  border: '1px solid #DEE2E6', 
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  minHeight: 80,
+                  marginBottom: 16,
+                  resize: 'vertical'
+                }}
+              />
+
+              <button 
+                onClick={handleSaveReview}
+                disabled={reviewSaving}
+                style={{ 
+                  background: '#1E4D4B', 
+                  color: 'white', 
+                  padding: 10, 
+                  width: '100%', 
+                  borderRadius: 8, 
+                  border: 'none',
+                  cursor: reviewSaving ? 'not-allowed' : 'pointer',
+                  fontWeight: 700 
+                }}
+              >
+                {reviewSaving ? 'Saving...' : 'Save Review'}
+              </button>
             </div>
           </div>
         </div>

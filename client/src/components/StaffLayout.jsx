@@ -7,7 +7,7 @@ const navItems = [
   { path: '/staff/dashboard', label: 'Dashboard' },
   { path: '/staff/bundle-management', label: 'Bundle Management' },
   { path: '/staff/donation-schedule', label: 'Donation Schedule' },
-  { path: '/staff/inventory-management', label: 'Inventory Management' },
+
   { path: '/staff/order-fulfillment', label: 'Order Fulfillment' },
 
 ];
