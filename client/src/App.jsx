@@ -14,6 +14,7 @@ import Marketplace from './pages/user/marketplace';
 import Notifications from './pages/user/notifications';
 import Orders from './pages/user/orders';
 import Profile from './pages/user/profile';
+import MysteryBoxes from './pages/user/MysteryBoxes';
 
 // Public Pages
 import HomePage from './pages/public/HomePage';
@@ -71,6 +72,7 @@ function App() {
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/mystery-boxes" element={<ProtectedRoute><MysteryBoxes /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminDashboard /></ProtectedRoute>} />

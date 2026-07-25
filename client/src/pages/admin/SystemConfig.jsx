@@ -60,7 +60,7 @@ export default function SystemConfig() {
   // ── Level handlers ──
   const handleAddTier = () => {
     const newId = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
-    setLevels([...levels, { level: newId, minPoints: "0", name: "New Level", reward: "TBD" }]);
+    setLevels([...levels, { level: newId, minBooks: "0", name: "New Level", reward: "TBD" }]);
   };
 
   const handleLevelChange = (level, field, value) => {
@@ -281,7 +281,7 @@ export default function SystemConfig() {
                   <tr>
                     <th className="sc-tier-th-level">Level</th>
                     <th>Level Name</th>
-                    <th>Min Points</th>
+                    <th>Min Books</th>
                     <th>Reward Unlock</th>
                     <th className="sc-tier-th-action"></th>
                   </tr>
@@ -294,7 +294,7 @@ export default function SystemConfig() {
                         <input className="sc-tier-input sc-tier-name" type="text" value={level.name} onChange={(e) => handleLevelChange(level.level, 'name', e.target.value)} />
                       </td>
                       <td>
-                        <input className="sc-tier-input sc-tier-points" type="number" min="0" value={level.minPoints} onChange={(e) => handleLevelChange(level.level, 'minPoints', e.target.value)} />
+                        <input className="sc-tier-input sc-tier-points" type="number" min="0" value={level.minBooks || level.minPoints || 0} onChange={(e) => handleLevelChange(level.level, 'minBooks', e.target.value)} />
                       </td>
                       <td>
                         <input className="sc-tier-input" type="text" value={level.reward || ''} onChange={(e) => handleLevelChange(level.level, 'reward', e.target.value)} placeholder="Reward description" />
@@ -350,7 +350,7 @@ export default function SystemConfig() {
 
                     <div className="sc-mystery-box-fields">
                       <div className="sc-input-group">
-                        <label className="sc-label">Points Awarded</label>
+                        <label className="sc-label">Points Cost to Claim</label>
                         <div className="sc-input-wrapper">
                           <input className="sc-input" type="number" min="0" value={config.points} onChange={(e) => handleMysteryBoxConfigChange(config.level, 'points', parseInt(e.target.value) || 0)} />
                           <span className="sc-input-suffix">pts</span>
