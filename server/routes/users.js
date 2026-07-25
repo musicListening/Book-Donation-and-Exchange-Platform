@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
         phoneNumber: true, address: true, createdAt: true, profileImage: true,
-        status: true, activeOrders: true
+        status: true, activeOrders: true, booksDonated: true
       }
     });
     res.json(users);
@@ -82,7 +82,7 @@ router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
         id: true, name: true, email: true, role: true,
         points: true, level: true, isActive: true,
         phoneNumber: true, address: true, createdAt: true, profileImage: true,
-        status: true, activeOrders: true
+        status: true, activeOrders: true, booksDonated: true
       }
     });
     res.json(user);
@@ -511,6 +511,21 @@ router.get('/:id/details', async (req, res) => {
   } catch (error) {
     console.error('Error fetching driver details:', error);
     res.status(500).json({ error: 'Failed to fetch driver details' });
+  }
+});
+
+// GET USER POINT TRANSACTIONS
+router.get('/:id/transactions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transactions = await prisma.pointTransaction.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(transactions);
+  } catch (error) {
+    console.error('Error fetching point transactions:', error);
+    res.status(500).json({ error: 'Failed to fetch point transactions' });
   }
 });
 

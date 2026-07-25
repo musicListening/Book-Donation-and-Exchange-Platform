@@ -397,7 +397,7 @@ model Task {
 }
 
 model MysteryBox {
-  id                               String           @id
+  id                               String           @id @default(uuid())
   userId                           String
   level                            Int
   status                           MysteryBoxStatus @default(UNCLAIMED)
@@ -407,9 +407,9 @@ model MysteryBox {
   description                      String?
   createdAt                        DateTime         @default(now())
   updatedAt                        DateTime
-  BookItem                         BookItem[]
-  User_MysteryBox_assignedByToUser User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
-  User_MysteryBox_userIdToUser     User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+  books                            BookItem[]
+  user                             User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+  staff                            User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
 }
 
 enum UserRole {
