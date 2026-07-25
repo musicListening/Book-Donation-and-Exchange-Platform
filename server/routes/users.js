@@ -2,19 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../db');
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
+const { uploadProfile, uploadToCloudinary } = require('../config/cloudinary');
 
 const MAX_ORDERS_PER_DRIVER = 5;
 
@@ -65,14 +53,24 @@ router.get('/', async (req, res) => {
 });
 
 // UPDATE USER PROFILE
-router.put('/:id/profile', upload.single('profileImage'), async (req, res) => {
+router.put('/:id/profile', (req, res, next) => {
+  uploadProfile.single('profileImage')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Image must be under 10MB' });
+      if (err.message) return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: 'Upload failed' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
-    let profileImage = req.body.profileImage; // In case it's a string URL fallback
+    let profileImage = req.body.profileImage || null;
 
     if (req.file) {
-      profileImage = `/uploads/${req.file.filename}`;
+      const result = await uploadToCloudinary(req.file);
+      profileImage = result.secure_url;
     }
 
     const user = await prisma.user.update({

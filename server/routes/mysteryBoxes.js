@@ -41,6 +41,9 @@ async function cleanupDuplicateBoxes(userId) {
     const toDelete = [];
 
     for (const box of boxes) {
+      // Skip staff-awarded boxes (do not delete them even if duplicate level)
+      if (box.assignedBy) continue;
+
       // If user hasn't earned this level box (e.g. box.level > actualLevel for level > 0), delete it
       if (box.level > 0 && box.level > actualLevel) {
         toDelete.push(box.id);
@@ -77,6 +80,7 @@ router.get('/user/:userId', async (req, res) => {
       include: { books: true },
       orderBy: { createdAt: 'desc' }
     });
+    
     res.json(boxes);
   } catch (error) {
     console.error('Error fetching mystery boxes:', error);
@@ -276,11 +280,13 @@ router.post('/:id/claim', async (req, res) => {
       return res.status(400).json({ error: `Not enough points. You need ${pointsCost} points to claim this mystery box.` });
     }
 
-    const updated = await prisma.mysteryBox.update({
-      where: { id },
+    const updatedBox = await prisma.mysteryBox.update({
+      where: { id: id },
       data: { status: 'CLAIMED', claimedAt: new Date() },
       include: { books: true }
     });
+
+    res.json(updatedBox);
 
     if (pointsCost > 0) {
       await prisma.user.update({

@@ -10,6 +10,7 @@ import {
   Bell,
   ChevronDown,
   Menu,
+  User,
 } from "lucide-react";
 import "../styles/AdminLayout.css";
 
@@ -114,7 +115,11 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
             </p>
           </div>
           <div className="user-profile-summary">
-            <div className="user-avatar-badge">{initials}</div>
+            <div className="user-avatar-badge">
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} />
+              ) : initials}
+            </div>
             <div className="user-profile-details">
               <p className="user-name-text">{user?.name || "Admin User"}</p>
               <p className="user-role-text">Administrator</p>
@@ -168,7 +173,11 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
                 className={cn("topbar-user-menu-trigger", userMenuOpen && "menu-active")}
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
               >
-                <div className="avatar-small">{initials}</div>
+                <div className="avatar-small">
+                  {user?.profileImage ? (
+                    <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} />
+                  ) : initials}
+                </div>
                 <span className="user-name-label">{user?.name || "Admin User"}</span>
                 <ChevronDown className={cn("chevron-icon", userMenuOpen && "chevron-rotated")} />
               </button>
@@ -184,6 +193,14 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
                       <p className="dropdown-user-name">{user?.name || "Admin User"}</p>
                       <p className="dropdown-user-role">Administrator</p>
                     </div>
+                    <div className="dropdown-separator" />
+                    <button
+                      onClick={() => { navigate('/admin/profile'); setUserMenuOpen(false); }}
+                      className="dropdown-logout-btn"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Profile
+                    </button>
                     <div className="dropdown-separator" />
                     <button
                       onClick={handleLogout}

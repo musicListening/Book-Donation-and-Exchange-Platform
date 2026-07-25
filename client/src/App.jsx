@@ -24,14 +24,13 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CustomReportGeneration from './pages/admin/CustomReportGeneration';
 import SystemConfig from './pages/admin/SystemConfig';
+import AdminProfile from './pages/admin/AdminProfile';
 
 // Staff Pages
 import StaffDashboard from './pages/staff/StaffDashboard';
 import BundleManagement from './pages/staff/BundleManagement';
 import DonationSchedule from './pages/staff/DonationSchedule';
-import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
-
 
 // Delivery & Logistics Pages
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
@@ -44,6 +43,10 @@ import CommunityHome from './pages/community/community_home';  // Community Hub
 import LibrisDashboard from './pages/community/community_admin_dashboard';  // Dashboard
 import MessageModeration from './pages/community/community_management';  // Messages
 import EventManagement from './pages/community/event_management';  // Event Management (with add/edit/delete)
+import CommunityProfile from './pages/community/CommunityProfile';
+
+// Staff Profile
+import StaffProfile from './pages/staff/StaffProfile';
 
 // Auth Guard
 import ProtectedRoute from './components/ProtectedRoute';
@@ -79,15 +82,15 @@ function App() {
         <Route path="/admin/users" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/reports/custom" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><CustomReportGeneration /></ProtectedRoute>} />
         <Route path="/admin/config" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><SystemConfig /></ProtectedRoute>} />
+        <Route path="/admin/profile" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminProfile /></ProtectedRoute>} />
 
         {/* Staff Routes */}
         <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
         <Route path="/staff/dashboard" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffDashboard /></ProtectedRoute>} />
         <Route path="/staff/bundle-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><BundleManagement /></ProtectedRoute>} />
         <Route path="/staff/donation-schedule" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><DonationSchedule /></ProtectedRoute>} />
-        <Route path="/staff/inventory-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><InventoryManagement /></ProtectedRoute>} />
         <Route path="/staff/order-fulfillment" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><OrderFulfillment /></ProtectedRoute>} />
-        
+        <Route path="/staff/profile" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffProfile /></ProtectedRoute>} />
 
         {/* Community Admin Routes */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />
@@ -95,6 +98,7 @@ function App() {
         <Route path="/community-admin/events" element={<ProtectedRoute requiredRole="COMMUNITY_ADMIN"><EventManagement /></ProtectedRoute>} />
         <Route path="/community-admin/messages" element={<ProtectedRoute requiredRole="COMMUNITY_ADMIN"><MessageModeration /></ProtectedRoute>} />
         <Route path="/community-admin/event-management" element={<ProtectedRoute requiredRole="COMMUNITY_ADMIN"><EventManagement /></ProtectedRoute>} />
+        <Route path="/community-admin/profile" element={<ProtectedRoute requiredRole="COMMUNITY_ADMIN"><CommunityProfile /></ProtectedRoute>} />
       
         {/* Delivery & Logistics Routes */}
         <Route path="/delivery" element={<ProtectedRoute requiredRole="DELIVERY_PERSONNEL"><DeliveryLayout /></ProtectedRoute>}>
