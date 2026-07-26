@@ -64,15 +64,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
       <aside className={cn("admin-sidebar-shell", sidebarOpen && "sidebar-open")}>
         {/* Brand */}
         <div className="sidebar-brand-block">
-          <div className="sidebar-brand-portal">
-            <BookOpen className="w-4 h-4 brand-icon" />
-            <span className="brand-portal-text">Admin Console</span>
-          </div>
-          <h1 className="brand-title">
-            Share
-            <br />
-            <span className="brand-title-italic">Shelf</span>
-          </h1>
+          <h1 className="brand-title">ShareShelf</h1>
           <p className="brand-tagline">
             Platform management & analytics.
           </p>
@@ -106,14 +98,6 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
 
         {/* Footer */}
         <div className="sidebar-footer-block">
-          <div className="briefing-box">
-            <p className="briefing-quote">
-              "Every book finds its reader."
-            </p>
-            <p className="briefing-author">
-              — ShareShelf admin briefing
-            </p>
-          </div>
           <div className="user-profile-summary">
             <div className="user-avatar-badge">
               {user?.profileImage ? (

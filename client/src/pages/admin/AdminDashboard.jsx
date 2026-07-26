@@ -162,6 +162,16 @@ export default function AdminDashboard() {
             hint={`${stats.totalOrders || 0} Orders`}
           />
           <MetricCard
+            label="Total Orders Placed"
+            value={(stats.totalOrders || 0).toLocaleString()}
+            hint={`${stats.completedOrders || 0} Completed Orders`}
+          />
+          <MetricCard
+            label="Sri Lankan Rupees (LKR)"
+            value={`LKR ${(stats.totalEarnedLKR || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            hint="Earned from completed orders"
+          />
+          <MetricCard
             label="Points Issued"
             value={pointsIssuedStr}
             delta={`${(stats.pointsSpent || 0).toLocaleString()} Spent`}
