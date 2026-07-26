@@ -58,7 +58,8 @@ export default function AuthModal({
 
     try {
       console.log('Attempting login...');
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -149,7 +150,8 @@ export default function AuthModal({
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

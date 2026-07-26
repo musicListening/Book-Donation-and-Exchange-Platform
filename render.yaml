@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: book-donation-api
+    runtime: node
+    region: oregon
+    rootDir: server
+    buildCommand: npm install && npx prisma generate
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
