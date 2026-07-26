@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
-import { systemConfigAPI, mysteryBoxAPI } from '../../services/api';
+import { systemConfigAPI, mysteryBoxAPI, API_BASE } from '../../services/api';
 
 const Profile = () => {
   const [user, setUser] = useState({ name: '', email: '', points: 0, level: 1, profileImage: '' });
@@ -62,7 +62,7 @@ const Profile = () => {
         if (activeUser && activeUser.id) {
           // Silently auto-assign any mystery boxes the user is entitled to based on their level
           try {
-            await fetch('/api/mystery-boxes/auto-assign', {
+            await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId: activeUser.id })

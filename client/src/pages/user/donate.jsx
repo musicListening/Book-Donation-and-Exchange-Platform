@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
 
 const Donate = () => {
   const [step, setStep] = useState(1);
@@ -182,7 +183,7 @@ const Donate = () => {
             }
           }
 
-          const response = await fetch('/api/donations', {
+          const response = await fetch(`${API_BASE}/donations`, {
             method: 'POST',
             body: bodyData
           });
@@ -208,7 +209,7 @@ const Donate = () => {
             }
           }
 
-          const response = await fetch('/api/donations', {
+          const response = await fetch(`${API_BASE}/donations`, {
             method: 'POST',
             body: bodyData
           });

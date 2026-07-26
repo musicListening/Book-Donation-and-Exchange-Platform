@@ -1,7 +1,7 @@
 // pages/staff/DonationSchedule.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
-import { systemConfigAPI } from '../../services/api';
+import { systemConfigAPI, API_BASE } from '../../services/api';
 
 function DonationSchedule() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -89,7 +89,7 @@ function DonationSchedule() {
       }
 
       let usersData = [];
-      const usersResponse = await fetch('/api/users', {
+      const usersResponse = await fetch(`${API_BASE}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -101,7 +101,7 @@ function DonationSchedule() {
         setUsers(usersData);
       }
 
-      const donationsResponse = await fetch('/api/donations?status=PENDING', {
+      const donationsResponse = await fetch(`${API_BASE}/donations?status=PENDING`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -299,7 +299,7 @@ function DonationSchedule() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/marketplace/items', {
+      const response = await fetch(`${API_BASE}/marketplace/items`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
