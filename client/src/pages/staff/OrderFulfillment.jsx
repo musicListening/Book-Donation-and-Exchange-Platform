@@ -236,7 +236,7 @@ function OrderFulfillment() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${updatingOrder.id}/status`, {
+      const response = await fetch(`${API_BASE}/orders/${updatingOrder.id}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -288,7 +288,7 @@ function OrderFulfillment() {
     if (!window.confirm('Are you sure you want to delete this order?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${id}`, {
+      const response = await fetch(`${API_BASE}/orders/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

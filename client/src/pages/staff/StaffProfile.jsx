@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
+import { API_BASE } from '../../services/api';
 
 export default function StaffProfile() {
   const [user, setUser] = useState(null);
@@ -46,7 +47,7 @@ export default function StaffProfile() {
       formData.append('name', name.trim());
       if (profileFile) formData.append('profileImage', profileFile);
 
-      const res = await fetch(`/api/users/${user.id}/profile`, { method: 'PUT', body: formData });
+      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, { method: 'PUT', body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to update profile');

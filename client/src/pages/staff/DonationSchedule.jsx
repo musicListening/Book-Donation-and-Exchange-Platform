@@ -238,7 +238,7 @@ function DonationSchedule() {
         return;
       }
 
-      const response = await fetch(`/api/donations/${selectedDonation.id}/verify`, {
+      const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/verify`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -336,7 +336,7 @@ function DonationSchedule() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/donations/${selectedDonation.id}/reject`, {
+      const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/reject`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -124,7 +124,7 @@ function StaffDashboard() {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`/api/donations/${selectedDonation.id}`, {
+      const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

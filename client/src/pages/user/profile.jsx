@@ -46,7 +46,7 @@ const Profile = () => {
         // Try to get fresh user data and sync with localStorage
         let activeUser = storedUser;
         try {
-          const res = await fetch(`/api/users`);
+          const res = await fetch(`${API_BASE}/users`);
           const users = await res.json();
           const freshUser = users.find(u => u.id === storedUser.id);
           if (freshUser) {
@@ -88,7 +88,7 @@ const Profile = () => {
 
           // Fetch user points transactions
           try {
-            const txRes = await fetch(`/api/users/${activeUser.id}/transactions`);
+            const txRes = await fetch(`${API_BASE}/users/${activeUser.id}/transactions`);
             if (txRes.ok) {
               const txData = await txRes.json();
               setTransactions(txData);
@@ -99,7 +99,7 @@ const Profile = () => {
 
           // Fetch user donation requests
           try {
-            const donRes = await fetch(`/api/donations/user/${activeUser.id}`);
+            const donRes = await fetch(`${API_BASE}/donations/user/${activeUser.id}`);
             if (donRes.ok) {
               const donData = await donRes.json();
               setDonations(donData);
@@ -136,7 +136,7 @@ const Profile = () => {
 
       // Fetch fresh user data to reflect point deduction
       try {
-        const res = await fetch(`/api/users`);
+        const res = await fetch(`${API_BASE}/users`);
         const users = await res.json();
         const freshUser = users.find(u => u.id === user.id);
         if (freshUser) {
@@ -162,7 +162,7 @@ const Profile = () => {
 
       // Refresh point transactions
       try {
-        const txRes = await fetch(`/api/users/${user.id}/transactions`);
+        const txRes = await fetch(`${API_BASE}/users/${user.id}/transactions`);
         if (txRes.ok) {
           const txData = await txRes.json();
           setTransactions(txData);
@@ -237,7 +237,7 @@ const Profile = () => {
       }
 
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/users/${user.id}/profile`, {
+      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`

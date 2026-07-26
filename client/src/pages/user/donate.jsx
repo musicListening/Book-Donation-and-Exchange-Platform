@@ -23,7 +23,7 @@ const Donate = () => {
     
     // Fetch user donations from backend
     if (storedUser.id) {
-      fetch(`/api/donations?userId=${storedUser.id}`)
+      fetch(`${API_BASE}/donations?userId=${storedUser.id}`)
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch');
           return res.json();
@@ -222,7 +222,7 @@ const Donate = () => {
       }
 
       // Re-fetch donations to update UI
-      fetch(`/api/donations?userId=${user.id}`)
+      fetch(`${API_BASE}/donations?userId=${user.id}`)
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch after submit');
           return res.json();
@@ -256,7 +256,7 @@ const Donate = () => {
 
   const handleCompleteDonation = async (fullId) => {
     try {
-      const res = await fetch(`/api/donations/${fullId}/complete`, { method: 'PUT' });
+      const res = await fetch(`${API_BASE}/donations/${fullId}/complete`, { method: 'PUT' });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to complete donation');
