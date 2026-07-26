@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/delivery.css';
+import { API_BASE } from '../../services/api';
 
 const OrderHistoryPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -18,7 +19,7 @@ const OrderHistoryPage = () => {
       }
       try {
         setLoading(true);
-        const res = await fetch(`/api/orders/driver/${user.id}`);
+        const res = await fetch(`${API_BASE}/orders/driver/${user.id}`);
         if (!res.ok) throw new Error('Failed to fetch order history.');
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : (data.orders || []));

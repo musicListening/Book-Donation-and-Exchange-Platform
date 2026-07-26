@@ -36,7 +36,7 @@ const UserDashboard = () => {
         } catch (autoErr) {}
 
         const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`/api/users`).then(r => r.ok ? r.json() : []),
+          fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
           systemConfigAPI.getAll()
         ]);
