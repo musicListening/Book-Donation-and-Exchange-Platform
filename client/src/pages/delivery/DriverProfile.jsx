@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/delivery.css';
+import { API_BASE } from '../../services/api';
 
 const DriverProfile = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -39,7 +40,7 @@ const DriverProfile = () => {
   const fetchDriverStats = async (driverId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/driver/${driverId}`, {
+      const response = await fetch(`${API_BASE}/orders/driver/${driverId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -102,7 +103,7 @@ const DriverProfile = () => {
       const formData = new FormData();
       formData.append('name', editName.trim());
       if (profileFile) formData.append('profileImage', profileFile);
-      const res = await fetch(`/api/users/${currentUser.id}/profile`, { method: 'PUT', body: formData });
+      const res = await fetch(`${API_BASE}/users/${currentUser.id}/profile`, { method: 'PUT', body: formData });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
       const updated = await res.json();
       setCurrentUser(updated);
