@@ -6,7 +6,7 @@ const Donate = () => {
   const [step, setStep] = useState(1);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
-    collections: [{ bookType: '', books: [{ title: '', count: 1 }], files: [] }],
+    collections: [{ bookType: '', totalCount: 5, books: [{ title: '', count: 1 }], files: [] }],
     notes: '',
     selectedDate: '',
     timeSlot: '10:00 AM'
@@ -52,6 +52,15 @@ const Donate = () => {
   }, []);
 
 
+  const updateTotalCount = (colIndex, value) => {
+    const val = parseInt(value) || 1;
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[colIndex].totalCount = Math.max(1, Math.min(200, val));
+      return { ...prev, collections: newCols };
+    });
+  };
+
   const updateBookTitle = (colIndex, bookIndex, value) => {
     setFormData(prev => {
       const newCols = [...prev.collections];
@@ -63,8 +72,11 @@ const Donate = () => {
   const updateBookCount = (colIndex, bookIndex, delta) => {
     setFormData(prev => {
       const newCols = [...prev.collections];
-      const newCount = Math.max(1, Math.min(100, newCols[colIndex].books[bookIndex].count + delta));
-      newCols[colIndex].books[bookIndex].count = newCount;
+      const col = newCols[colIndex];
+      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
+      const maxAllowed = col.totalCount - currentSum + col.books[bookIndex].count;
+      const newCount = Math.max(1, Math.min(maxAllowed, col.books[bookIndex].count + delta));
+      col.books[bookIndex].count = newCount;
       return { ...prev, collections: newCols };
     });
   };
@@ -73,7 +85,10 @@ const Donate = () => {
     const val = parseInt(value) || 1;
     setFormData(prev => {
       const newCols = [...prev.collections];
-      newCols[colIndex].books[bookIndex].count = Math.max(1, Math.min(100, val));
+      const col = newCols[colIndex];
+      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
+      const maxAllowed = col.totalCount - currentSum + col.books[bookIndex].count;
+      col.books[bookIndex].count = Math.max(1, Math.min(maxAllowed, val));
       return { ...prev, collections: newCols };
     });
   };
@@ -81,6 +96,9 @@ const Donate = () => {
   const addBookTitle = (colIndex) => {
     setFormData(prev => {
       const newCols = [...prev.collections];
+      const col = newCols[colIndex];
+      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
+      if (currentSum >= col.totalCount) return prev;
       newCols[colIndex].books.push({ title: '', count: 1 });
       return { ...prev, collections: newCols };
     });
@@ -115,7 +133,7 @@ const Donate = () => {
   const addCollection = () => {
     setFormData(prev => ({
       ...prev,
-      collections: [...prev.collections, { bookType: '', books: [{ title: '', count: 1 }], files: [] }]
+      collections: [...prev.collections, { bookType: '', totalCount: 5, books: [{ title: '', count: 1 }], files: [] }]
     }));
   };
 
@@ -197,21 +215,20 @@ const Donate = () => {
       return;
     }
     
-    const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.books.reduce((bSum, book) => bSum + book.count, 0), 0) : 0;
+    const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.totalCount, 0) : 0;
     const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
     const points = (totalBooks * 10) + (totalCrafts * 10);
     
     try {
       if (donationCategory === 'books') {
         for (const col of formData.collections) {
-          const colTotalBooks = col.books.reduce((bSum, book) => bSum + book.count, 0);
           const bookTitles = col.books.filter(b => b.title.trim()).map(b => `${b.title} (${b.count})`).join(', ');
           const bodyData = new FormData();
           bodyData.append('userId', user.id);
           bodyData.append('type', 'COLLECTION');
           bodyData.append('collectionName', bookTitles || col.bookType);
           bodyData.append('category', col.bookType);
-          bodyData.append('requestedCount', colTotalBooks);
+          bodyData.append('requestedCount', col.totalCount);
           bodyData.append('notes', formData.notes || '');
           bodyData.append('dropOffDate', formData.selectedDate);
           
@@ -412,6 +429,22 @@ const Donate = () => {
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
+                          <label style={styles.label}>Total Number of Books in This Collection</label>
+                          <input
+                            type="number"
+                            style={{ ...styles.formControl, width: 120, textAlign: 'center' }}
+                            value={col.totalCount}
+                            onChange={(e) => updateTotalCount(idx, e.target.value)}
+                            min="1"
+                            max="200"
+                            required
+                          />
+                          <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>
+                            How many books are you donating in this category?
+                          </small>
+                        </div>
+
+                        <div style={{ marginBottom: 16 }}>
                           <label style={styles.label}>Book Titles</label>
                           {col.books.map((book, bIdx) => (
                             <div key={bIdx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -435,11 +468,14 @@ const Donate = () => {
                               )}
                             </div>
                           ))}
-                          <button type="button" onClick={() => addBookTitle(idx)} style={{ background: 'none', border: '1px dashed #1E4D4B', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
-                            <i className="fa-solid fa-plus" style={{ marginRight: 4 }}></i> Add Another Title
-                          </button>
-                          <p style={{ fontSize: 12, color: '#6C757D', marginTop: 6 }}>
-                            Total: {col.books.reduce((s, b) => s + b.count, 0)} book(s) in this collection
+                          {col.books.reduce((s, b) => s + b.count, 0) < col.totalCount && (
+                            <button type="button" onClick={() => addBookTitle(idx)} style={{ background: 'none', border: '1px dashed #1E4D4B', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
+                              <i className="fa-solid fa-plus" style={{ marginRight: 4 }}></i> Add Another Title
+                            </button>
+                          )}
+                          <p style={{ fontSize: 12, color: col.books.reduce((s, b) => s + b.count, 0) === col.totalCount ? '#2E7D32' : '#6C757D', marginTop: 6, fontWeight: col.books.reduce((s, b) => s + b.count, 0) === col.totalCount ? 600 : 400 }}>
+                            {col.books.reduce((s, b) => s + b.count, 0)}/{col.totalCount} book(s) assigned
+                            {col.books.reduce((s, b) => s + b.count, 0) === col.totalCount && ' ✓'}
                           </p>
                         </div>
 
@@ -542,7 +578,7 @@ const Donate = () => {
                       <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <strong>{col.bookType || 'Not Selected'}</strong>
-                          <span>{col.books.reduce((s, b) => s + b.count, 0)} Books</span>
+                          <span>{col.totalCount} Books</span>
                         </div>
                         <div style={{ fontSize: 12, color: '#6C757D' }}>
                           {col.books.map((b, bi) => (
