@@ -621,22 +621,29 @@ body {
 .stat-card {
   background: white;
   border: 1px solid var(--outline-variant);
+  border-top: 4px solid var(--primary);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 8px;
+  min-height: 140px;
 }
 .stat-card .bg-icon {
   position: absolute;
-  right: 16px;
-  top: 16px;
-  font-size: 72px;
-  color: rgba(26, 60, 52, 0.04);
+  right: 20px;
+  top: 20px;
+  font-size: 50px;
+  color: rgba(26, 60, 52, 0.12);
   pointer-events: none;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .stat-label {
   font-size: 11px;
