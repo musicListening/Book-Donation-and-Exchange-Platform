@@ -6,7 +6,7 @@ const Donate = () => {
   const [step, setStep] = useState(1);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
-    collections: [{ bookType: '', bookCount: 1, bookName: '', files: [] }],
+    collections: [{ bookType: '', books: [{ title: '', count: 1 }], files: [] }],
     notes: '',
     selectedDate: '',
     timeSlot: '10:05 AM'
@@ -52,19 +52,46 @@ const Donate = () => {
   }, []);
 
 
-  const updateCount = (index, delta) => {
+  const updateBookTitle = (colIndex, bookIndex, value) => {
     setFormData(prev => {
       const newCols = [...prev.collections];
-      newCols[index].bookCount = Math.max(1, Math.min(100, newCols[index].bookCount + delta));
+      newCols[colIndex].books[bookIndex].title = value;
       return { ...prev, collections: newCols };
     });
   };
 
-  const setExactBookCount = (index, value) => {
+  const updateBookCount = (colIndex, bookIndex, delta) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      const newCount = Math.max(1, Math.min(100, newCols[colIndex].books[bookIndex].count + delta));
+      newCols[colIndex].books[bookIndex].count = newCount;
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const setExactBookCount = (colIndex, bookIndex, value) => {
     const val = parseInt(value) || 1;
     setFormData(prev => {
       const newCols = [...prev.collections];
-      newCols[index].bookCount = Math.max(1, Math.min(100, val));
+      newCols[colIndex].books[bookIndex].count = Math.max(1, Math.min(100, val));
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const addBookTitle = (colIndex) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[colIndex].books.push({ title: '', count: 1 });
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const removeBookTitle = (colIndex, bookIndex) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      if (newCols[colIndex].books.length > 1) {
+        newCols[colIndex].books = newCols[colIndex].books.filter((_, i) => i !== bookIndex);
+      }
       return { ...prev, collections: newCols };
     });
   };
@@ -73,14 +100,6 @@ const Donate = () => {
     setFormData(prev => {
       const newCols = [...prev.collections];
       newCols[index].bookType = value;
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const updateBookName = (index, value) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      newCols[index].bookName = value;
       return { ...prev, collections: newCols };
     });
   };
@@ -113,7 +132,7 @@ const Donate = () => {
   const addCollection = () => {
     setFormData(prev => ({
       ...prev,
-      collections: [...prev.collections, { bookType: '', bookCount: 1, bookName: '', files: [] }]
+      collections: [...prev.collections, { bookType: '', books: [{ title: '', count: 1 }], files: [] }]
     }));
   };
 
@@ -195,19 +214,21 @@ const Donate = () => {
       return;
     }
     
-    const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
+  const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.books.reduce((bSum, book) => bSum + book.count, 0), 0) : 0;
     const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
     const points = (totalBooks * 10) + (totalCrafts * 10);
     
     try {
       if (donationCategory === 'books') {
         for (const col of formData.collections) {
+          const colTotalBooks = col.books.reduce((bSum, book) => bSum + book.count, 0);
+          const bookTitles = col.books.map(b => `${b.title} (${b.count})`).join(', ');
           const bodyData = new FormData();
           bodyData.append('userId', user.id);
           bodyData.append('type', 'COLLECTION');
-          bodyData.append('collectionName', col.bookName || '');
+          bodyData.append('collectionName', bookTitles || col.bookType);
           bodyData.append('category', col.bookType);
-          bodyData.append('requestedCount', col.bookCount);
+          bodyData.append('requestedCount', colTotalBooks);
           bodyData.append('notes', formData.notes || '');
           bodyData.append('dropOffDate', formData.selectedDate);
           
@@ -399,17 +420,6 @@ const Donate = () => {
                           </button>
                         )}
                         <div style={styles.formGroup}>
-                          <label style={styles.label}>Book Name</label>
-                          <input
-                            type="text"
-                            style={styles.formControl}
-                            value={col.bookName || ''}
-                            onChange={(e) => updateBookName(idx, e.target.value)}
-                            placeholder="e.g. Harry Potter and the Sorcerer's Stone"
-                            required
-                          />
-                        </div>
-                        <div style={styles.formGroup}>
                           <label style={styles.label}>Book Collection Type</label>
                           <select style={styles.formControl} value={col.bookType} onChange={(e) => updateType(idx, e.target.value)} required>
                             <option value="">Select a category...</option>
@@ -421,11 +431,37 @@ const Donate = () => {
                             <option value="Mixed">Mixed Collection</option>
                           </select>
                         </div>
-                        <div style={{ marginBottom: 0 }}>
-                          <label style={styles.label}>Approximate Number of Books</label>
-                          <div style={styles.numberInput}>
-                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} onChange={(e) => setExactBookCount(idx, e.target.value)} />
-                          </div>
+
+                        <div style={{ marginBottom: 16 }}>
+                          <label style={styles.label}>Book Titles</label>
+                          {col.books.map((book, bIdx) => (
+                            <div key={bIdx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                style={{ ...styles.formControl, flex: 1 }}
+                                value={book.title}
+                                onChange={(e) => updateBookTitle(idx, bIdx, e.target.value)}
+                                placeholder={`e.g. Book title ${bIdx + 1}`}
+                                required
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', border: '2px solid #DEE2E6', borderRadius: 8, padding: '0 4px' }}>
+                                <button type="button" onClick={() => updateBookCount(idx, bIdx, -1)} style={{ width: 28, height: 28, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>-</button>
+                                <input type="number" style={{ width: 40, textAlign: 'center', border: 'none', outline: 'none', fontSize: 14, fontWeight: 600 }} value={book.count} onChange={(e) => setExactBookCount(idx, bIdx, e.target.value)} />
+                                <button type="button" onClick={() => updateBookCount(idx, bIdx, 1)} style={{ width: 28, height: 28, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>+</button>
+                              </div>
+                              {col.books.length > 1 && (
+                                <button type="button" onClick={() => removeBookTitle(idx, bIdx)} style={{ width: 28, height: 28, border: 'none', background: 'none', color: '#E63946', cursor: 'pointer', fontSize: 14 }}>
+                                  <i className="fa-solid fa-xmark"></i>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => addBookTitle(idx)} style={{ background: 'none', border: '1px dashed #1E4D4B', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
+                            <i className="fa-solid fa-plus" style={{ marginRight: 4 }}></i> Add Another Title
+                          </button>
+                          <p style={{ fontSize: 12, color: '#6C757D', marginTop: 6 }}>
+                            Total: {col.books.reduce((s, b) => s + b.count, 0)} book(s) in this collection
+                          </p>
                         </div>
 
                         <div style={{ marginTop: 16 }}>
@@ -551,9 +587,16 @@ const Donate = () => {
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ color: '#6C757D', display: 'block', marginBottom: 4 }}>Collections:</span>
                     {donationCategory === 'books' ? formData.collections.map((col, idx) => (
-                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
-                        <strong>{col.bookType || 'Not Selected'}</strong>
-                        <span>{col.bookCount} Books</span>
+                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <strong>{col.bookType || 'Not Selected'}</strong>
+                          <span>{col.books.reduce((s, b) => s + b.count, 0)} Books</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6C757D' }}>
+                          {col.books.map((b, bi) => (
+                            <span key={bi}>{b.title || 'Untitled'} ({b.count}){bi < col.books.length - 1 ? ', ' : ''}</span>
+                          ))}
+                        </div>
                       </div>
                     )) : craftCollections.map((col, idx) => (
                       <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
