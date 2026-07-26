@@ -86,8 +86,8 @@ model DonationRequest {
   condition            String?
   isCollectionComplete Boolean            @default(false)
   staffNotes           String?
-  donationImages       String[]
   status               String             @default("PENDING")
+  donationImages       String[]
   books                BookItem[]
   crafts               CraftListing[]
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,8 +124,6 @@ model BookItem {
   language             String           @default("English")
   genre                String?
   publicationYear      Int?
-  imageUrl             String?
-  pointsPrice          Int?
   isDonated            Boolean          @default(false)
   donationRequestId    String?
   collectionId         String?
@@ -134,6 +132,8 @@ model BookItem {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   mysteryBoxId         String?
+  imageUrl             String?
+  pointsPrice          Int?
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
   MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
@@ -154,12 +154,12 @@ model CraftListing {
   favorites         Int              @default(0)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+  donationRequestId String?
   CraftItem         CartItem[]
+  donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   Dispute           Dispute[]
   orderItems        OrderItem[]
-  donationRequestId String?
-  donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
 }
 
 model Order {
