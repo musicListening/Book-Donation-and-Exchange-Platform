@@ -24,6 +24,10 @@ router.get('/dashboard', async (req, res) => {
     const totalBooks = await q(() => prisma.bookItem.count({ where: { isDonated: true } }));
     const totalOrders = await q(() => prisma.order.count());
     const completedOrders = await q(() => prisma.order.count({ where: { status: 'COMPLETED' } }));
+    const totalCashEarned = await q(() => prisma.order.aggregate({
+      where: { NOT: { status: 'CANCELLED' } },
+      _sum: { cashAmount: true, totalPoints: true }
+    }));
     const totalPointsIssued = await q(() => prisma.pointTransaction.aggregate({
       where: { type: { in: ['EARNED_DONATION', 'EARNED_SALE', 'EARNED_BONUS'] } },
       _sum: { amount: true }
@@ -86,6 +90,11 @@ router.get('/dashboard', async (req, res) => {
 
     const totalPointsIssuedVal = totalPointsIssued?._sum?.amount || 0;
     const totalPointsSpentVal = totalPointsSpent?._sum?.amount || 0;
+    const rawCash = totalCashEarned?._sum?.cashAmount || 0;
+    const rawPointsInOrders = totalCashEarned?._sum?.totalPoints || 0;
+    // 10 points = 1 LKR as per system conversion rules, so points spent on book orders contribute to total order value in LKR
+    const totalEarnedLKRVal = Math.round((rawCash + (rawPointsInOrders * 0.1)) * 100) / 100;
+    const totalEarnedRupeesVal = Math.round(totalEarnedLKRVal * 0.27 * 100) / 100;
 
     // Map top donors with user info
     const topDonorIds = (topDonors || []).map(d => d.userId);
@@ -154,6 +163,8 @@ router.get('/dashboard', async (req, res) => {
           : 0,
         craftListings: craftCount || 0,
         craftSold: craftSold || 0,
+        totalEarnedLKR: totalEarnedLKRVal,
+        totalEarnedRupees: totalEarnedRupeesVal,
       },
       genreDistribution: (genreDistribution || []).map(g => ({
         name: g.genre || 'Uncategorized',
