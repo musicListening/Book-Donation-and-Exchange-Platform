@@ -179,7 +179,7 @@ export default function Navbar({
                   <div className="ss-navbar__user-menu">
                     <button className="ss-navbar__avatar" aria-label="User menu" style={user.profileImage ? { padding: 0, overflow: 'hidden' } : {}}>
                       {user.profileImage ? (
-                        <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={user.profileImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         user.name?.[0]?.toUpperCase() ?? 'U'
                       )}

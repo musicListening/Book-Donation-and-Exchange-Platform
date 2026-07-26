@@ -574,7 +574,7 @@ const Profile = () => {
         <div style={styles.profileSide}>
           <div style={styles.profileCard}>
             <div style={styles.avatar}>
-              {user.profileImage ? <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : (user.name ? user.name[0] : 'U')}
+              {user.profileImage ? <img src={user.profileImage} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : (user.name ? user.name[0] : 'U')}
             </div>
             <h2>{user.name}</h2>
             <p style={{ color: '#6C757D', fontSize: 14 }}>{user.email}</p>
