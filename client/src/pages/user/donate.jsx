@@ -6,17 +6,17 @@ const Donate = () => {
   const [step, setStep] = useState(1);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
-    collections: [{ bookType: '', bookCount: 1 }],
+    collections: [{ bookType: '', bookCount: 1, bookName: '', files: [] }],
     notes: '',
     selectedDate: '',
-    timeSlot: '10:00 AM'
+    timeSlot: '10:05 AM'
   });
   const [donationFiles, setDonationFiles] = useState(null);
   const [myDonations, setMyDonations] = useState([]);
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [donationCategory, setDonationCategory] = useState('books');
-  const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1 }]);
+  const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1, pointsPrice: 50, files: [] }]);
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
@@ -77,10 +77,43 @@ const Donate = () => {
     });
   };
 
+  const updateBookName = (index, value) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[index].bookName = value;
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const updateCollectionFiles = (index, files) => {
+    setFormData(prev => {
+      const newCols = [...prev.collections];
+      newCols[index].files = files;
+      return { ...prev, collections: newCols };
+    });
+  };
+
+  const updateCraftCollectionFiles = (index, files) => {
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].files = files;
+      return newCols;
+    });
+  };
+
+  const updateCraftPoints = (index, value) => {
+    const val = parseInt(value) || 0;
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].pointsPrice = Math.max(0, val);
+      return newCols;
+    });
+  };
+
   const addCollection = () => {
     setFormData(prev => ({
       ...prev,
-      collections: [...prev.collections, { bookType: '', bookCount: 1 }]
+      collections: [...prev.collections, { bookType: '', bookCount: 1, bookName: '', files: [] }]
     }));
   };
 
@@ -172,12 +205,17 @@ const Donate = () => {
           const bodyData = new FormData();
           bodyData.append('userId', user.id);
           bodyData.append('type', 'COLLECTION');
+          bodyData.append('collectionName', col.bookName || '');
           bodyData.append('category', col.bookType);
           bodyData.append('requestedCount', col.bookCount);
           bodyData.append('notes', formData.notes || '');
           bodyData.append('dropOffDate', formData.selectedDate);
           
-          if (donationFiles) {
+          if (col.files && col.files.length > 0) {
+            for (let i = 0; i < col.files.length; i++) {
+              bodyData.append('images', col.files[i]);
+            }
+          } else if (donationFiles) {
             for (let i = 0; i < donationFiles.length; i++) {
               bodyData.append('images', donationFiles[i]);
             }
@@ -200,10 +238,14 @@ const Donate = () => {
           bodyData.append('type', 'COLLECTION');
           bodyData.append('category', 'Craft: ' + col.craftType);
           bodyData.append('requestedCount', col.craftCount);
-          bodyData.append('notes', formData.notes || '');
+          bodyData.append('notes', (formData.notes ? `${formData.notes} | ` : '') + `Expected Points: ${col.pointsPrice || 50}`);
           bodyData.append('dropOffDate', formData.selectedDate);
           
-          if (donationFiles) {
+          if (col.files && col.files.length > 0) {
+            for (let i = 0; i < col.files.length; i++) {
+              bodyData.append('images', col.files[i]);
+            }
+          } else if (donationFiles) {
             for (let i = 0; i < donationFiles.length; i++) {
               bodyData.append('images', donationFiles[i]);
             }
@@ -357,6 +399,17 @@ const Donate = () => {
                           </button>
                         )}
                         <div style={styles.formGroup}>
+                          <label style={styles.label}>Book Name</label>
+                          <input
+                            type="text"
+                            style={styles.formControl}
+                            value={col.bookName || ''}
+                            onChange={(e) => updateBookName(idx, e.target.value)}
+                            placeholder="e.g. Harry Potter and the Sorcerer's Stone"
+                            required
+                          />
+                        </div>
+                        <div style={styles.formGroup}>
                           <label style={styles.label}>Book Collection Type</label>
                           <select style={styles.formControl} value={col.bookType} onChange={(e) => updateType(idx, e.target.value)} required>
                             <option value="">Select a category...</option>
@@ -373,6 +426,22 @@ const Donate = () => {
                           <div style={styles.numberInput}>
                             <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.bookCount} onChange={(e) => setExactBookCount(idx, e.target.value)} />
                           </div>
+                        </div>
+
+                        <div style={{ marginTop: 16 }}>
+                          <label style={styles.label}>Photos for this Book (Optional)</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => updateCollectionFiles(idx, Array.from(e.target.files))}
+                            style={{ ...styles.formControl, padding: '8px' }}
+                          />
+                          {col.files && col.files.length > 0 && (
+                            <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4, fontWeight: 600 }}>
+                              ✓ {col.files.length} photo(s) attached
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -403,11 +472,43 @@ const Donate = () => {
                             <option value="Mixed Media">Mixed Media / Other</option>
                           </select>
                         </div>
-                        <div style={{ marginBottom: 0 }}>
+                        <div style={{ marginBottom: 16 }}>
                           <label style={styles.label}>Number of Items</label>
                           <div style={styles.numberInput}>
                             <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} onChange={(e) => setExactCraftCount(idx, e.target.value)} />
                           </div>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Enter Points Value / Price (Points)</label>
+                          <input
+                            type="number"
+                            style={styles.formControl}
+                            value={col.pointsPrice || ''}
+                            onChange={(e) => updateCraftPoints(idx, e.target.value)}
+                            placeholder="e.g. 50"
+                            min="1"
+                            required
+                          />
+                          <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>
+                            Enter the amount of points for this craft item.
+                          </small>
+                        </div>
+
+                        <div style={{ marginTop: 16 }}>
+                          <label style={styles.label}>Photos for this Craft Item (Optional)</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => updateCraftCollectionFiles(idx, Array.from(e.target.files))}
+                            style={{ ...styles.formControl, padding: '8px' }}
+                          />
+                          {col.files && col.files.length > 0 && (
+                            <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4, fontWeight: 600 }}>
+                              ✓ {col.files.length} photo(s) attached
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -439,11 +540,6 @@ const Donate = () => {
                     <option value="02:00 PM">Afternoon (02:00 PM - 04:00 PM)</option>
                     <option value="05:00 PM">Evening (05:00 PM - 07:00 PM)</option>
                   </select>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Donation Images (Optional)</label>
-                  <input type="file" multiple accept="image/*" style={styles.formControl} onChange={(e) => setDonationFiles(e.target.files)} />
-                  <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>You can select multiple images to upload</small>
                 </div>
               </div>
             )}

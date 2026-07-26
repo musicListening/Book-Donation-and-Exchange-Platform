@@ -33,4 +33,39 @@ function uploadToCloudinary(file) {
   });
 }
 
-module.exports = { cloudinary, uploadProfile, uploadToCloudinary };
+function uploadToCloudinaryMultiple(files) {
+  return Promise.all(
+    files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'book-platform/donation-images' },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result.secure_url);
+          }
+        );
+        stream.end(file.buffer);
+      });
+    })
+  );
+}
+
+const uploadDonation = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
+
+const uploadBook = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
+
+module.exports = { cloudinary, uploadProfile, uploadBook, uploadDonation, uploadToCloudinary, uploadToCloudinaryMultiple };

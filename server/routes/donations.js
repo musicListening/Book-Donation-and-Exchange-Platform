@@ -1,12 +1,19 @@
 const express = require('express');
 const { prisma } = require('../db');
 const { calculateDonationPoints, calculateLevelByBooks } = require('../utils/pointsCalculator');
+const { uploadDonation, uploadToCloudinaryMultiple } = require('../config/cloudinary');
 const router = express.Router();
 
 // ===== CREATE Donation Request =====
-router.post('/', async (req, res) => {
+router.post('/', uploadDonation.array('images', 10), async (req, res) => {
     try {
         const { userId, type, collectionName, category, requestedCount, notes, dropOffDate } = req.body;
+
+        // Upload donor images to Cloudinary
+        let donationImages = [];
+        if (req.files && req.files.length > 0) {
+            donationImages = await uploadToCloudinaryMultiple(req.files);
+        }
 
         const donation = await prisma.donationRequest.create({
             data: {
@@ -19,6 +26,7 @@ router.post('/', async (req, res) => {
                 notes,
                 dropOffDate: dropOffDate ? new Date(dropOffDate) : null,
                 pointsAwarded: 0,
+                donationImages,
             }
         });
 
@@ -328,8 +336,67 @@ router.patch('/:id/verify', async (req, res) => {
             }
         }
 
+        // Create BookItem or CraftListing records for verified items
+        const isCraft = donation.category && donation.category.startsWith('Craft:');
+        const bookItems = [];
+        const craftListings = [];
+        const { bundleId, addToMarketplace } = req.body;
+
+        let dbCondition = 'GOOD';
+        if (condition) {
+            const condUpper = condition.toUpperCase();
+            if (condUpper === 'EXCELLENT' || condUpper === 'NEW') dbCondition = 'NEW';
+            else if (condUpper === 'LIKE_NEW') dbCondition = 'LIKE_NEW';
+            else if (condUpper === 'GOOD') dbCondition = 'GOOD';
+            else if (condUpper === 'FAIR') dbCondition = 'FAIR';
+            else if (condUpper === 'POOR') dbCondition = 'POOR';
+        }
+
+        const notesPointsMatch = donation.notes && donation.notes.match(/Expected Points:\s*(\d+)/i);
+        const specifiedPoints = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
+        const initialPointsPrice = specifiedPoints || ((condition === 'NEW' || condition === 'excellent') ? 50 : (condition === 'LIKE_NEW' || condition === 'good') ? 40 : (condition === 'GOOD') ? 30 : (condition === 'FAIR' || condition === 'fair') ? 20 : 10);
+
+        if (isCraft) {
+            for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
+                const craftTitle = donation.collectionName || (donation.category.replace(/^Craft:\s*/, '') + (parseInt(verifiedCount) > 1 ? ` #${i + 1}` : ''));
+                const craft = await prisma.craftListing.create({
+                    data: {
+                        userId: donation.userId,
+                        title: craftTitle,
+                        description: `Donated craft item: ${donation.category} in ${condition || 'GOOD'} condition.`,
+                        pointsPrice: initialPointsPrice,
+                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : '',
+                        additionalImages: donation.donationImages || [],
+                        status: addToMarketplace === true || addToMarketplace === 'true' ? 'LISTED' : 'DRAFT',
+                        donationRequestId: donation.id
+                    }
+                });
+                craftListings.push(craft);
+            }
+        } else {
+            for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
+                const bookTitle = donation.collectionName || (donation.category || 'Donated Book') + (parseInt(verifiedCount) > 1 ? ` #${i + 1}` : '');
+                const bookItem = await prisma.bookItem.create({
+                    data: {
+                        title: bookTitle,
+                        condition: dbCondition,
+                        isDonated: true,
+                        donationRequestId: donation.id,
+                        collectionId: bundleId || null,
+                        isAvailable: addToMarketplace === true || addToMarketplace === 'true' ? true : false,
+                        addedToMarketplaceAt: addToMarketplace === true || addToMarketplace === 'true' ? new Date() : null,
+                        pointsPrice: initialPointsPrice,
+                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : null,
+                    },
+                });
+                bookItems.push(bookItem);
+            }
+        }
+
         res.json({
             donation: updated,
+            bookItems,
+            craftListings,
             points,
             leveledUp,
             newLevel,
@@ -338,6 +405,80 @@ router.patch('/:id/verify', async (req, res) => {
         });
     } catch (error) {
         console.error('Error verifying donation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/:id/publish-marketplace', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price, description, condition, title } = req.body;
+
+        const donation = await prisma.donationRequest.findUnique({
+            where: { id }
+        });
+        if (!donation) return res.status(404).json({ error: 'Donation not found' });
+
+        const isCraft = donation.category && donation.category.startsWith('Craft:');
+        const pointsPrice = parseInt(price) || 0;
+
+        if (isCraft) {
+            const count = await prisma.craftListing.count({ where: { donationRequestId: id } });
+            if (count === 0) {
+                await prisma.craftListing.create({
+                    data: {
+                        userId: donation.userId,
+                        title: title || donation.collectionName || donation.category.replace(/^Craft:\s*/, '') || 'Donated Craft',
+                        description: description || `Donated craft item: ${donation.category} in ${condition || 'GOOD'} condition.`,
+                        pointsPrice,
+                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : '',
+                        additionalImages: donation.donationImages || [],
+                        status: 'LISTED',
+                        donationRequestId: donation.id
+                    }
+                });
+            } else {
+                await prisma.craftListing.updateMany({
+                    where: { donationRequestId: id },
+                    data: {
+                        status: 'LISTED',
+                        pointsPrice,
+                        description: description || `Donated craft item in ${condition || 'GOOD'} condition.`,
+                        title: title || undefined,
+                    }
+                });
+            }
+        } else {
+            const count = await prisma.bookItem.count({ where: { donationRequestId: id } });
+            if (count === 0) {
+                await prisma.bookItem.create({
+                    data: {
+                        title: title || donation.collectionName || donation.category || 'Donated Book',
+                        condition: condition || 'GOOD',
+                        isDonated: true,
+                        donationRequestId: donation.id,
+                        isAvailable: true,
+                        addedToMarketplaceAt: new Date(),
+                        pointsPrice,
+                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : null,
+                    }
+                });
+            } else {
+                await prisma.bookItem.updateMany({
+                    where: { donationRequestId: id },
+                    data: {
+                        isAvailable: true,
+                        addedToMarketplaceAt: new Date(),
+                        pointsPrice,
+                        title: title || undefined,
+                    }
+                });
+            }
+        }
+
+        res.json({ message: 'Items published to marketplace successfully' });
+    } catch (error) {
+        console.error('Error publishing to marketplace:', error);
         res.status(500).json({ error: error.message });
     }
 });

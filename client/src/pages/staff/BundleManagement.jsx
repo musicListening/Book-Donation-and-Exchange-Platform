@@ -1,7 +1,7 @@
 // pages/staff/BundleManagement.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
-import { collectionAPI, bookAPI } from '../../services/api';
+import { collectionAPI, bookAPI, API_BASE } from '../../services/api';
 
 function BundleManagement() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -10,6 +10,9 @@ function BundleManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingBundle, setEditingBundle] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [bundleBooks, setBundleBooks] = useState({});
+  const [showBooksModal, setShowBooksModal] = useState(false);
+  const [selectedBundleForBooks, setSelectedBundleForBooks] = useState(null);
   
   // Bundle form data
   const [formData, setFormData] = useState({
@@ -85,6 +88,24 @@ function BundleManagement() {
       }));
       setBundles(mappedBundles);
       
+      // Fetch book counts for each collection
+      const bookCounts = {};
+      for (const col of bundlesData) {
+        try {
+          const booksRes = await fetch(`${API_BASE}/books/collection/${col.id}`);
+          if (booksRes.ok) {
+            const booksData = await booksRes.json();
+            bookCounts[col.id] = {
+              count: booksData.length,
+              books: booksData,
+            };
+          }
+        } catch (err) {
+          bookCounts[col.id] = { count: 0, books: [] };
+        }
+      }
+      setBundleBooks(bookCounts);
+      
       // Load inventory (just for stats)
       const inventoryData = await bookAPI.getAll();
       console.log('✅ Inventory loaded for stats:', inventoryData);
@@ -136,6 +157,11 @@ function BundleManagement() {
       filtered = filtered.filter(bundle => bundle.status === statusFilter);
     }
     return filtered;
+  };
+
+  const openBundleBooks = (bundle) => {
+    setSelectedBundleForBooks(bundle);
+    setShowBooksModal(true);
   };
 
   const filteredBundles = getFilteredBundles();
@@ -334,7 +360,7 @@ function BundleManagement() {
                       <div className="bundle-name">{bundle.name}</div>
                       <div className="bundle-includes">{bundle.includes}</div>
                     </td>
-                    <td>{bundle.items}</td>
+                    <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
                     <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
                     <td>
                       <span className={`status-badge ${bundle.status.toLowerCase()}`}>
@@ -344,6 +370,9 @@ function BundleManagement() {
                     <td>{bundle.date}</td>
                     <td>
                       <div className="action-group">
+                        <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                          View Books ({bundleBooks[bundle.id]?.count || 0})
+                        </button>
                         <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
                         <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
                       </div>
@@ -443,6 +472,56 @@ function BundleManagement() {
                 style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#1E4D4B', color: 'white' }}
               >
                 {editingBundle ? 'Update Bundle' : 'Create Bundle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Books in Bundle Modal */}
+      {showBooksModal && selectedBundleForBooks && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 800 }}>
+            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Books in {selectedBundleForBooks.name}</h2>
+            
+            {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                No books assigned to this bundle yet.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+                {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
+                  <div key={book.id} style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e5e5' }}>
+                    {book.imageUrl ? (
+                      <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
+                        {book.title?.[0] || 'B'}
+                      </div>
+                    )}
+                    <div style={{ padding: 12 }}>
+                      <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
+                      <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition}</p>
+                      <span style={{
+                        fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                        background: book.isAvailable ? '#E8F5E9' : '#FFF3E0',
+                        color: book.isAvailable ? '#2E7D32' : '#E65100',
+                      }}>
+                        {book.isAvailable ? 'Marketplace' : 'Inventory'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => { setShowBooksModal(false); setSelectedBundleForBooks(null); }}
+                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+              >
+                Close
               </button>
             </div>
           </div>
