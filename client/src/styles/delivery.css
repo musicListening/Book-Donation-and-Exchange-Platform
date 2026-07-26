@@ -162,18 +162,18 @@ body {
 
 /* ===== PAGE HEADER ===== */
 .page-header {
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 .page-header h1 {
   font-family: 'Libre Caslon Text', serif;
-  font-size: 48px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--primary);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .page-header p {
   color: var(--on-surface-variant);
-  font-size: 18px;
+  font-size: 14px;
   opacity: 0.7;
 }
 

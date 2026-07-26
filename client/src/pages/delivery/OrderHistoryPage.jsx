@@ -70,7 +70,7 @@ const OrderHistoryPage = () => {
   return (
     <>
       <div className="page-header">
-        <h1 style={{ fontSize: '40px' }}>Order History</h1>
+        <h1 style={{ fontSize: '28px' }}>Order History</h1>
         <p>Review your completed missions and performance metrics.</p>
       </div>
 
