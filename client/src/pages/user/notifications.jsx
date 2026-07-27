@@ -1,26 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { notificationAPI } from '../../services/api';
+import { io } from 'socket.io-client';
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Donation Verified!', message: 'Your donation of 5 Fiction books has been verified. 50 points have been added to your account.', time: '10 minutes ago', icon: 'fa-circle-check', iconBg: '#2A9D8F', unread: true },
-    { id: 2, title: 'Order Shipped', message: 'Great news! Your bundle "Timeless Literature" is on its way to you.', time: '2 hours ago', icon: 'fa-truck-fast', iconBg: '#E76F51', unread: true },
-    { id: 3, title: 'Bonus Points Alert', message: 'You\'ve earned a 5-point daily login bonus. Keep up the streak!', time: 'Yesterday', icon: 'fa-gift', iconBg: '#1E4D4B', unread: false },
-    { id: 4, title: 'Donation Scheduled', message: 'Your drop-off for May 12th at 02:00 PM is confirmed. See you there!', time: '3 days ago', icon: 'fa-calendar-check', iconBg: '#1E4D4B', unread: false }
-  ]);
-
-  const [user, setUser] = useState({ name: 'User', points: 0 });
+  const [notifications, setNotifications] = useState([]);
+  const [user, setUser] = useState({ name: 'User', points: 0, id: null });
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0 };
+    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0, id: null };
     setUser(storedUser);
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
+
+    // Fetch notifications
+    const fetchNotifications = async () => {
+      if (!storedUser.id) return;
+      try {
+        const data = await notificationAPI.getAllForUser(storedUser.id);
+        setNotifications(data);
+      } catch (err) {
+        console.error('Failed to fetch notifications', err);
+      }
+    };
+    fetchNotifications();
+
+    if (storedUser.id) {
+      const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
+      
+      socket.emit('joinRoom', storedUser.id);
+      
+      socket.on('newNotification', (newNotif) => {
+        setNotifications(prev => [newNotif, ...prev]);
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
   }, []);
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, unread: false })));
+  const markAllAsRead = async () => {
+    if (!user.id) return;
+    try {
+      await notificationAPI.markAllAsRead(user.id);
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error('Failed to mark all as read', err);
+    }
   };
 
   const styles = {
@@ -57,19 +85,38 @@ const Notifications = () => {
           </div>
 
           <div>
-            {notifications.map(notif => (
-              <div key={notif.id} style={{ ...styles.notifItem, ...(notif.unread ? styles.notifItemUnread : {}) }}>
-                {notif.unread && <div style={styles.unreadIndicator}></div>}
-                <div style={{ ...styles.notifIcon, background: `rgba(${notif.iconBg === '#2A9D8F' ? '42,157,143' : notif.iconBg === '#E76F51' ? '231,111,81' : '30,77,75'}, 0.1)`, color: notif.iconBg }}>
-                  <i className={`fa-solid ${notif.icon}`}></i>
+            {notifications.map(notif => {
+              const unread = !notif.isRead;
+              // Map types to icons and colors
+              let icon = 'fa-bell';
+              let iconBg = '#1E4D4B';
+              
+              if (notif.type === 'LEVEL_UP') { icon = 'fa-arrow-up-right-dots'; iconBg = '#2A9D8F'; }
+              else if (notif.type === 'MYSTERY_BOX_REWARD') { icon = 'fa-gift'; iconBg = '#E9C46A'; }
+              else if (notif.type === 'SYSTEM_ALERT') { icon = 'fa-circle-exclamation'; iconBg = '#E76F51'; }
+              else if (notif.type === 'ORDER_STATUS_UPDATE') { icon = 'fa-truck-fast'; iconBg = '#2A9D8F'; }
+
+              return (
+                <div key={notif.id} style={{ ...styles.notifItem, ...(unread ? styles.notifItemUnread : {}) }}>
+                  {unread && <div style={styles.unreadIndicator}></div>}
+                  <div style={{ ...styles.notifIcon, background: `rgba(${iconBg === '#2A9D8F' ? '42,157,143' : iconBg === '#E76F51' ? '231,111,81' : iconBg === '#E9C46A' ? '233,196,106' : '30,77,75'}, 0.1)`, color: iconBg }}>
+                    <i className={`fa-solid ${icon}`}></i>
+                  </div>
+                  <div style={styles.notifContent}>
+                    <h4 style={styles.notifTitle}>{notif.title}</h4>
+                    <p style={styles.notifMessage}>{notif.message}</p>
+                    <div style={styles.notifTime}>{new Date(notif.createdAt).toLocaleString()}</div>
+                  </div>
                 </div>
-                <div style={styles.notifContent}>
-                  <h4 style={styles.notifTitle}>{notif.title}</h4>
-                  <p style={styles.notifMessage}>{notif.message}</p>
-                  <div style={styles.notifTime}>{notif.time}</div>
-                </div>
+              );
+            })}
+            
+            {notifications.length === 0 && (
+              <div style={{ padding: 40, textAlign: 'center', color: '#6C757D' }}>
+                <i className="fa-regular fa-bell-slash" style={{ fontSize: 32, marginBottom: 16, color: '#DEE2E6' }}></i>
+                <p>You have no notifications yet.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </main>

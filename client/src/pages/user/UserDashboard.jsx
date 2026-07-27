@@ -7,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' 
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
   const [levels, setLevels] = useState([]);
   const [mysteryBoxes, setMysteryBoxes] = useState([]);
   const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
@@ -23,6 +24,9 @@ const UserDashboard = () => {
       return;
     }
     setUser(storedUser);
+
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
 
     // Fetch fresh user data and level config
     const fetchData = async () => {
@@ -249,7 +253,7 @@ const UserDashboard = () => {
 
   return (
     <div style={styles.body}>
-      <Navbar variant="user" user={user} />
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
@@ -270,7 +274,7 @@ const UserDashboard = () => {
             <div style={styles.pointsCard}>
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
-                <div style={styles.pointsValue}>{user.points}</div>
+                <div style={styles.pointsValue}>{user.points} <span style={{ fontSize: '0.5em', opacity: 0.9 }}>PTS</span></div>
                 <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>
               <div style={{ width: '40%' }}>
@@ -434,22 +438,28 @@ const UserDashboard = () => {
                 ))}
               </div>
 
-              <textarea 
-                placeholder="Write a small comment (optional)..."
-                value={userReview.comment}
-                onChange={(e) => setUserReview(prev => ({ ...prev, comment: e.target.value }))}
-                style={{ 
-                  width: '100%', 
-                  padding: 12, 
-                  borderRadius: 8, 
-                  border: '1px solid #DEE2E6', 
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  minHeight: 80,
-                  marginBottom: 16,
-                  resize: 'vertical'
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <textarea 
+                  placeholder="Write a small comment (optional)..."
+                  value={userReview.comment}
+                  maxLength={50}
+                  onChange={(e) => setUserReview(prev => ({ ...prev, comment: e.target.value }))}
+                  style={{ 
+                    width: '100%', 
+                    padding: 12, 
+                    borderRadius: 8, 
+                    border: '1px solid #DEE2E6', 
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    minHeight: 80,
+                    marginBottom: 16,
+                    resize: 'vertical'
+                  }}
+                />
+                <span style={{ position: 'absolute', bottom: 24, right: 12, fontSize: 11, color: '#6C757D' }}>
+                  {userReview.comment.length}/50
+                </span>
+              </div>
 
               <button 
                 onClick={handleSaveReview}

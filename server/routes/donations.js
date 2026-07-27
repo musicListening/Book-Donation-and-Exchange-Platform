@@ -302,7 +302,7 @@ router.patch('/:id/verify', async (req, res) => {
             const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
             const hasMysteryBox = levelConfig?.mysteryBoxUnlock && levelConfig.mysteryBoxUnlock.trim() !== '';
 
-            await prisma.notification.create({
+            const notif1 = await prisma.notification.create({
                 data: {
                     userId: user.id,
                     type: 'LEVEL_UP',
@@ -312,6 +312,7 @@ router.patch('/:id/verify', async (req, res) => {
                         : `Congratulations! You've reached Level ${newLevel} (${levelConfig?.name || ''})!`
                 }
             });
+            if (req.app.locals.io) req.app.locals.io.to(user.id).emit('newNotification', notif1);
 
             if (hasMysteryBox) {
                 const boxBookCount = levelConfig.mysteryBoxBooks || 5;
@@ -347,7 +348,7 @@ router.patch('/:id/verify', async (req, res) => {
                     }
                 }
 
-                await prisma.notification.create({
+                const notif2 = await prisma.notification.create({
                     data: {
                         userId: user.id,
                         type: 'MYSTERY_BOX_REWARD',
@@ -355,6 +356,7 @@ router.patch('/:id/verify', async (req, res) => {
                         message: `You've received a ${levelConfig.mysteryBoxUnlock} with ${selectedBooks.length} books! Points cost to claim: ${levelConfig.mysteryBoxPoints || 0}.`
                     }
                 });
+                if (req.app.locals.io) req.app.locals.io.to(user.id).emit('newNotification', notif2);
             }
         }
 
@@ -592,7 +594,7 @@ router.post('/:id/mystery-box', async (req, res) => {
             }
         }
 
-        await prisma.notification.create({
+        const notif3 = await prisma.notification.create({
             data: {
                 userId: user.id,
                 type: 'MYSTERY_BOX_REWARD',
@@ -600,6 +602,7 @@ router.post('/:id/mystery-box', async (req, res) => {
                 message: `You've received a Mystery Box with ${selectedBooks.length} books! Check your dashboard to claim it.`
             }
         });
+        if (req.app.locals.io) req.app.locals.io.to(user.id).emit('newNotification', notif3);
 
         const result = await prisma.mysteryBox.findUnique({
             where: { id: mysteryBox.id },

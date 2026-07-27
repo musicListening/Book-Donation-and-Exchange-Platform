@@ -22,6 +22,14 @@ const Signup = () => {
       return;
     }
 
+    // Validate email domain
+    const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+    const emailDomain = formData.email.split('@')[1];
+    if (!emailDomain || !allowedDomains.includes(emailDomain.toLowerCase())) {
+      setError('Only Gmail, Yahoo, Outlook, and Hotmail email addresses are allowed.');
+      return;
+    }
+
     setLoading(true);
 
     try {
