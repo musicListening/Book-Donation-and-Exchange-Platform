@@ -424,9 +424,9 @@ model PlatformReview {
   userId     String   @unique
   rating     Int
   comment    String?
-  isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  isApproved Boolean  @default(false)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
