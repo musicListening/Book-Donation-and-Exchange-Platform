@@ -38,6 +38,8 @@ export default function Navbar({
   }, [location.pathname]);
 
   const handleLogout = () => {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
@@ -179,7 +181,7 @@ export default function Navbar({
                   <div className="ss-navbar__user-menu">
                     <button className="ss-navbar__avatar" aria-label="User menu" style={user.profileImage ? { padding: 0, overflow: 'hidden' } : {}}>
                       {user.profileImage ? (
-                        <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={user.profileImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         user.name?.[0]?.toUpperCase() ?? 'U'
                       )}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../../components/AdminLayout";
 import "../../styles/UserManagement.css";
+import { showToast } from "../../utils/toast";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 const roles = ["All Roles", "End User", "Operations Staff", "Platform Admin", "Delivery Personnel", "Community Admin"];
 const statuses = ["All Statuses", "Active", "Deactivated"];
@@ -62,10 +63,11 @@ export default function UserManagement() {
         body: JSON.stringify({ isActive: !currentStatus })
       });
       if (!response.ok) throw new Error("Failed to update status");
+      showToast("User status updated successfully.", "success");
       fetchUsers();
     } catch (err) {
       console.error(err);
-      alert("Failed to update user status.");
+      showToast("Failed to update user status.", "error");
     }
   };
 
@@ -74,10 +76,11 @@ export default function UserManagement() {
     try {
       const response = await fetch(`${API_URL}/users/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
+      showToast("User deleted successfully.", "success");
       fetchUsers();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete user.");
+      showToast("Failed to delete user.", "error");
     }
   };
 
@@ -120,6 +123,7 @@ export default function UserManagement() {
       }
       setShowEditModal(false);
       setEditUser(null);
+      showToast("User updated successfully.", "success");
       fetchUsers();
     } catch (err) {
       setEditError(err.message);
@@ -144,6 +148,7 @@ export default function UserManagement() {
       }
       setShowAddModal(false);
       setNewUser({ name: "", email: "", password: "", role: "END_USER" });
+      showToast("User created successfully.", "success");
       fetchUsers();
     } catch (err) {
       setFormError(err.message);

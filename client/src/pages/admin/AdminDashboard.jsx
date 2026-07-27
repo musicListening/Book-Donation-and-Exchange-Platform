@@ -4,6 +4,7 @@ import "../../styles/AdminDashboard.css";
 import { TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { adminAPI } from "../../services/api";
+import { showToast } from "../../utils/toast";
 
 const GENRE_COLORS = [
   "#1E4D4B",
@@ -54,10 +55,12 @@ export default function AdminDashboard() {
       .then((d) => {
         setData(d);
         setLoading(false);
+        showToast("Analytics dashboard loaded successfully.", "success");
       })
       .catch((err) => {
         console.error("Dashboard data fetch failed:", err);
         setLoading(false);
+        showToast("Failed to load dashboard data. Please try again.", "error");
       });
   }, []);
 
@@ -160,6 +163,16 @@ export default function AdminDashboard() {
             label="Active Readers"
             value={activeReadersStr}
             hint={`${stats.totalOrders || 0} Orders`}
+          />
+          <MetricCard
+            label="Total Orders Placed"
+            value={(stats.totalOrders || 0).toLocaleString()}
+            hint={`${stats.completedOrders || 0} Completed Orders`}
+          />
+          <MetricCard
+            label="Sri Lankan Rupees (LKR)"
+            value={`LKR ${(stats.totalEarnedLKR || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            hint="Earned from completed orders"
           />
           <MetricCard
             label="Points Issued"

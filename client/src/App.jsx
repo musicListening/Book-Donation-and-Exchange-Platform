@@ -25,14 +25,15 @@ import UserManagement from './pages/admin/UserManagement';
 import CustomReportGeneration from './pages/admin/CustomReportGeneration';
 import SystemConfig from './pages/admin/SystemConfig';
 import AdminProfile from './pages/admin/AdminProfile';
+import ReviewManagement from './pages/admin/ReviewManagement';
 
 // Staff Pages
 import StaffDashboard from './pages/staff/StaffDashboard';
 import BundleManagement from './pages/staff/BundleManagement';
 import DonationSchedule from './pages/staff/DonationSchedule';
-import InventoryManagement from './pages/staff/InventoryManagement';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
-
+import SubmitCraft from './pages/user/SubmitCraft';
+import CraftApproval from './pages/staff/CraftApproval';
 
 // Delivery & Logistics Pages
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
@@ -78,12 +79,14 @@ function App() {
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/mystery-boxes" element={<ProtectedRoute><MysteryBoxes /></ProtectedRoute>} />
+        <Route path="/submit-craft" element={<ProtectedRoute><SubmitCraft /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/reports/custom" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><CustomReportGeneration /></ProtectedRoute>} />
         <Route path="/admin/config" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><SystemConfig /></ProtectedRoute>} />
+        <Route path="/admin/reviews" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><ReviewManagement /></ProtectedRoute>} />
         <Route path="/admin/profile" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminProfile /></ProtectedRoute>} />
 
         {/* Staff Routes */}
@@ -91,10 +94,10 @@ function App() {
         <Route path="/staff/dashboard" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffDashboard /></ProtectedRoute>} />
         <Route path="/staff/bundle-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><BundleManagement /></ProtectedRoute>} />
         <Route path="/staff/donation-schedule" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><DonationSchedule /></ProtectedRoute>} />
-        <Route path="/staff/inventory-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><InventoryManagement /></ProtectedRoute>} />
         <Route path="/staff/order-fulfillment" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><OrderFulfillment /></ProtectedRoute>} />
+        <Route path="/staff/craft-approval" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><CraftApproval /></ProtectedRoute>} />
+        <Route path="/staff/marketplace" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><CraftApproval /></ProtectedRoute>} />
         <Route path="/staff/profile" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffProfile /></ProtectedRoute>} />
-        
 
         {/* Community Admin Routes */}
         <Route path="/community-admin" element={<Navigate to="/community-admin/dashboard" replace />} />

@@ -24,6 +24,10 @@ router.get('/dashboard', async (req, res) => {
     const totalBooks = await q(() => prisma.bookItem.count({ where: { isDonated: true } }));
     const totalOrders = await q(() => prisma.order.count());
     const completedOrders = await q(() => prisma.order.count({ where: { status: 'COMPLETED' } }));
+    const totalCashEarned = await q(() => prisma.order.aggregate({
+      where: { NOT: { status: 'CANCELLED' } },
+      _sum: { cashAmount: true, totalPoints: true }
+    }));
     const totalPointsIssued = await q(() => prisma.pointTransaction.aggregate({
       where: { type: { in: ['EARNED_DONATION', 'EARNED_SALE', 'EARNED_BONUS'] } },
       _sum: { amount: true }
@@ -86,6 +90,11 @@ router.get('/dashboard', async (req, res) => {
 
     const totalPointsIssuedVal = totalPointsIssued?._sum?.amount || 0;
     const totalPointsSpentVal = totalPointsSpent?._sum?.amount || 0;
+    const rawCash = totalCashEarned?._sum?.cashAmount || 0;
+    const rawPointsInOrders = totalCashEarned?._sum?.totalPoints || 0;
+    // 10 points = 1 LKR as per system conversion rules, so points spent on book orders contribute to total order value in LKR
+    const totalEarnedLKRVal = Math.round((rawCash + (rawPointsInOrders * 0.1)) * 100) / 100;
+    const totalEarnedRupeesVal = Math.round(totalEarnedLKRVal * 0.27 * 100) / 100;
 
     // Map top donors with user info
     const topDonorIds = (topDonors || []).map(d => d.userId);
@@ -154,6 +163,8 @@ router.get('/dashboard', async (req, res) => {
           : 0,
         craftListings: craftCount || 0,
         craftSold: craftSold || 0,
+        totalEarnedLKR: totalEarnedLKRVal,
+        totalEarnedRupees: totalEarnedRupeesVal,
       },
       genreDistribution: (genreDistribution || []).map(g => ({
         name: g.genre || 'Uncategorized',
@@ -370,6 +381,79 @@ router.get('/report', async (req, res) => {
         title: 'Top Users & Level Progression Report',
         subtitle: 'Leaderboard of most active donors and their unlocked tier benefits',
         headers: ['User Identity', 'Total Donated', 'Current Level', 'Next Unlock'],
+        rows,
+        chartData,
+      });
+    }
+
+    if (!type || type === 'System Logs') {
+      const staffRoles = ['OPERATIONS_STAFF', 'DELIVERY_PERSONNEL', 'COMMUNITY_ADMIN', 'PLATFORM_ADMIN'];
+
+      const loginLogs = await prisma.loginLog.findMany({
+        where: {
+          user: { role: { in: staffRoles } },
+          ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+        },
+        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Group by user to show summary per staff member
+      const userMap = {};
+      for (const log of loginLogs) {
+        const uid = log.userId;
+        if (!userMap[uid]) {
+          userMap[uid] = {
+            name: log.user.name,
+            email: log.user.email,
+            role: log.user.role,
+            totalLogins: 0,
+            totalLogouts: 0,
+            lastLogin: null,
+            lastLogout: null,
+          };
+        }
+        if (log.action === 'LOGIN') {
+          userMap[uid].totalLogins++;
+          if (!userMap[uid].lastLogin) userMap[uid].lastLogin = log.createdAt;
+        } else if (log.action === 'LOGOUT') {
+          userMap[uid].totalLogouts++;
+          if (!userMap[uid].lastLogout) userMap[uid].lastLogout = log.createdAt;
+        }
+      }
+
+      const roleLabels = {
+        OPERATIONS_STAFF: 'Operations Staff',
+        DELIVERY_PERSONNEL: 'Delivery Personnel',
+        COMMUNITY_ADMIN: 'Community Admin',
+        PLATFORM_ADMIN: 'Platform Admin',
+      };
+
+      const rows = Object.values(userMap).map(u => ({
+        col1: u.name,
+        col2: roleLabels[u.role] || u.role,
+        col3: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
+        col4: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+      }));
+
+      // Chart data: logins per role
+      const roleCounts = {};
+      for (const u of Object.values(userMap)) {
+        const r = roleLabels[u.role] || u.role;
+        roleCounts[r] = (roleCounts[r] || 0) + u.totalLogins;
+      }
+      const maxLogins = Math.max(...Object.values(roleCounts), 1);
+      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#2A9D8F'];
+      const chartData = Object.entries(roleCounts).map(([role, count], i) => ({
+        label: role,
+        val: Math.round(count / maxLogins * 100),
+        color: colors[i % colors.length],
+      }));
+
+      return res.json({
+        title: 'System Activity Logs',
+        subtitle: 'Login and logout activity for all staff roles',
+        headers: ['Staff Member', 'Role', 'Last Login', 'Last Logout'],
         rows,
         chartData,
       });

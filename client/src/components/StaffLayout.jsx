@@ -7,9 +7,9 @@ const navItems = [
   { path: '/staff/dashboard', label: 'Dashboard' },
   { path: '/staff/bundle-management', label: 'Bundle Management' },
   { path: '/staff/donation-schedule', label: 'Donation Schedule' },
-  { path: '/staff/inventory-management', label: 'Inventory Management' },
-  { path: '/staff/order-fulfillment', label: 'Order Fulfillment' },
 
+  { path: '/staff/order-fulfillment', label: 'Order Fulfillment' },
+  { path: '/staff/craft-approval', label: 'Marketplace' },
 ];
 
 function StaffLayout({ children, title }) {
@@ -18,6 +18,8 @@ function StaffLayout({ children, title }) {
   const [now, setNow] = useState(new Date());
 
   const handleLogout = () => {
+    const u = JSON.parse(localStorage.getItem('user') || localStorage.getItem('ss_current_user') || '{}');
+    if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');

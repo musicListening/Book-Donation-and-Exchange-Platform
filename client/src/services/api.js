@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+export const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 // ===== USER API =====
 export const userAPI = {
@@ -34,6 +34,22 @@ export const adminAPI = {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
+  },
+};
+
+// ===== AUTH API =====
+export const authAPI = {
+  logout: async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
   },
 };
 

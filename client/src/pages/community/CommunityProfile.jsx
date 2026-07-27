@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommunityHeader } from '../../components/CommunityAdminUI';
+import { API_BASE } from '../../services/api';
 
 export default function CommunityProfile() {
   const [user, setUser] = useState(null);
@@ -35,7 +36,7 @@ export default function CommunityProfile() {
       const formData = new FormData();
       formData.append('name', name.trim());
       if (profileFile) formData.append('profileImage', profileFile);
-      const res = await fetch(`/api/users/${user.id}/profile`, { method: 'PUT', body: formData });
+      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, { method: 'PUT', body: formData });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
       const updated = await res.json();
       setUser(updated); setProfileImage(updated.profileImage || '');

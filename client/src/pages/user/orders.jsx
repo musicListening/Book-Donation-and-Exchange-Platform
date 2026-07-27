@@ -21,6 +21,25 @@ const Orders = () => {
     return statuses.indexOf(status);
   };
 
+  const handleCancelOrder = (orderId) => {
+    if (!window.confirm('Are you sure you want to cancel this order? Your points will be refunded.')) return;
+    
+    const newOrders = [...orders];
+    const orderIndex = newOrders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) return;
+    
+    const order = newOrders[orderIndex];
+    if (order.status !== 'Placed') return;
+    
+    order.status = 'Cancelled';
+    setOrders(newOrders);
+    localStorage.setItem('ss_orders', JSON.stringify(newOrders));
+    
+    const newUser = { ...user, points: user.points + order.total };
+    setUser(newUser);
+    localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+  };
+
   const styles = {
     body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 72, margin: 0 },
     header: { position: 'fixed', top: 0, left: 0, width: '100%', height: 72, background: 'white', borderBottom: '1px solid #DEE2E6', zIndex: 1000, padding: '0 40px' },
@@ -75,23 +94,47 @@ const Orders = () => {
             return (
               <div key={order.id} style={styles.orderCard}>
                 <div style={styles.orderHeader}>
-                  <div><span style={styles.orderId}>{order.id}</span><div style={styles.orderDate}>Ordered on {order.date}</div></div>
-                  <div style={styles.orderTotal}><i className="fa-solid fa-coins" style={{ color: '#E9C46A' }}></i> {order.total} Points</div>
+                  <div>
+                    <span style={styles.orderId}>{order.id}</span>
+                    <span style={{ marginLeft: 12, padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: order.status === 'Cancelled' ? '#FEE2E2' : '#E0F2FE', color: order.status === 'Cancelled' ? '#EF4444' : '#0284C7' }}>
+                      {order.status}
+                    </span>
+                    <div style={styles.orderDate}>Ordered on {order.date}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={styles.orderTotal}>
+                      {order.total > 0 && `LKR ${order.total}`}
+                      {order.total > 0 && order.totalPoints > 0 && ' + '}
+                      {order.totalPoints > 0 && <><i className="fa-solid fa-coins" style={{ color: '#E9C46A' }}></i> {order.totalPoints}</>}
+                      {order.total === 0 && (order.totalPoints === 0 || !order.totalPoints) && 'LKR 0'}
+                    </div>
+                    {order.discount > 0 && <div style={{ fontSize: 12, color: '#E76F51', fontWeight: 600, marginTop: 4 }}>Saved LKR {order.discount} with points</div>}
+                    {order.status === 'Placed' && (
+                      <button onClick={() => handleCancelOrder(order.id)} style={{ marginTop: 8, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>Cancel Order</button>
+                    )}
+                  </div>
                 </div>
                 <div style={styles.orderItems}>{order.items.map((item, idx) => <p key={idx} style={styles.orderItemText}><i className="fa-solid fa-book"></i> {item}</p>)}</div>
-                <div style={styles.stepper}>
-                  {statuses.map((status, idx) => (
-                    <div key={status} style={styles.step}>
-                      <div style={{ ...styles.stepCircle, ...(currentStatusIndex >= idx ? styles.stepCircleActive : {}) }}>
-                        {idx === 0 && <i className="fa-solid fa-file-invoice"></i>}
-                        {idx === 1 && <i className="fa-solid fa-box"></i>}
-                        {idx === 2 && <i className="fa-solid fa-truck-fast"></i>}
-                        {idx === 3 && <i className="fa-solid fa-house-chimney"></i>}
+                
+                {order.status !== 'Cancelled' ? (
+                  <div style={styles.stepper}>
+                    {statuses.map((status, idx) => (
+                      <div key={status} style={styles.step}>
+                        <div style={{ ...styles.stepCircle, ...(currentStatusIndex >= idx ? styles.stepCircleActive : {}) }}>
+                          {idx === 0 && <i className="fa-solid fa-file-invoice"></i>}
+                          {idx === 1 && <i className="fa-solid fa-box"></i>}
+                          {idx === 2 && <i className="fa-solid fa-truck-fast"></i>}
+                          {idx === 3 && <i className="fa-solid fa-house-chimney"></i>}
+                        </div>
+                        <div style={{ ...styles.stepLabel, ...(currentStatusIndex >= idx ? styles.stepLabelActive : {}) }}>{status}</div>
                       </div>
-                      <div style={{ ...styles.stepLabel, ...(currentStatusIndex >= idx ? styles.stepLabelActive : {}) }}>{status}</div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#EF4444', fontWeight: 600, textAlign: 'center', padding: '20px 0', background: '#FEF2F2', borderRadius: 8 }}>
+                    <i className="fa-solid fa-circle-xmark" style={{ marginRight: 8 }}></i>This order was cancelled and points were refunded.
+                  </div>
+                )}
               </div>
             );
           })}

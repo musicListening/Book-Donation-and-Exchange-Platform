@@ -11,12 +11,15 @@ import {
   ChevronDown,
   Menu,
   User,
+  Star,
 } from "lucide-react";
+import { authAPI } from "../services/api";
 import "../styles/AdminLayout.css";
 
 const navItems = [
   { path: "/admin/dashboard", label: "Analytics", icon: BarChart3 },
   { path: "/admin/users", label: "User Management", icon: Users },
+  { path: "/admin/reviews", label: "Reviews", icon: Star },
   { path: "/admin/reports/custom", label: "Reports", icon: FileText },
   { path: "/admin/config", label: "System Config", icon: Settings },
 ];
@@ -35,6 +38,8 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
   }, []);
 
   const handleLogout = () => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    if (u?.id) authAPI.logout(u.id);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("ss_current_user");
@@ -64,15 +69,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
       <aside className={cn("admin-sidebar-shell", sidebarOpen && "sidebar-open")}>
         {/* Brand */}
         <div className="sidebar-brand-block">
-          <div className="sidebar-brand-portal">
-            <BookOpen className="w-4 h-4 brand-icon" />
-            <span className="brand-portal-text">Admin Console</span>
-          </div>
-          <h1 className="brand-title">
-            Share
-            <br />
-            <span className="brand-title-italic">Shelf</span>
-          </h1>
+          <h1 className="brand-title">ShareShelf</h1>
           <p className="brand-tagline">
             Platform management & analytics.
           </p>
@@ -106,14 +103,6 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
 
         {/* Footer */}
         <div className="sidebar-footer-block">
-          <div className="briefing-box">
-            <p className="briefing-quote">
-              "Every book finds its reader."
-            </p>
-            <p className="briefing-author">
-              — ShareShelf admin briefing
-            </p>
-          </div>
           <div className="user-profile-summary">
             <div className="user-avatar-badge">
               {user?.profileImage ? (

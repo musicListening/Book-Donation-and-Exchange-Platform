@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
 
 const Cart = () => {
   const [user, setUser] = useState({ points: 0 });
@@ -8,6 +9,8 @@ const Cart = () => {
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
 
+  const [pointsUsed, setPointsUsed] = useState(0);
+
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0 };
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
@@ -15,7 +18,21 @@ const Cart = () => {
     setCart(storedCart);
   }, []);
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const subtotalLKR = cart.filter(i => i.type === 'bundles').reduce((sum, item) => sum + item.price, 0);
+  const subtotalPoints = cart.filter(i => i.type === 'crafts').reduce((sum, item) => sum + item.price, 0);
+  
+  const maxLkrDiscount = Math.floor(subtotalLKR * 0.25);
+  // User must have enough points to pay for crafts first!
+  const availablePointsForDiscount = Math.max(0, (user.points || 0) - subtotalPoints);
+  const maxPointsUsable = Math.min(availablePointsForDiscount, maxLkrDiscount * 10);
+  
+  // Ensure pointsUsed doesn't exceed the max usable if cart changes
+  useEffect(() => {
+    if (pointsUsed > maxPointsUsable) setPointsUsed(maxPointsUsable);
+  }, [maxPointsUsable, pointsUsed]);
+
+  const finalDiscountLKR = Math.floor(pointsUsed / 10);
+  const finalTotalLKR = subtotalLKR - finalDiscountLKR;
 
   const removeItem = (index) => {
     const newCart = [...cart];
@@ -24,35 +41,65 @@ const Cart = () => {
     localStorage.setItem('ss_cart', JSON.stringify(newCart));
   };
 
-  const checkout = () => {
-    if (user.points < subtotal) {
-      alert('Not enough points! Donate more books to earn points.');
-      return;
+  const checkout = async () => {
+    if ((user.points || 0) < subtotalPoints) {
+        alert('Not enough points for the crafts in your cart!');
+        return;
     }
     if (!address) {
-      alert('Please enter a delivery address');
-      return;
+        alert('Please enter a delivery address');
+        return;
     }
 
-    const newUser = { ...user, points: user.points - subtotal };
-    setUser(newUser);
-    localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+    try {
+        const token = localStorage.getItem('token');
+        const orderItems = cart.map(item => ({
+            bookItemId: item.type === 'bundles' ? item.id : null,
+            craftListingId: item.type === 'crafts' ? item.id : null,
+            quantity: 1,
+            pointsPrice: item.pointsPrice || item.price || 0,
+            cashPrice: item.type === 'bundles' ? (item.pointsPrice || item.price || 0) : 0,
+        }));
 
-    const orders = JSON.parse(localStorage.getItem('ss_orders') || '[]');
-    const newOrder = {
-      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
-      date: new Date().toISOString().split('T')[0],
-      items: cart.map(i => i.title),
-      total: subtotal,
-      status: 'Placed',
-      address: `${address}, ${city}, ${pincode}`
-    };
-    orders.unshift(newOrder);
-    localStorage.setItem('ss_orders', JSON.stringify(orders));
+        const totalPointsDeducted = subtotalPoints + pointsUsed;
 
-    localStorage.setItem('ss_cart', '[]');
-    alert('Order placed successfully!');
-    window.location.href = '/orders';
+        const response = await fetch(`${API_BASE}/orders`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: user.id,
+                items: orderItems,
+                shippingAddress: `${address}, ${city}, ${pincode}`,
+                phoneNumber: user.phoneNumber || '',
+                totalPoints: totalPointsDeducted,
+                cashAmount: finalTotalLKR
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to place order');
+        }
+
+        const order = await response.json();
+
+        // Update local user points
+        const newUser = { ...user, points: (user.points || 0) - totalPointsDeducted };
+        setUser(newUser);
+        localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+        localStorage.setItem('user', JSON.stringify(newUser));
+
+        // Clear cart
+        localStorage.setItem('ss_cart', '[]');
+        alert('Order placed successfully!');
+        window.location.href = '/orders';
+    } catch (error) {
+        console.error('Error placing order:', error);
+        alert('Failed to place order: ' + error.message);
+    }
   };
 
   const styles = {
@@ -94,9 +141,9 @@ const Cart = () => {
           </div>
           <div style={{ ...styles.summaryCard, opacity: 0.5 }}>
             <h3>Order Summary</h3>
-            <div style={styles.summaryRow}><span>Subtotal</span><span>0 pts</span></div>
+            <div style={styles.summaryRow}><span>Subtotal</span><span>LKR 0</span></div>
             <div style={styles.summaryRow}><span>Shipping</span><span>FREE</span></div>
-            <div style={styles.summaryTotal}><span>Total</span><span>0 pts</span></div>
+            <div style={styles.summaryTotal}><span>Total</span><span>LKR 0</span></div>
             <button style={styles.btnCheckout} disabled>Place Order</button>
           </div>
         </main>
@@ -119,7 +166,9 @@ const Cart = () => {
                 <h4>{item.title}</h4>
                 <p style={{ color: '#6C757D', fontSize: 14 }}>{item.type === 'bundles' ? 'Curated Bundle' : 'Handmade Craft'}</p>
               </div>
-              <div style={styles.itemPrice}><i className="fa-solid fa-coins"></i> {item.price}</div>
+              <div style={styles.itemPrice}>
+                {item.type === 'bundles' ? `LKR ${item.price}` : <><i className="fa-solid fa-coins" style={{ marginRight: 6 }}></i> {item.price}</>}
+              </div>
               <button style={styles.removeBtn} onClick={() => removeItem(index)}><i className="fa-solid fa-trash-can"></i></button>
             </div>
           ))}
@@ -127,17 +176,66 @@ const Cart = () => {
 
         <div style={styles.summaryCard}>
           <h3>Order Summary</h3>
-          <div style={{ ...styles.summaryRow, marginTop: 24 }}>
-            <span>Subtotal</span>
-            <span>{subtotal} pts</span>
-          </div>
+          {subtotalLKR > 0 && (
+            <div style={{ ...styles.summaryRow, marginTop: 24 }}>
+              <span>Books Subtotal</span>
+              <span>LKR {subtotalLKR}</span>
+            </div>
+          )}
+          {subtotalPoints > 0 && (
+            <div style={{ ...styles.summaryRow, marginTop: subtotalLKR > 0 ? 12 : 24 }}>
+              <span>Crafts Subtotal</span>
+              <span><i className="fa-solid fa-coins"></i> {subtotalPoints}</span>
+            </div>
+          )}
           <div style={styles.summaryRow}>
             <span>Shipping</span>
             <span>FREE</span>
           </div>
+          
+          {subtotalLKR > 0 && (
+            <div style={{ background: '#F8F9FA', padding: 16, borderRadius: 12, marginTop: 16, border: '1px solid #DEE2E6' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>Use Points for Discount</span>
+              <span style={{ fontSize: 12, color: '#E76F51', fontWeight: 700 }}>Max: {maxPointsUsable} pts</span>
+            </div>
+            <p style={{ fontSize: 12, color: '#6C757D', marginBottom: 12, lineHeight: 1.4 }}>
+              10 points = LKR 1 off. You can use up to {maxPointsUsable} points to get a max discount of LKR {maxLkrDiscount} (25% of book subtotal).
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input 
+                type="number" 
+                style={{ ...styles.formControl, padding: '8px 12px' }}
+                value={pointsUsed}
+                onChange={(e) => {
+                  let val = parseInt(e.target.value) || 0;
+                  val = Math.max(0, Math.min(val, maxPointsUsable));
+                  setPointsUsed(val);
+                }}
+                min="0"
+                max={maxPointsUsable}
+                step="10"
+              />
+              <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>= LKR {finalDiscountLKR} off</span>
+            </div>
+            </div>
+          )}
+
+          {finalDiscountLKR > 0 && (
+            <div style={{ ...styles.summaryRow, marginTop: 16, color: '#E76F51', fontWeight: 600 }}>
+              <span>Discount applied</span>
+              <span>- LKR {finalDiscountLKR}</span>
+            </div>
+          )}
+
           <div style={styles.summaryTotal}>
-            <span>Total</span>
-            <span>{subtotal} pts</span>
+            <span>Total to Pay</span>
+            <span>
+              {finalTotalLKR > 0 && `LKR ${finalTotalLKR}`}
+              {finalTotalLKR > 0 && subtotalPoints > 0 && ' + '}
+              {subtotalPoints > 0 && <><i className="fa-solid fa-coins"></i> {subtotalPoints}</>}
+              {finalTotalLKR === 0 && subtotalPoints === 0 && 'LKR 0'}
+            </span>
           </div>
 
           <div style={styles.formGroup}>
@@ -160,7 +258,7 @@ const Cart = () => {
               <input 
                 type="text" 
                 style={styles.formControl} 
-                placeholder="Pincode" 
+                placeholder="Zip code" 
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value)}
               />
@@ -168,7 +266,7 @@ const Cart = () => {
           </div>
 
           <button style={styles.btnCheckout} onClick={checkout}>Place Order</button>
-          <p style={{ textAlign: 'center', fontSize: 12, color: '#6C757D', marginTop: 12 }}>Secure point-based transaction.</p>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#6C757D', marginTop: 12 }}>Payments will be collected upon delivery.</p>
         </div>
       </main>
     </div>

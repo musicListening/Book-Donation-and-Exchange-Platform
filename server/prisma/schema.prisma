@@ -26,6 +26,7 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
+  loginLogs                                       LoginLog[]
   Cart                                            Cart?
   craftListings                                   CraftListing[]
   Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
@@ -40,6 +41,7 @@ model User {
   orders                                          Order[]
   Order_Order_driverIdToUser                      Order[]            @relation("Order_driverIdToUser")
   Payment                                         Payment[]
+  PlatformReview                                  PlatformReview?
   PointTransaction_PointTransaction_staffIdToUser PointTransaction[] @relation("PointTransaction_staffIdToUser")
   PointTransaction_PointTransaction_userIdToUser  PointTransaction[] @relation("PointTransaction_userIdToUser")
   Shipment                                        Shipment[]
@@ -86,7 +88,9 @@ model DonationRequest {
   isCollectionComplete Boolean            @default(false)
   staffNotes           String?
   status               String             @default("PENDING")
+  donationImages       String[]
   books                BookItem[]
+  crafts               CraftListing[]
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
   PointTransaction     PointTransaction[]
@@ -129,6 +133,8 @@ model BookItem {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   mysteryBoxId         String?
+  imageUrl             String?
+  pointsPrice          Int?
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
   MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
@@ -137,22 +143,24 @@ model BookItem {
 }
 
 model CraftListing {
-  id               String      @id @default(uuid())
-  userId           String
-  title            String
-  description      String
-  imageUrl         String
-  additionalImages String[]
-  pointsPrice      Int
-  status           CraftStatus @default(DRAFT)
-  views            Int         @default(0)
-  favorites        Int         @default(0)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  CartItem         CartItem[]
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Dispute          Dispute[]
-  orderItems       OrderItem[]
+  id                String           @id @default(uuid())
+  userId            String
+  title             String
+  description       String
+  imageUrl          String
+  additionalImages  String[]
+  pointsPrice       Int
+  status            CraftStatus      @default(DRAFT)
+  views             Int              @default(0)
+  favorites         Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  donationRequestId String?
+  CraftItem         CartItem[]
+  donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Dispute           Dispute[]
+  orderItems        OrderItem[]
 }
 
 model Order {
@@ -397,19 +405,40 @@ model Task {
 }
 
 model MysteryBox {
-  id                               String           @id @default(uuid())
-  userId                           String
-  level                            Int
-  status                           MysteryBoxStatus @default(UNCLAIMED)
-  assignedBy                       String?
-  assignedAt                       DateTime         @default(now())
-  claimedAt                        DateTime?
-  description                      String?
-  createdAt                        DateTime         @default(now())
-  updatedAt                        DateTime
-  books                            BookItem[]
-  user                             User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
-  staff                            User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
+  id          String           @id @default(uuid())
+  userId      String
+  level       Int
+  status      MysteryBoxStatus @default(UNCLAIMED)
+  assignedBy  String?
+  assignedAt  DateTime         @default(now())
+  claimedAt   DateTime?
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime
+  books       BookItem[]
+  staff       User?            @relation("MysteryBox_assignedByToUser", fields: [assignedBy], references: [id])
+  user        User             @relation("MysteryBox_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlatformReview {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  isApproved Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginLog {
+  id        String      @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    AuditAction
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
 }
 
 enum UserRole {
@@ -461,6 +490,8 @@ enum AuditAction {
   DONATION_VERIFICATION
   ORDER_CANCELLATION
   SYSTEM_CONFIG_CHANGE
+  LOGIN
+  LOGOUT
 }
 
 enum DisputeStatus {

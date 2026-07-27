@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
+
+const conditionColors = {
+  NEW: '#E8F5E9', LIKE_NEW: '#E3F2FD', GOOD: '#FFF8E1', FAIR: '#FFF3E0', POOR: '#FFEBEE'
+};
+const conditionTextColors = {
+  NEW: '#2E7D32', LIKE_NEW: '#1565C0', GOOD: '#F57F17', FAIR: '#E65100', POOR: '#C62828'
+};
 
 const Marketplace = () => {
   const location = useLocation();
@@ -14,19 +22,36 @@ const Marketplace = () => {
   const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [priceFilter, setPriceFilter] = useState('all');
   const [toast, setToast] = useState({ show: false, message: '' });
-
-  const bundles = JSON.parse(localStorage.getItem('ss_bundles') || '[]');
-  const crafts = JSON.parse(localStorage.getItem('ss_crafts') || '[]');
+  const [books, setBooks] = useState([]);
+  const [crafts, setCrafts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedDonorImages, setExpandedDonorImages] = useState({});
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0 };
+    const storedUser = JSON.parse(localStorage.getItem('user') || localStorage.getItem('ss_current_user') || '{}');
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setUser(storedUser);
     setCart(storedCart);
+    fetchMarketplace();
   }, []);
 
-  const updateCartCount = () => {
-    document.getElementById('cartCount') && (document.getElementById('cartCount').innerText = cart.length);
+  const fetchMarketplace = async () => {
+    try {
+      const [booksRes, craftsRes] = await Promise.all([
+        fetch(`${API_BASE}/books/marketplace`),
+        fetch(`${API_BASE}/crafts?status=LISTED`),
+      ]);
+      if (booksRes.ok) setBooks(await booksRes.json());
+      if (craftsRes.ok) setCrafts(await craftsRes.json());
+    } catch (err) {
+      console.error('Failed to load marketplace:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleDonorImages = (id) => {
+    setExpandedDonorImages(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const addToCart = (item, type) => {
@@ -35,23 +60,23 @@ const Marketplace = () => {
     localStorage.setItem('ss_cart', JSON.stringify(newCart));
     setToast({ show: true, message: 'Added to cart!' });
     setTimeout(() => setToast({ show: false, message: '' }), 2000);
-    updateCartCount();
   };
 
   const filterProducts = (items) => {
     return items.filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || item.genre === categoryFilter || item.category === categoryFilter;
       let matchesPrice = true;
-      if (priceFilter === 'low') matchesPrice = item.price < 200;
-      else if (priceFilter === 'mid') matchesPrice = item.price >= 200 && item.price <= 400;
-      else if (priceFilter === 'high') matchesPrice = item.price > 400;
+      const price = item.pointsPrice || item.price || 0;
+      if (priceFilter === 'low') matchesPrice = price < 200;
+      else if (priceFilter === 'mid') matchesPrice = price >= 200 && price <= 400;
+      else if (priceFilter === 'high') matchesPrice = price > 400;
       return matchesSearch && matchesCategory && matchesPrice;
     });
   };
 
   const styles = {
-    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 0, margin: 0 },
+    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 0, margin: 0, minHeight: '100vh' },
     mainContent: { padding: 40, maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' },
     pageHeader: { marginBottom: 32, textAlign: 'center' },
     pageHeaderH1: { fontFamily: 'Playfair Display, serif', fontSize: 36, marginBottom: 8 },
@@ -64,8 +89,10 @@ const Marketplace = () => {
     filterGroup: { display: 'flex', alignItems: 'center', gap: 12 },
     filterSelect: { padding: '12px 16px', border: '1px solid #DEE2E6', borderRadius: 12, background: 'white', fontFamily: 'Inter, sans-serif' },
     productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 },
-    productCard: { background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid #DEE2E6' },
-    productImage: { height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, position: 'relative' },
+    productCard: { background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid #DEE2E6', transition: 'transform 0.2s, box-shadow 0.2s' },
+    imageContainer: { height: 200, position: 'relative', overflow: 'hidden' },
+    bookImage: { width: '100%', height: '100%', objectFit: 'cover' },
+    imagePlaceholder: { height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, fontWeight: 700, color: '#1E4D4B' },
     productBadge: { position: 'absolute', top: 12, left: 12, background: '#E76F51', color: 'white', padding: '4px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' },
     productDetails: { padding: 20 },
     productMeta: { color: '#6C757D', fontSize: 12, marginBottom: 6 },
@@ -76,31 +103,42 @@ const Marketplace = () => {
     toast: { position: 'fixed', top: 20, right: 20, padding: '15px 25px', background: 'white', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: 12, transform: 'translateX(120%)', transition: 'transform 0.4s', zIndex: 1100 }
   };
 
-  const currentItems = currentTab === 'bundles' ? bundles : crafts;
+  const currentItems = currentTab === 'bundles' ? books : crafts;
   const filteredItems = filterProducts(currentItems);
+
+  if (loading) {
+    return (
+      <div style={styles.body}>
+        <Navbar variant="user" user={user} cartCount={cart.length} />
+        <div style={{ padding: 80, textAlign: 'center' }}>
+          <p style={{ fontSize: 18, color: '#6C757D' }}>Loading marketplace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cart.length} />
 
       <main style={styles.mainContent}>
-        <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Redeem your hard-earned points for curated treasures.</p></div>
+        <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Purchase curated book bundles and handmade crafts.</p></div>
 
         <div style={styles.tabs}>
-          <button style={{ ...styles.tabBtn, ...(currentTab === 'bundles' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('bundles')}>📚 Book Bundles</button>
+          <button style={{ ...styles.tabBtn, ...(currentTab === 'bundles' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('bundles')}>📚 Books</button>
           <button style={{ ...styles.tabBtn, ...(currentTab === 'crafts' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('crafts')}>🎨 Paper Crafts</button>
         </div>
 
         <div style={styles.filterBar}>
-          <div style={styles.searchBox}><i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#6C757D' }}></i><input type="text" style={styles.searchInput} placeholder="Search for bundles or crafts..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <div style={styles.searchBox}><i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#6C757D' }}></i><input type="text" style={styles.searchInput} placeholder="Search for books or crafts..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           <div style={styles.filterGroup}>
             <select style={styles.filterSelect} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               <option value="all">All Categories</option>
               {currentTab === 'bundles' && (
                 <>
-                  <option value="Fiction">Fiction (Novels, Fantasy, Mystery)</option>
-                  <option value="Non-Fiction">Non-Fiction (Biographies, History)</option>
-                  <option value="Academic">Academic (Textbooks, Reference)</option>
+                  <option value="Fiction">Fiction</option>
+                  <option value="Non-Fiction">Non-Fiction</option>
+                  <option value="Academic">Academic</option>
                   <option value="Children">Children's Books</option>
                   <option value="Comics">Comics & Manga</option>
                   <option value="Mixed">Mixed Collection</option>
@@ -108,11 +146,11 @@ const Marketplace = () => {
               )}
               {currentTab === 'crafts' && (
                 <>
-                  <option value="Paper Crafts">Paper Crafts (Origami, Quilling)</option>
-                  <option value="Woodwork">Woodwork (Carvings, Small Furniture)</option>
-                  <option value="Textiles">Textiles (Knitting, Crochet, Sewing)</option>
-                  <option value="Upcycled">Upcycled Materials</option>
-                  <option value="Mixed Media">Mixed Media / Other</option>
+                  <option value="Paper Crafts">Paper Crafts</option>
+                  <option value="Woodwork">Woodwork</option>
+                  <option value="Textiles">Textiles</option>
+                  <option value="Upcycled">Upcycled</option>
+                  <option value="Mixed Media">Mixed Media</option>
                 </>
               )}
             </select>
@@ -124,24 +162,65 @@ const Marketplace = () => {
           </div>
         </div>
 
-        <div style={styles.productGrid}>
-          {filteredItems.map(item => (
-            <div key={item.id} style={styles.productCard}>
-              <div style={{ ...styles.productImage, background: currentTab === 'bundles' ? 'linear-gradient(135deg, #E8F0EF, #D5E8D4)' : 'linear-gradient(135deg, #FFF5EC, #FFE8D6)' }}>
-                {item.image}
-                <span style={styles.productBadge}>{currentTab === 'bundles' ? item.genre : 'Handmade'}</span>
-              </div>
-              <div style={styles.productDetails}>
-                <p style={styles.productMeta}>{currentTab === 'bundles' ? `Curated by ${item.curator}` : `By ${item.seller}`}</p>
-                <h3 style={styles.productTitle}>{item.title}</h3>
-                <div style={styles.productPriceRow}>
-                  <span style={styles.productPrice}><i className="fa-solid fa-coins"></i> {item.price}</span>
-                  <button style={styles.btnAdd} onClick={() => addToCart(item, currentTab)}><i className="fa-solid fa-cart-plus"></i> Add</button>
+        {filteredItems.length === 0 ? (
+          <div style={{ padding: 60, textAlign: 'center', color: '#6C757D' }}>
+            <p style={{ fontSize: 48 }}>{currentTab === 'bundles' ? '📚' : '🎨'}</p>
+            <p style={{ fontSize: 18, fontWeight: 600 }}>No {currentTab === 'bundles' ? 'books' : 'crafts'} found</p>
+            <p>Try adjusting your filters or check back later.</p>
+          </div>
+        ) : (
+          <div style={styles.productGrid}>
+            {filteredItems.map(item => (
+              <div key={item.id} style={styles.productCard}>
+                <div style={{ ...styles.imageContainer, background: currentTab === 'bundles' ? 'linear-gradient(135deg, #E8F0EF, #D5E8D4)' : 'linear-gradient(135deg, #FFF5EC, #FFE8D6)' }}>
+                  {(item.imageUrl || (item.donorImages && item.donorImages.length > 0 ? item.donorImages[0] : null)) ? (
+                    <img src={item.imageUrl || item.donorImages[0]} alt={item.title} style={styles.bookImage} />
+                  ) : (
+                    <div style={styles.imagePlaceholder}>
+                      <span>{item.genre?.[0] || item.title?.[0] || (currentTab === 'bundles' ? 'B' : 'C')}</span>
+                    </div>
+                  )}
+                  <span style={styles.productBadge}>{currentTab === 'bundles' ? (item.genre || 'Book') : 'Handmade'}</span>
+                  <span style={{
+                    position: 'absolute', top: 12, right: 12,
+                    background: '#1E4D4B', color: 'white',
+                    padding: '4px 10px', borderRadius: 20,
+                    fontSize: 12, fontWeight: 700, zIndex: 2
+                  }}>
+                    Qty: {item.quantity || 1}
+                  </span>
+                </div>
+                <div style={styles.productDetails}>
+                  <p style={styles.productMeta}>
+                    {currentTab === 'bundles' ? (item.author ? `by ${item.author}` : 'Donated Book') : `by ${item.user?.name || 'Unknown'}`}
+                  </p>
+                  <h3 style={styles.productTitle}>{item.title}</h3>
+
+                  {/* Condition Badge */}
+                  {item.condition && (
+                    <span style={{
+                      fontSize: 10, padding: '2px 8px', borderRadius: 4,
+                      background: conditionColors[item.condition] || '#F1F3F5',
+                      color: conditionTextColors[item.condition] || '#495057',
+                      fontWeight: 600,
+                    }}>
+                      {item.condition}
+                    </span>
+                  )}
+
+
+
+                  <div style={styles.productPriceRow}>
+                    <span style={styles.productPrice}>
+                      {currentTab === 'crafts' ? `${item.pointsPrice || item.price || 0} pts` : `Rs. ${item.pointsPrice || item.price || 0}`}
+                    </span>
+                    <button style={styles.btnAdd} onClick={() => addToCart(item, currentTab)}>Add</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {toast.show && <div style={{ ...styles.toast, transform: 'translateX(0)' }}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i><div>{toast.message}</div></div>}
