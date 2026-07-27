@@ -477,13 +477,19 @@ const Donate = () => {
 
                         <div style={{ marginTop: 16 }}>
                           <label style={styles.label}>Photos of the Book (Optional)</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => updateBookFiles(idx, Array.from(e.target.files))}
-                            style={{ ...styles.formControl, padding: '8px' }}
-                          />
+                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                updateBookFiles(idx, Array.from(e.target.files));
+                                e.target.value = null;
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
                           {col.files && col.files.length > 0 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                               <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
@@ -546,13 +552,19 @@ const Donate = () => {
 
                         <div style={{ marginTop: 16 }}>
                           <label style={styles.label}>Photos for this Craft Item (Optional)</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => updateCraftCollectionFiles(idx, Array.from(e.target.files))}
-                            style={{ ...styles.formControl, padding: '8px' }}
-                          />
+                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                updateCraftCollectionFiles(idx, Array.from(e.target.files));
+                                e.target.value = null;
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
                           {col.files && col.files.length > 0 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                               <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -8,10 +9,38 @@ const Orders = () => {
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    const storedOrders = JSON.parse(localStorage.getItem('ss_orders') || '[]');
-    setOrders(storedOrders);
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0 };
+    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0, id: '' };
     setUser(storedUser);
+    
+    const fetchOrders = async () => {
+      if (!storedUser.id) return;
+      try {
+        const res = await fetch(`${API_BASE}/orders?userId=${storedUser.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mappedOrders = data.map(o => ({
+            id: o.id.substring(0,8).toUpperCase(),
+            fullId: o.id,
+            date: new Date(o.createdAt).toLocaleDateString(),
+            total: o.cashAmount || 0,
+            totalPoints: o.totalPoints || 0,
+            discount: 0, // Not explicitly stored per order yet
+            status: o.status,
+            items: o.items.map(i => {
+              if (i.bookItem) return i.bookItem.title;
+              if (i.collection) return i.collection.title;
+              if (i.craftListing) return i.craftListing.title;
+              return 'Unknown Item';
+            })
+          }));
+          setOrders(mappedOrders);
+        }
+      } catch (err) {
+        console.error('Failed to fetch orders', err);
+      }
+    };
+    fetchOrders();
+
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
   }, []);
@@ -21,23 +50,33 @@ const Orders = () => {
     return statuses.indexOf(status);
   };
 
-  const handleCancelOrder = (orderId) => {
+  const handleCancelOrder = async (orderId) => {
     if (!window.confirm('Are you sure you want to cancel this order? Your points will be refunded.')) return;
     
-    const newOrders = [...orders];
-    const orderIndex = newOrders.findIndex(o => o.id === orderId);
-    if (orderIndex === -1) return;
-    
-    const order = newOrders[orderIndex];
-    if (order.status !== 'Placed') return;
-    
-    order.status = 'Cancelled';
-    setOrders(newOrders);
-    localStorage.setItem('ss_orders', JSON.stringify(newOrders));
-    
-    const newUser = { ...user, points: user.points + order.total };
-    setUser(newUser);
-    localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Cancelled' })
+      });
+      if (res.ok) {
+        // Update local state to reflect cancellation immediately
+        const newOrders = [...orders];
+        const orderIndex = newOrders.findIndex(o => o.fullId === orderId);
+        if (orderIndex !== -1) {
+          const order = newOrders[orderIndex];
+          order.status = 'Cancelled';
+          setOrders(newOrders);
+          
+          // Note: Full refund logic should ideally be on backend, but we update frontend points here
+          const newUser = { ...user, points: user.points + (order.totalPoints || 0) };
+          setUser(newUser);
+          localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to cancel order', err);
+    }
   };
 
   const styles = {
@@ -110,7 +149,7 @@ const Orders = () => {
                     </div>
                     {order.discount > 0 && <div style={{ fontSize: 12, color: '#E76F51', fontWeight: 600, marginTop: 4 }}>Saved LKR {order.discount} with points</div>}
                     {order.status === 'Placed' && (
-                      <button onClick={() => handleCancelOrder(order.id)} style={{ marginTop: 8, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>Cancel Order</button>
+                      <button onClick={() => handleCancelOrder(order.fullId)} style={{ marginTop: 8, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>Cancel Order</button>
                     )}
                   </div>
                 </div>

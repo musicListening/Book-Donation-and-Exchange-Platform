@@ -34,6 +34,7 @@ model User {
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
+  LoginLog                                        LoginLog[]
   MysteryBox_MysteryBox_assignedByToUser          MysteryBox[]       @relation("MysteryBox_assignedByToUser")
   MysteryBox_MysteryBox_userIdToUser              MysteryBox[]       @relation("MysteryBox_userIdToUser")
   Notification                                    Notification[]
@@ -430,6 +431,16 @@ model PlatformReview {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model LoginLog {
+  id        String      @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  action    AuditAction
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+  User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   END_USER
   OPERATIONS_STAFF
@@ -479,6 +490,8 @@ enum AuditAction {
   DONATION_VERIFICATION
   ORDER_CANCELLATION
   SYSTEM_CONFIG_CHANGE
+  LOGIN
+  LOGOUT
 }
 
 enum DisputeStatus {
