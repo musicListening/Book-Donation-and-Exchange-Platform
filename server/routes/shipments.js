@@ -1,7 +1,6 @@
 // server/routes/shipments.js
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../db');
 const router = express.Router();
 
 // Generate order ID (e.g., "#SL-92410")
