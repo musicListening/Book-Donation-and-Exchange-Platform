@@ -32,6 +32,8 @@ import StaffDashboard from './pages/staff/StaffDashboard';
 import BundleManagement from './pages/staff/BundleManagement';
 import DonationSchedule from './pages/staff/DonationSchedule';
 import OrderFulfillment from './pages/staff/OrderFulfillment';
+import SubmitCraft from './pages/user/SubmitCraft';
+import CraftApproval from './pages/staff/CraftApproval';
 
 // Delivery & Logistics Pages
 import DeliveryPersonPage from './pages/delivery/DeliveryPersonPage';   // Driver dashboard
@@ -77,6 +79,7 @@ function App() {
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/mystery-boxes" element={<ProtectedRoute><MysteryBoxes /></ProtectedRoute>} />
+        <Route path="/submit-craft" element={<ProtectedRoute><SubmitCraft /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminDashboard /></ProtectedRoute>} />
@@ -92,6 +95,8 @@ function App() {
         <Route path="/staff/bundle-management" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><BundleManagement /></ProtectedRoute>} />
         <Route path="/staff/donation-schedule" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><DonationSchedule /></ProtectedRoute>} />
         <Route path="/staff/order-fulfillment" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><OrderFulfillment /></ProtectedRoute>} />
+        <Route path="/staff/craft-approval" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><CraftApproval /></ProtectedRoute>} />
+        <Route path="/staff/marketplace" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><CraftApproval /></ProtectedRoute>} />
         <Route path="/staff/profile" element={<ProtectedRoute requiredRole="OPERATIONS_STAFF"><StaffProfile /></ProtectedRoute>} />
 
         {/* Community Admin Routes */}

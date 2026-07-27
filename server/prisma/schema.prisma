@@ -87,7 +87,9 @@ model DonationRequest {
   isCollectionComplete Boolean            @default(false)
   staffNotes           String?
   status               String             @default("PENDING")
+  donationImages       String[]
   books                BookItem[]
+  crafts               CraftListing[]
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
   PointTransaction     PointTransaction[]
@@ -130,6 +132,8 @@ model BookItem {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   mysteryBoxId         String?
+  imageUrl             String?
+  pointsPrice          Int?
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
   MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
@@ -138,22 +142,24 @@ model BookItem {
 }
 
 model CraftListing {
-  id               String      @id @default(uuid())
-  userId           String
-  title            String
-  description      String
-  imageUrl         String
-  additionalImages String[]
-  pointsPrice      Int
-  status           CraftStatus @default(DRAFT)
-  views            Int         @default(0)
-  favorites        Int         @default(0)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  CartItem         CartItem[]
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Dispute          Dispute[]
-  orderItems       OrderItem[]
+  id                String           @id @default(uuid())
+  userId            String
+  title             String
+  description       String
+  imageUrl          String
+  additionalImages  String[]
+  pointsPrice       Int
+  status            CraftStatus      @default(DRAFT)
+  views             Int              @default(0)
+  favorites         Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  donationRequestId String?
+  CraftItem         CartItem[]
+  donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Dispute           Dispute[]
+  orderItems        OrderItem[]
 }
 
 model Order {
