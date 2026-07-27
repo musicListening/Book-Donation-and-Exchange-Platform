@@ -92,17 +92,22 @@ export default function StaffMarketplace() {
   };
 
   // --- ACTIONS: DELETE ITEM ---
-  const handleDeleteItem = async (id, type) => {
+  const handleDeleteItem = async (item, type) => {
     if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) return;
     try {
       const token = localStorage.getItem('token');
-      const endpoint = type === 'book' ? `${API_BASE}/books/${id}` : `${API_BASE}/crafts/${id}`;
-      const res = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Delete failed');
-      alert(`${type === 'book' ? 'Book' : 'Craft'} deleted successfully.`);
+      const idsToDelete = (typeof item === 'object' && item.bookIds && item.bookIds.length > 0)
+        ? item.bookIds
+        : [(typeof item === 'object' ? item.id : item)];
+
+      for (const bId of idsToDelete) {
+        const endpoint = type === 'book' ? `${API_BASE}/books/${bId}` : `${API_BASE}/crafts/${bId}`;
+        await fetch(endpoint, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      alert(`${type === 'book' ? 'Book(s)' : 'Craft'} deleted successfully.`);
       fetchMarketplace();
     } catch (err) {
       alert(`Failed to delete ${type}: ${err.message}`);
@@ -130,28 +135,30 @@ export default function StaffMarketplace() {
     try {
       const token = localStorage.getItem('token');
       const { item, type } = editingItem;
-      const endpoint = type === 'book' ? `${API_BASE}/books/${item.id}` : `${API_BASE}/crafts/${item.id}`;
+      const idsToUpdate = item.bookIds && item.bookIds.length > 0 ? item.bookIds : [item.id];
 
-      const formData = new FormData();
-      formData.append('title', editForm.title);
-      if (editForm.author) formData.append('author', editForm.author);
-      if (editForm.genre) formData.append('genre', editForm.genre);
-      if (editForm.condition) formData.append('condition', editForm.condition);
-      if (editForm.description) formData.append('description', editForm.description);
-      formData.append('pointsPrice', editForm.pointsPrice);
-      if (editForm.imageFile) {
-        formData.append('image', editForm.imageFile);
+      for (const bId of idsToUpdate) {
+        const endpoint = type === 'book' ? `${API_BASE}/books/${bId}` : `${API_BASE}/crafts/${bId}`;
+
+        const formData = new FormData();
+        formData.append('title', editForm.title);
+        if (editForm.author) formData.append('author', editForm.author);
+        if (editForm.genre) formData.append('genre', editForm.genre);
+        if (editForm.condition) formData.append('condition', editForm.condition);
+        if (editForm.description) formData.append('description', editForm.description);
+        formData.append('pointsPrice', editForm.pointsPrice);
+        if (editForm.imageFile) {
+          formData.append('image', editForm.imageFile);
+        }
+
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Save failed');
       }
-
-      const res = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error('Save failed');
 
       setShowEditModal(false);
       setEditingItem(null);
@@ -326,6 +333,14 @@ export default function StaffMarketplace() {
                       </div>
                     )}
                     <span style={styles.productBadge}>{isBook ? (item.genre || 'Book') : 'Craft'}</span>
+                    <span style={{
+                      position: 'absolute', top: 12, right: 12,
+                      background: '#1E4D4B', color: 'white',
+                      padding: '4px 10px', borderRadius: 20,
+                      fontSize: 12, fontWeight: 700, zIndex: 2
+                    }}>
+                      Qty: {item.quantity || 1}
+                    </span>
                   </div>
 
                   {/* Details Body */}
@@ -379,7 +394,7 @@ export default function StaffMarketplace() {
                           <button onClick={() => openEditModal(item, isBook ? 'book' : 'craft')} style={styles.btnEdit}>
                             ✏️ Edit
                           </button>
-                          <button onClick={() => handleDeleteItem(item.id, isBook ? 'book' : 'craft')} style={styles.btnDelete}>
+                          <button onClick={() => handleDeleteItem(item, isBook ? 'book' : 'craft')} style={styles.btnDelete}>
                             🗑️ Delete
                           </button>
                         </>

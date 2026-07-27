@@ -4,6 +4,7 @@ import "../../styles/AdminDashboard.css";
 import { TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { adminAPI } from "../../services/api";
+import { showToast } from "../../utils/toast";
 
 const GENRE_COLORS = [
   "#1E4D4B",
@@ -54,10 +55,12 @@ export default function AdminDashboard() {
       .then((d) => {
         setData(d);
         setLoading(false);
+        showToast("Analytics dashboard loaded successfully.", "success");
       })
       .catch((err) => {
         console.error("Dashboard data fetch failed:", err);
         setLoading(false);
+        showToast("Failed to load dashboard data. Please try again.", "error");
       });
   }, []);
 

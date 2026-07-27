@@ -386,6 +386,79 @@ router.get('/report', async (req, res) => {
       });
     }
 
+    if (!type || type === 'System Logs') {
+      const staffRoles = ['OPERATIONS_STAFF', 'DELIVERY_PERSONNEL', 'COMMUNITY_ADMIN', 'PLATFORM_ADMIN'];
+
+      const loginLogs = await prisma.loginLog.findMany({
+        where: {
+          user: { role: { in: staffRoles } },
+          ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+        },
+        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Group by user to show summary per staff member
+      const userMap = {};
+      for (const log of loginLogs) {
+        const uid = log.userId;
+        if (!userMap[uid]) {
+          userMap[uid] = {
+            name: log.user.name,
+            email: log.user.email,
+            role: log.user.role,
+            totalLogins: 0,
+            totalLogouts: 0,
+            lastLogin: null,
+            lastLogout: null,
+          };
+        }
+        if (log.action === 'LOGIN') {
+          userMap[uid].totalLogins++;
+          if (!userMap[uid].lastLogin) userMap[uid].lastLogin = log.createdAt;
+        } else if (log.action === 'LOGOUT') {
+          userMap[uid].totalLogouts++;
+          if (!userMap[uid].lastLogout) userMap[uid].lastLogout = log.createdAt;
+        }
+      }
+
+      const roleLabels = {
+        OPERATIONS_STAFF: 'Operations Staff',
+        DELIVERY_PERSONNEL: 'Delivery Personnel',
+        COMMUNITY_ADMIN: 'Community Admin',
+        PLATFORM_ADMIN: 'Platform Admin',
+      };
+
+      const rows = Object.values(userMap).map(u => ({
+        col1: u.name,
+        col2: roleLabels[u.role] || u.role,
+        col3: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
+        col4: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+      }));
+
+      // Chart data: logins per role
+      const roleCounts = {};
+      for (const u of Object.values(userMap)) {
+        const r = roleLabels[u.role] || u.role;
+        roleCounts[r] = (roleCounts[r] || 0) + u.totalLogins;
+      }
+      const maxLogins = Math.max(...Object.values(roleCounts), 1);
+      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#2A9D8F'];
+      const chartData = Object.entries(roleCounts).map(([role, count], i) => ({
+        label: role,
+        val: Math.round(count / maxLogins * 100),
+        color: colors[i % colors.length],
+      }));
+
+      return res.json({
+        title: 'System Activity Logs',
+        subtitle: 'Login and logout activity for all staff roles',
+        headers: ['Staff Member', 'Role', 'Last Login', 'Last Logout'],
+        rows,
+        chartData,
+      });
+    }
+
     return res.status(400).json({ error: 'Invalid report type' });
   } catch (error) {
     console.error('Report generation error:', error);
