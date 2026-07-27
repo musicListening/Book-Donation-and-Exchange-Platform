@@ -158,8 +158,15 @@ router.post('/auto-assign', async (req, res) => {
         for (const book of selectedBooks) {
           await prisma.bookItem.update({
             where: { id: book.id },
-            data: { mysteryBoxId: defaultBox.id, isAvailable: false }
+            data: { mysteryBoxId: defaultBox.id, isAvailable: false, collectionId: null }
           });
+          // Decrement bundle stock if book was in a collection
+          if (book.collectionId) {
+            await prisma.bookCollection.update({
+              where: { id: book.collectionId },
+              data: { stock: { decrement: 1 } }
+            }).catch(() => {});
+          }
         }
 
         assigned.push(defaultBox);
@@ -235,8 +242,15 @@ router.post('/auto-assign', async (req, res) => {
       for (const book of selectedBooks) {
         await prisma.bookItem.update({
           where: { id: book.id },
-          data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+          data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
         });
+        // Decrement bundle stock if book was in a collection
+        if (book.collectionId) {
+          await prisma.bookCollection.update({
+            where: { id: book.collectionId },
+            data: { stock: { decrement: 1 } }
+          }).catch(() => {});
+        }
       }
 
       assigned.push(mysteryBox);
@@ -280,14 +294,13 @@ router.post('/:id/claim', async (req, res) => {
       return res.status(400).json({ error: `Not enough points. You need ${pointsCost} points to claim this mystery box.` });
     }
 
-    const updatedBox = await prisma.mysteryBox.update({
-      where: { id: id },
-      data: { status: 'CLAIMED', claimedAt: new Date() },
-      include: { books: true }
+    // Update mystery box status
+    await prisma.mysteryBox.update({
+      where: { id },
+      data: { status: 'CLAIMED', claimedAt: new Date() }
     });
 
-    res.json(updatedBox);
-
+    // Deduct points if needed
     if (pointsCost > 0) {
       await prisma.user.update({
         where: { id: user.id },
@@ -305,7 +318,13 @@ router.post('/:id/claim', async (req, res) => {
       });
     }
 
-    res.json(updated);
+    // Fetch final result with books
+    const result = await prisma.mysteryBox.findUnique({
+      where: { id },
+      include: { books: true }
+    });
+
+    res.json(result);
   } catch (error) {
     console.error('Error claiming mystery box:', error);
     res.status(500).json({ error: error.message });

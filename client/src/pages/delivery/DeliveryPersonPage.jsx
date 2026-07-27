@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/delivery.css';
+import { API_BASE } from '../../services/api';
 
 const DeliveryPersonPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -39,7 +40,7 @@ const DeliveryPersonPage = () => {
         throw new Error('Authentication token not found');
       }
 
-      const response = await fetch(`/api/orders/driver/${driverId}`, {
+      const response = await fetch(`${API_BASE}/orders/driver/${driverId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -87,7 +88,7 @@ const DeliveryPersonPage = () => {
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE}/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -369,7 +370,7 @@ const DeliveryPersonPage = () => {
                     <div className="order-id">Order #{currentOrder.id?.slice(0, 8) || 'N/A'}</div>
                     <h3>
                       {currentOrder.items?.length || 0} items • {currentOrder.totalPoints || 0} points
-                      {currentOrder.cashAmount && ` • $${currentOrder.cashAmount}`}
+                      {currentOrder.cashAmount ? ` • Rs. ${(currentOrder.cashAmount <= 100 ? currentOrder.cashAmount * 300 : currentOrder.cashAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                     </h3>
                   </div>
                   <div className="badge" style={{

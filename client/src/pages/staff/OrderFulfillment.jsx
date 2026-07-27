@@ -1,6 +1,7 @@
 // pages/staff/OrderFulfillment.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import StaffLayout from '../../components/StaffLayout';
+import { API_BASE } from '../../services/api';
 
 function OrderFulfillment() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -58,7 +59,7 @@ function OrderFulfillment() {
     if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/orders', {
+      const response = await fetch(`${API_BASE}/orders`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +89,7 @@ function OrderFulfillment() {
     if (!silent) setLoadingDrivers(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/users/delivery-personnel', {
+      const response = await fetch(`${API_BASE}/users/delivery-personnel`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -187,7 +188,7 @@ function OrderFulfillment() {
       const driver = availableDrivers.find(d => d.id === selectedDriver);
       
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/orders/assign-driver', {
+      const response = await fetch(`${API_BASE}/orders/assign-driver`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -235,7 +236,7 @@ function OrderFulfillment() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${updatingOrder.id}/status`, {
+      const response = await fetch(`${API_BASE}/orders/${updatingOrder.id}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -287,7 +288,7 @@ function OrderFulfillment() {
     if (!window.confirm('Are you sure you want to delete this order?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orders/${id}`, {
+      const response = await fetch(`${API_BASE}/orders/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

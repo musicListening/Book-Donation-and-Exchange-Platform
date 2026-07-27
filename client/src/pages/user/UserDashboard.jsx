@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { systemConfigAPI, mysteryBoxAPI } from '../../services/api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api');
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
@@ -40,7 +40,7 @@ const UserDashboard = () => {
         } catch (autoErr) {}
 
         const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`/api/users`).then(r => r.ok ? r.json() : []),
+          fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
           systemConfigAPI.getAll()
         ]);

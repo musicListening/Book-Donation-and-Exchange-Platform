@@ -41,7 +41,7 @@ const Home = () => {
 
   // ── Fetch real stats from API ──
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const API_URL = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
     fetch(`${API_URL}/stats`)
       .then(res => res.json())
       .then(data => setStats(data))
@@ -609,7 +609,7 @@ const Home = () => {
               <div style={styles.testimonialAuthor}>
                 {review.user?.profileImage ? (
                   <img 
-                    src={review.user.profileImage.startsWith('http') ? review.user.profileImage : `http://localhost:5000${review.user.profileImage.startsWith('/') ? '' : '/'}${review.user.profileImage}`} 
+                    src={review.user.profileImage} 
                     alt="Profile" 
                     style={styles.testimonialAvatar} 
                   />

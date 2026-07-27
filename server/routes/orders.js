@@ -34,6 +34,108 @@ async function updateDriverStatus(driverId) {
   return updated;
 }
 
+// ===== CREATE Order (Checkout) =====
+router.post('/', async (req, res) => {
+  try {
+    const { userId, items, shippingAddress, phoneNumber, totalPoints, cashAmount } = req.body;
+
+    if (!userId || !items || items.length === 0) {
+      return res.status(400).json({ error: 'userId and items are required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Calculate total points needed
+    const pointsNeeded = parseInt(totalPoints) || 0;
+    if (pointsNeeded > 0 && (user.points || 0) < pointsNeeded) {
+      return res.status(400).json({ error: 'Not enough points' });
+    }
+
+    // Create order with items in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create order
+      const order = await tx.order.create({
+        data: {
+          userId,
+          totalPoints: pointsNeeded,
+          cashAmount: parseFloat(cashAmount) || 0,
+          shippingAddress: shippingAddress || '',
+          phoneNumber: phoneNumber || '',
+          status: 'PENDING',
+          items: {
+            create: items.map(item => ({
+              bookItemId: item.bookItemId || null,
+              collectionId: item.collectionId || null,
+              craftListingId: item.craftListingId || null,
+              quantity: item.quantity || 1,
+              pointsAtTime: item.pointsPrice || 0,
+              cashAtTime: item.cashPrice || 0,
+            }))
+          }
+        },
+        include: {
+          items: { include: { bookItem: true, collection: true, craftListing: true } },
+          user: true
+        }
+      });
+
+      // Mark purchased book items as unavailable
+      for (const item of items) {
+        if (item.bookItemId) {
+          await tx.bookItem.update({
+            where: { id: item.bookItemId },
+            data: {
+              isAvailable: false,
+              addedToMarketplaceAt: null,
+            }
+          });
+          
+          // Decrement bundle stock if book was in a collection
+          const book = await tx.bookItem.findUnique({ where: { id: item.bookItemId } });
+          if (book && book.collectionId) {
+            await tx.bookCollection.update({
+              where: { id: book.collectionId },
+              data: { stock: { decrement: 1 } }
+            }).catch(() => {}); // Ignore if stock goes below 0
+          }
+        }
+        if (item.craftListingId) {
+          await tx.craftListing.update({
+            where: { id: item.craftListingId },
+            data: { status: 'SOLD' }
+          });
+        }
+      }
+
+      // Deduct points from user
+      if (pointsNeeded > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { points: { decrement: pointsNeeded } }
+        });
+
+        await tx.pointTransaction.create({
+          data: {
+            userId,
+            type: 'SPENT_BOOK',
+            amount: -pointsNeeded,
+            description: `Purchase order ${order.id.substring(0, 8).toUpperCase()}`,
+            relatedOrderId: order.id
+          }
+        });
+      }
+
+      return order;
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ===== READ ALL Orders =====
 router.get('/', async (req, res) => {
   try {

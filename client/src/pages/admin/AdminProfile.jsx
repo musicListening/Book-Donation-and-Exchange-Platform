@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
+import { API_BASE } from '../../services/api';
 
 export default function AdminProfile() {
   const [user, setUser] = useState(null);
@@ -50,7 +51,7 @@ export default function AdminProfile() {
         formData.append('profileImage', profileFile);
       }
 
-      const res = await fetch(`/api/users/${user.id}/profile`, {
+      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, {
         method: 'PUT',
         body: formData,
       });

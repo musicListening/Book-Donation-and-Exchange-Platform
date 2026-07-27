@@ -1,7 +1,7 @@
 // pages/staff/BundleManagement.jsx
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
-import { collectionAPI } from '../../services/api';
+import { collectionAPI, bookAPI, API_BASE } from '../../services/api';
 
 function BundleManagement() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -9,23 +9,28 @@ function BundleManagement() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingBundle, setEditingBundle] = useState(null);
-  
-  // ===== FILTER STATE =====
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [bundleBooks, setBundleBooks] = useState({});
+  const [showBooksModal, setShowBooksModal] = useState(false);
+  const [selectedBundleForBooks, setSelectedBundleForBooks] = useState(null);
   
-  // ===== STATS STATE =====
-  const [stats, setStats] = useState({
-    totalBundles: 0,
-    draftBundles: 0,
-    publishedBundles: 0
-  });
-  
+  // Bundle form data
   const [formData, setFormData] = useState({
     name: '',
     includes: '',
     items: '',
     value: '',
     status: 'DRAFT'
+  });
+
+  // Stats
+  const [stats, setStats] = useState({
+    totalBundles: 0,
+    draftBundles: 0,
+    publishedBundles: 0,
+    totalBooks: 0,
+    uniqueTitles: 0,
+    lowStockItems: 0
   });
 
   // Load user from localStorage
@@ -56,13 +61,15 @@ function BundleManagement() {
     }
   }, []);
 
-  // ===== LOAD BUNDLES FROM DATABASE =====
-  const loadBundles = async () => {
+  // ===== LOAD ALL DATA =====
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const data = await collectionAPI.getAll();
-      console.log('✅ Bundles loaded:', data);
-      const mappedBundles = data.map(item => ({
+      // Load bundles
+      const bundlesData = await collectionAPI.getAll();
+      console.log('✅ Bundles loaded:', bundlesData);
+      
+      const mappedBundles = bundlesData.map(item => ({
         id: item.id,
         bundleId: item.slug || `#BND-${String(item.id).slice(0, 4).toUpperCase()}`,
         name: item.title,
@@ -81,27 +88,55 @@ function BundleManagement() {
       }));
       setBundles(mappedBundles);
       
-      // ===== UPDATE STATS FROM DATABASE =====
-      const total = mappedBundles.length;
-      const draft = mappedBundles.filter(b => b.status === 'DRAFT').length;
-      const published = mappedBundles.filter(b => b.status === 'PUBLISHED').length;
+      // Fetch book counts for each collection
+      const bookCounts = {};
+      for (const col of bundlesData) {
+        try {
+          const booksRes = await fetch(`${API_BASE}/books/collection/${col.id}`);
+          if (booksRes.ok) {
+            const booksData = await booksRes.json();
+            bookCounts[col.id] = {
+              count: booksData.length,
+              books: booksData,
+            };
+          }
+        } catch (err) {
+          bookCounts[col.id] = { count: 0, books: [] };
+        }
+      }
+      setBundleBooks(bookCounts);
+      
+      // Load inventory (just for stats)
+      const inventoryData = await bookAPI.getAll();
+      console.log('✅ Inventory loaded for stats:', inventoryData);
+      
+      // Calculate all stats
+      const totalBundles = mappedBundles.length;
+      const draftBundles = mappedBundles.filter(b => b.status === 'DRAFT').length;
+      const publishedBundles = mappedBundles.filter(b => b.status === 'PUBLISHED').length;
+      const totalBooks = inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      const uniqueTitles = inventoryData.length;
+      const lowStockItems = inventoryData.filter(item => (item.quantity || 0) < 10);
       
       setStats({
-        totalBundles: total,
-        draftBundles: draft,
-        publishedBundles: published
+        totalBundles,
+        draftBundles,
+        publishedBundles,
+        totalBooks,
+        uniqueTitles,
+        lowStockItems: lowStockItems.length
       });
+      
     } catch (error) {
-      console.error('❌ Error loading bundles:', error);
-      alert('Failed to load bundles: ' + error.message);
+      console.error('❌ Error loading data:', error);
+      alert('Failed to load data: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load bundles on component mount
   useEffect(() => {
-    loadBundles();
+    loadAllData();
   }, []);
 
   const getUserInitials = () => {
@@ -115,21 +150,22 @@ function BundleManagement() {
     return 'SU';
   };
 
-  // ===== FILTER FUNCTION =====
+  // ===== BUNDLE CRUD =====
   const getFilteredBundles = () => {
     let filtered = [...bundles];
-
-    // Status filter
     if (statusFilter !== 'All Statuses') {
       filtered = filtered.filter(bundle => bundle.status === statusFilter);
     }
-
     return filtered;
+  };
+
+  const openBundleBooks = (bundle) => {
+    setSelectedBundleForBooks(bundle);
+    setShowBooksModal(true);
   };
 
   const filteredBundles = getFilteredBundles();
 
-  // ===== CREATE Bundle =====
   const handleCreate = async () => {
     try {
       const newBundle = await collectionAPI.create({
@@ -144,28 +180,9 @@ function BundleManagement() {
       });
       console.log('✅ Bundle created:', newBundle);
       
-      const mappedBundle = {
-        id: newBundle.id,
-        bundleId: newBundle.slug || `#BND-${String(newBundle.id).slice(0, 4).toUpperCase()}`,
-        name: newBundle.title,
-        includes: newBundle.description || 'No description',
-        items: newBundle.stock || 0,
-        value: newBundle.cashPrice || newBundle.pointsRequired || 0,
-        status: newBundle.isRare ? 'PUBLISHED' : 'DRAFT',
-        date: new Date(newBundle.createdAt).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: '2-digit', 
-          year: 'numeric' 
-        }),
-        createdAt: newBundle.createdAt,
-        cashPrice: newBundle.cashPrice || 0,
-        stock: newBundle.stock || 0
-      };
-      
-      setBundles([mappedBundle, ...bundles]);
+      await loadAllData();
       setShowModal(false);
       resetForm();
-      loadBundles();
       alert('Bundle created successfully!');
     } catch (error) {
       console.error('❌ Error creating bundle:', error);
@@ -173,7 +190,6 @@ function BundleManagement() {
     }
   };
 
-  // ===== EDIT Bundle (open modal) =====
   const handleEdit = (bundle) => {
     setEditingBundle(bundle);
     setFormData({
@@ -186,7 +202,6 @@ function BundleManagement() {
     setShowModal(true);
   };
 
-  // ===== UPDATE Bundle =====
   const handleUpdate = async () => {
     try {
       const updated = await collectionAPI.update(editingBundle.id, {
@@ -199,29 +214,10 @@ function BundleManagement() {
       });
       console.log('✅ Bundle updated:', updated);
       
-      const mappedBundle = {
-        id: updated.id,
-        bundleId: updated.slug || editingBundle.bundleId,
-        name: updated.title,
-        includes: updated.description || 'No description',
-        items: updated.stock || 0,
-        value: updated.cashPrice || updated.pointsRequired || 0,
-        status: updated.isRare ? 'PUBLISHED' : 'DRAFT',
-        date: new Date(updated.createdAt).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: '2-digit', 
-          year: 'numeric' 
-        }),
-        createdAt: updated.createdAt,
-        cashPrice: updated.cashPrice || 0,
-        stock: updated.stock || 0
-      };
-      
-      setBundles(bundles.map(b => b.id === editingBundle.id ? mappedBundle : b));
+      await loadAllData();
       setShowModal(false);
       setEditingBundle(null);
       resetForm();
-      loadBundles();
       alert('Bundle updated successfully!');
     } catch (error) {
       console.error('❌ Error updating bundle:', error);
@@ -229,15 +225,12 @@ function BundleManagement() {
     }
   };
 
-  // ===== DELETE Bundle =====
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this bundle?')) return;
-    
     try {
       await collectionAPI.delete(id);
       console.log('✅ Bundle deleted');
-      setBundles(bundles.filter(b => b.id !== id));
-      loadBundles();
+      await loadAllData();
       alert('Bundle deleted successfully!');
     } catch (error) {
       console.error('❌ Error deleting bundle:', error);
@@ -255,6 +248,53 @@ function BundleManagement() {
     });
   };
 
+  const handleAddBookToMarketplace = async (bookId) => {
+      try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${API_BASE}/books/${bookId}/add-to-marketplace`, {
+              method: 'PUT',
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              }
+          });
+          if (!response.ok) throw new Error('Failed to add to marketplace');
+          alert('Book added to marketplace!');
+          await loadAllData();
+      } catch (error) {
+          console.error('Error adding book to marketplace:', error);
+          alert('Failed to add book to marketplace: ' + error.message);
+      }
+  };
+
+  const handleAddAllBooksToMarketplace = async (bundleId) => {
+      const books = bundleBooks[bundleId]?.books || [];
+      const inventoryBooks = books.filter(b => !b.isAvailable);
+      if (inventoryBooks.length === 0) {
+          alert('All books are already on the marketplace!');
+          return;
+      }
+      if (!window.confirm(`Add ${inventoryBooks.length} book(s) to marketplace?`)) return;
+      
+      try {
+          const token = localStorage.getItem('token');
+          for (const book of inventoryBooks) {
+              await fetch(`${API_BASE}/books/${book.id}/add-to-marketplace`, {
+                  method: 'PUT',
+                  headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                  }
+              });
+          }
+          alert(`${inventoryBooks.length} book(s) added to marketplace!`);
+          await loadAllData();
+      } catch (error) {
+          console.error('Error adding books to marketplace:', error);
+          alert('Failed to add some books: ' + error.message);
+      }
+  };
+
   return (
     <StaffLayout>
       <div className="content-header">
@@ -269,30 +309,48 @@ function BundleManagement() {
         </div>
       </div>
 
-      {/* ===== STATS CARDS - MATCHING STAFF DASHBOARD STYLE ===== */}
-      <div className="stats-grid">
+      {/* ===== STATS CARDS ===== */}
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
         <div className="stat-card">
-          <h3>TOTAL ACTIVE BUNDLES</h3>
+          <h3>📦 TOTAL BUNDLES</h3>
           <div className="stat-value">{stats.totalBundles}</div>
-          <div className="stat-trend">{loading ? 'Loading...' : 'Live from database'}</div>
-          <div className="stat-sub">All active bundles</div>
+          <div className="stat-trend">Active collections</div>
         </div>
 
         <div className="stat-card">
-          <h3>PENDING PUBLICATION</h3>
+          <h3>⏳ DRAFT</h3>
           <div className="stat-value" style={{ color: '#ffc107' }}>{stats.draftBundles}</div>
-          <div className="stat-trend">▲ Awaiting approval</div>
-          <div className="stat-sub">Requires curator approval</div>
+          <div className="stat-trend">Awaiting approval</div>
         </div>
 
         <div className="stat-card">
-          <h3>PUBLISHED</h3>
+          <h3>✅ PUBLISHED</h3>
           <div className="stat-value" style={{ color: '#28a745' }}>{stats.publishedBundles}</div>
-          <div className="stat-trend">✓ Available</div>
-          <div className="stat-sub">Available in marketplace</div>
+          <div className="stat-trend">Available in marketplace</div>
+        </div>
+
+        <div className="stat-card">
+          <h3>📚 TOTAL BOOKS</h3>
+          <div className="stat-value">{stats.totalBooks.toLocaleString()}</div>
+          <div className="stat-trend">In inventory</div>
+        </div>
+
+        <div className="stat-card">
+          <h3>📖 UNIQUE TITLES</h3>
+          <div className="stat-value">{stats.uniqueTitles}</div>
+          <div className="stat-trend">Different books</div>
+        </div>
+
+        <div className="stat-card">
+          <h3>⚠️ LOW STOCK</h3>
+          <div className="stat-value" style={{ color: stats.lowStockItems > 0 ? '#dc3545' : '#28a745' }}>
+            {stats.lowStockItems}
+          </div>
+          <div className="stat-trend">{stats.lowStockItems > 0 ? '⚠️ Needs attention' : '✅ All good'}</div>
         </div>
       </div>
 
+      {/* ===== BUNDLES TABLE ===== */}
       <div className="bundle-table-section">
         <div className="table-header">
           <h3>Bundle Inventory</h3>
@@ -349,7 +407,7 @@ function BundleManagement() {
                       <div className="bundle-name">{bundle.name}</div>
                       <div className="bundle-includes">{bundle.includes}</div>
                     </td>
-                    <td>{bundle.items}</td>
+                    <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
                     <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
                     <td>
                       <span className={`status-badge ${bundle.status.toLowerCase()}`}>
@@ -359,6 +417,9 @@ function BundleManagement() {
                     <td>{bundle.date}</td>
                     <td>
                       <div className="action-group">
+                        <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                          View Books ({bundleBooks[bundle.id]?.count || 0})
+                        </button>
                         <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
                         <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
                       </div>
@@ -375,7 +436,7 @@ function BundleManagement() {
         </div>
       </div>
 
-      {/* Modal for Create/Edit */}
+      {/* ===== MODAL ===== */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -458,6 +519,79 @@ function BundleManagement() {
                 style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#1E4D4B', color: 'white' }}
               >
                 {editingBundle ? 'Update Bundle' : 'Create Bundle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Books in Bundle Modal */}
+      {showBooksModal && selectedBundleForBooks && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 800 }}>
+            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Books in {selectedBundleForBooks.name}</h2>
+            
+            {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                    No books assigned to this bundle yet.
+                </div>
+            ) : (
+                <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                        <button
+                            className="btn-small"
+                            onClick={() => handleAddAllBooksToMarketplace(selectedBundleForBooks.id)}
+                            style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                        >
+                            Add All to Marketplace ({(bundleBooks[selectedBundleForBooks.id]?.books || []).filter(b => !b.isAvailable).length})
+                        </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+                        {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
+                            <div key={book.id} style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e5e5' }}>
+                                {book.imageUrl ? (
+                                    <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
+                                        {book.title?.[0] || 'B'}
+                                    </div>
+                                )}
+                                <div style={{ padding: 12 }}>
+                                    <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
+                                    <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition}</p>
+                                    {book.isAvailable ? (
+                                        <span style={{
+                                            fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                                            background: '#E8F5E9', color: '#2E7D32',
+                                        }}>
+                                            ✓ On Marketplace
+                                        </span>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleAddBookToMarketplace(book.id)}
+                                            style={{
+                                                width: '100%', padding: '6px 10px', fontSize: 12, fontWeight: 600,
+                                                background: '#1E4D4B', color: 'white', border: 'none',
+                                                borderRadius: 6, cursor: 'pointer', marginTop: 4
+                                            }}
+                                        >
+                                            Add to Marketplace
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => { setShowBooksModal(false); setSelectedBundleForBooks(null); }}
+                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+              >
+                Close
               </button>
             </div>
           </div>

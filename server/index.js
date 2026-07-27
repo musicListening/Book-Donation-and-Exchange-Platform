@@ -38,7 +38,7 @@ io.on('connection', (socket) => {
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  'https://shareshelfplatform.netlify.app',
+  'https://shareshelfbookdonation.netlify.app/',
   'https://book-donation-and-exchange-platform.onrender.com',
 ];
 app.use(cors({
