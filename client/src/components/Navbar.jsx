@@ -42,6 +42,8 @@ export default function Navbar({
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('ss_cart');
+    localStorage.removeItem('ss_orders');
     navigate('/login');
   };
 
