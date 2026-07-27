@@ -3,36 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { prisma, warmUpDb } = require('./db');
-const http = require('http');
-const { Server } = require('socket.io');
-
 const app = express();
-const server = http.createServer(app);
-
-// Initialize Socket.io
-const io = new Server(server, {
-  cors: {
-    origin: '*', // We can tighten this in production
-    methods: ['GET', 'POST', 'PATCH', 'DELETE']
-  }
-});
-
-// Expose io to routes
-app.locals.io = io;
-
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
-
-  // When client identifies themselves
-  socket.on('joinRoom', (userId) => {
-    socket.join(userId);
-    console.log(`Socket ${socket.id} joined room ${userId}`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
-});
 
 // 1. ENABLE CORS (MUST BE AT THE VERY TOP, BEFORE ROUTES!)
 const allowedOrigins = [
@@ -71,8 +42,7 @@ const statsRoutes = require('./routes/stats');
 const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
-const notificationRoutes = require('./routes/notifications');
-
+const craftRoutes = require('./routes/crafts');
 // 4. Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -89,21 +59,21 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/mystery-boxes', mysteryBoxRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/crafts', craftRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// 6. Connect to database// 7. Start server using the HTTP server (not app.listen directly)
+// 6. Connect to database and Start Server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, async () => {
-  try {
-    await warmUpDb();
-    console.log(`🟢 Server running on http://localhost:${PORT}`);
-    // Log registered API routes
-  console.log('📚 Registered API Routes:');
+
+warmUpDb()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🟢 Server running on http://localhost:${PORT}`);
+      console.log(`📚 Registered API Routes:`);
       console.log(`   - [POST/GET] /api/auth/*`);
       console.log(`   - [GET/POST/PATCH/DELETE] /api/users/*`);
       console.log(`   - [GET] /api/admin/*`);
@@ -114,8 +84,9 @@ server.listen(PORT, async () => {
       console.log(`   - [GET/POST/PATCH/DELETE] /api/donations`);
       console.log(`   - [GET/POST/PATCH/DELETE] /api/orders`);
       console.log(`   - [GET] /api/health`);
-    } catch (err) {
-      console.error('❌ Failed to start server due to DB connection error:', err);
-      process.exit(1);
-    }
-});
+    });
+  })
+  .catch(err => {
+    console.error('❌ Failed to start server due to DB connection error:', err);
+    process.exit(1);
+  });
