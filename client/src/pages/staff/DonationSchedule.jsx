@@ -1,7 +1,9 @@
 // pages/staff/DonationSchedule.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import StaffLayout from '../../components/StaffLayout';
 import { systemConfigAPI, API_BASE } from '../../services/api';
+import { showToast } from '../../utils/toast';
 
 // ===== BOOK CATEGORIES CONSTANT =====
 const BOOK_CATEGORIES = [
@@ -14,6 +16,7 @@ const BOOK_CATEGORIES = [
 ];
 
 function DonationSchedule() {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [donations, setDonations] = useState([]);
   const [users, setUsers] = useState([]);
@@ -28,15 +31,6 @@ function DonationSchedule() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState(null);
-  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
-  const [marketplaceDonation, setMarketplaceDonation] = useState(null);
-  const [marketplaceForm, setMarketplaceForm] = useState({
-    title: '',
-    price: 0,
-    condition: 'good',
-    description: '',
-    category: 'General'
-  });
   const [bundles, setBundles] = useState([]);
   const [selectedBundleId, setSelectedBundleId] = useState('');
   const [addToMarketplace, setAddToMarketplace] = useState(false);
@@ -50,7 +44,7 @@ function DonationSchedule() {
     currentPoints: 0,
     userId: null,
     booksDonated: 0,
-    category: '' // Added category field
+    category: ''
   });
 
   // Download state
@@ -243,13 +237,11 @@ function DonationSchedule() {
       currentPoints: donation.userPoints || 0,
       userId: donation.userId || null,
       booksDonated: donation.booksDonated || 0,
-      category: donation.category || '' // Initialize with existing category
+      category: donation.category || ''
     });
-    // Reset download checkbox
     setDownloadReceiptAfterVerify(false);
     setShowVerifyModal(true);
 
-    // Fetch available bundles for assignment
     try {
       const token = localStorage.getItem('token');
       const bundleRes = await fetch(`${API_BASE}/collections`, {
@@ -266,14 +258,14 @@ function DonationSchedule() {
 
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
-      alert('No donation selected');
+      showToast('No donation selected', 'error');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('No token found. Please login again.');
+        showToast('Please login again', 'error');
         return;
       }
 
@@ -291,7 +283,7 @@ function DonationSchedule() {
           isCollectionComplete: verifyForm.isComplete,
           bundleId: selectedBundleId || null,
           addToMarketplace,
-          category: verifyForm.category || selectedDonation.category // Send updated category
+          category: verifyForm.category || selectedDonation.category
         })
       });
 
@@ -313,85 +305,36 @@ function DonationSchedule() {
       setShowVerifyModal(false);
       
       const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
-      const isCraftDonation = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
-      const itemLabel = isCraftDonation ? 'craft' : 'book';
 
       setVerifyForm({
         verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
         awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0,
         category: ''
       });
-      
-      const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
-      const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
-
-      const defaultBookLkrPrice = (
-        (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
-        : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
-        : (verifyForm.condition === 'GOOD') ? 400 
-        : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
-        : 150
-      );
-
-      const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
-      const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
-
-      setMarketplaceDonation(selectedDonation);
-      setMarketplaceForm({
-        title: displayTitle,
-        price: calculatedPrice,
-        condition: verifyForm.condition || 'good',
-        description: '',
-        category: verifyForm.category || selectedDonation.category || 'General'
-      });
-      setShowMarketplaceModal(true);
 
       fetchAllData();
 
-      // Download receipt after verification if checkbox is checked
       if (downloadReceiptAfterVerify) {
         setTimeout(() => {
           downloadReceipt(selectedDonation);
         }, 500);
       }
+
+      // ===== SHOW SUCCESS TOAST WITH NAVIGATION OPTION =====
+      showToast(`✅ Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
+
+      // ===== AFTER VERIFICATION, NAVIGATE TO BUNDLE MANAGEMENT =====
+      setTimeout(() => {
+        if (window.confirm('Donation verified successfully! Would you like to go to Bundle Management to manage the books?')) {
+          navigate('/staff/bundle-management');
+        } else {
+          showToast('You can also go to Bundle Management from the sidebar.', 'info');
+        }
+      }, 800);
       
     } catch (error) {
       console.error('Error verifying donation:', error);
-      alert(`Failed to verify: ${error.message}`);
-    }
-  };
-
-  const handleAddToMarketplace = async () => {
-    if (!marketplaceDonation) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/donations/${marketplaceDonation.id}/publish-marketplace`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: marketplaceForm.title,
-          price: marketplaceForm.price,
-          description: marketplaceForm.description || `${marketplaceDonation.category} in ${marketplaceForm.condition} condition`,
-          condition: marketplaceForm.condition,
-          quantity: verifyForm.verifiedCount
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add to marketplace');
-      }
-
-      setShowMarketplaceModal(false);
-      setMarketplaceDonation(null);
-      alert('Item added to marketplace successfully!');
-      
-    } catch (error) {
-      console.error('Error adding to marketplace:', error);
-      alert('Error adding to marketplace. Please try again.');
+      showToast('Failed to verify: ' + error.message, 'error');
     }
   };
 
@@ -430,18 +373,13 @@ function DonationSchedule() {
         category: ''
       });
 
-      alert('Donation rejected.');
+      showToast('Donation rejected.', 'warning');
       fetchAllData();
       
     } catch (error) {
       console.error('Error rejecting donation:', error);
-      alert('Error rejecting donation. Please try again.');
+      showToast('Error rejecting donation: ' + error.message, 'error');
     }
-  };
-
-  const handleSkipMarketplace = () => {
-    setShowMarketplaceModal(false);
-    setMarketplaceDonation(null);
   };
 
   const getUserInitials = () => {
@@ -453,9 +391,7 @@ function DonationSchedule() {
     return 'SU';
   };
 
-  // ===== Download Functions =====
-
-  // Download Individual Donation Receipt
+  // ===== Download Receipt Function =====
   const downloadReceipt = (donation) => {
     const dateStr = new Date().toLocaleDateString();
     const timeStr = new Date().toLocaleTimeString();
@@ -637,7 +573,7 @@ function DonationSchedule() {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Please allow popups to download the receipt.');
+      showToast('Please allow popups to download the receipt.', 'error');
       return;
     }
     printWindow.document.write(receiptHTML);
@@ -663,7 +599,6 @@ function DonationSchedule() {
           <h1>Donation Management</h1>
           <p className="page-subtitle">Review and award points for pending donation submissions</p>
         </div>
-        {/* REMOVED: user-info div with avatar - profile is already in StaffLayout */}
       </div>
 
       <div className="cards-grid">
@@ -990,13 +925,12 @@ function DonationSchedule() {
               </select>
             </div>
 
-            {/* ===== NEW: Category Dropdown for Staff ===== */}
+            {/* Category Dropdown for Staff */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 Book Category
               </label>
               {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
-                // For crafts, show as read-only
                 <div style={{
                   padding: '10px 14px',
                   background: '#f0f7f6',
@@ -1010,7 +944,6 @@ function DonationSchedule() {
                   {selectedDonation.category}
                 </div>
               ) : (
-                // For books, show dropdown
                 <select
                   className="form-control"
                   value={verifyForm.category || selectedDonation.category || ''}
@@ -1111,85 +1044,6 @@ function DonationSchedule() {
               <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}>Cancel</button>
               <button className="btn-reject" onClick={handleRejectDonation}>Reject</button>
               <button className="btn-save" onClick={handleConfirmVerification}>Verify & Award Points</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMarketplaceModal && marketplaceDonation && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '550px' }}>
-            <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Add to Marketplace</h2>
-            <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
-              Would you like to list this {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'} in the marketplace?
-            </p>
-
-            <div style={{ marginBottom: '20px', padding: '16px', background: '#f5f5f5', borderRadius: '8px', fontFamily: 'var(--font-family)' }}>
-              <p><strong>Category:</strong> {marketplaceDonation.category}</p>
-              <p><strong>Donor:</strong> {marketplaceDonation.donor}</p>
-              <p><strong>Condition:</strong> {marketplaceForm.condition}</p>
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Craft Name' : 'Book Name'}
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={marketplaceForm.title}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, title: e.target.value })}
-                placeholder="Enter name..."
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontFamily: 'var(--font-family)',
-                  marginBottom: '15px'
-                }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Price (Points)' : 'Selling Price (LKR / Rs.)'}
-              </label>
-              <input
-                type="number"
-                className="form-control"
-                value={marketplaceForm.price}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseInt(e.target.value) || 0 })}
-                min="0"
-                step="1"
-                placeholder={marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'e.g. 50' : 'e.g. 500'}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontFamily: 'var(--font-family)'
-                }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Description</label>
-              <textarea
-                className="form-control"
-                value={marketplaceForm.description}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, description: e.target.value })}
-                placeholder={`Brief description of the ${marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'}...`}
-                rows="3"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={handleSkipMarketplace}>Skip</button>
-              <button className="btn-save" style={{ background: '#FF9800', color: 'white' }} onClick={handleAddToMarketplace}>Add to Marketplace</button>
             </div>
           </div>
         </div>
