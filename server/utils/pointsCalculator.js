@@ -17,7 +17,8 @@ async function calculateDonationPoints(bookCount, isCollection) {
   const bonusPct = parseInt(config.COLLECTION_BONUS_PERCENTAGE) || 10;
 
   const basePoints = bookCount * baseRate;
-  const bonus = isCollection ? Math.round(basePoints * (bonusPct / 100)) : 0;
+  const applyBonus = isCollection || bookCount > 1;
+  const bonus = applyBonus ? Math.round(basePoints * (bonusPct / 100)) : 0;
   return { basePoints, bonus, total: basePoints + bonus, baseRate, bonusPct };
 }
 
