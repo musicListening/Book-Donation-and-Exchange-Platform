@@ -181,6 +181,14 @@ const Marketplace = () => {
                     </div>
                   )}
                   <span style={styles.productBadge}>{currentTab === 'bundles' ? (item.genre || 'Book') : 'Handmade'}</span>
+                  <span style={{
+                    position: 'absolute', top: 12, right: 12,
+                    background: '#1E4D4B', color: 'white',
+                    padding: '4px 10px', borderRadius: 20,
+                    fontSize: 12, fontWeight: 700, zIndex: 2
+                  }}>
+                    Qty: {item.quantity || 1}
+                  </span>
                 </div>
                 <div style={styles.productDetails}>
                   <p style={styles.productMeta}>

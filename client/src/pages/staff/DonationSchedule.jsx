@@ -193,7 +193,8 @@ function DonationSchedule() {
     const baseRate = parseInt(systemConfig.BASE_POINTS_PER_BOOK) || 10;
     const bonusPct = parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10;
     const basePoints = actualCount * baseRate;
-    const bonus = isCollectionComplete ? Math.round(basePoints * (bonusPct / 100)) : 0;
+    const applyBonus = isCollectionComplete || actualCount > 1;
+    const bonus = applyBonus ? Math.round(basePoints * (bonusPct / 100)) : 0;
     return { basePoints, bonus, total: basePoints + bonus, baseRate, bonusPct };
   };
 
@@ -301,40 +302,31 @@ function DonationSchedule() {
         awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
       
-      if (addToMarketplace) {
-        alert(`Verified & Listed in Marketplace! ${verifyForm.verifiedCount} ${itemLabel}(s) confirmed. ${points.total} points awarded.${levelUpMsg}`);
-        setShowMarketplaceModal(false);
-        setMarketplaceDonation(null);
-        fetchAllData();
-      } else {
-        alert(`Verified! ${verifyForm.verifiedCount} ${itemLabel}(s) confirmed. ${points.total} points awarded.${levelUpMsg}`);
+      const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
+      const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
 
-        const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
-        const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
+      const defaultBookLkrPrice = (
+        (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
+        : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
+        : (verifyForm.condition === 'GOOD') ? 400 
+        : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
+        : 150
+      );
 
-        const defaultBookLkrPrice = (
-          (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
-          : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
-          : (verifyForm.condition === 'GOOD') ? 400 
-          : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
-          : 150
-        );
+      const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
+      const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
 
-        const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
+      setMarketplaceDonation(selectedDonation);
+      setMarketplaceForm({
+        title: displayTitle,
+        price: calculatedPrice,
+        condition: verifyForm.condition || 'good',
+        description: '',
+        category: selectedDonation.category || 'General'
+      });
+      setShowMarketplaceModal(true);
 
-        const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
-
-        setMarketplaceDonation(selectedDonation);
-        setMarketplaceForm({
-          title: displayTitle,
-          price: calculatedPrice,
-          condition: verifyForm.condition || 'good',
-          description: '',
-          category: selectedDonation.category || 'General'
-        });
-        setShowMarketplaceModal(true);
-        fetchAllData();
-      }
+      fetchAllData();
       
     } catch (error) {
       console.error('Error verifying donation:', error);
@@ -357,7 +349,8 @@ function DonationSchedule() {
           title: marketplaceForm.title,
           price: marketplaceForm.price,
           description: marketplaceForm.description || `${marketplaceDonation.category} in ${marketplaceForm.condition} condition`,
-          condition: marketplaceForm.condition
+          condition: marketplaceForm.condition,
+          quantity: verifyForm.verifiedCount
         })
       });
 

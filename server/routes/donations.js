@@ -422,7 +422,7 @@ router.patch('/:id/verify', async (req, res) => {
             }
         } else {
             for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
-                const bookTitle = donation.collectionName || (donation.category || 'Donated Book') + (parseInt(verifiedCount) > 1 ? ` #${i + 1}` : '');
+                const bookTitle = (donation.collectionName || donation.category || 'Donated Book').replace(/\s*#\d+$/i, '').trim();
                 const bookItem = await prisma.bookItem.create({
                     data: {
                         title: bookTitle,
@@ -467,7 +467,7 @@ router.patch('/:id/verify', async (req, res) => {
 router.post('/:id/publish-marketplace', async (req, res) => {
     try {
         const { id } = req.params;
-        const { price, description, condition, title } = req.body;
+        const { price, description, condition, title, quantity } = req.body;
 
         const donation = await prisma.donationRequest.findUnique({
             where: { id }
@@ -505,20 +505,9 @@ router.post('/:id/publish-marketplace', async (req, res) => {
             }
         } else {
             const count = await prisma.bookItem.count({ where: { donationRequestId: id } });
-            if (count === 0) {
-                await prisma.bookItem.create({
-                    data: {
-                        title: title || donation.collectionName || donation.category || 'Donated Book',
-                        condition: condition || 'GOOD',
-                        isDonated: true,
-                        donationRequestId: donation.id,
-                        isAvailable: true,
-                        addedToMarketplaceAt: new Date(),
-                        pointsPrice,
-                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : null,
-                    }
-                });
-            } else {
+            const targetQty = parseInt(quantity) || 1;
+            
+            if (count > 0) {
                 await prisma.bookItem.updateMany({
                     where: { donationRequestId: id },
                     data: {
@@ -528,6 +517,21 @@ router.post('/:id/publish-marketplace', async (req, res) => {
                         title: title || undefined,
                     }
                 });
+            }
+            
+            const itemsToCreate = Math.max(0, targetQty - count);
+            if (itemsToCreate > 0) {
+                const newItems = Array.from({ length: itemsToCreate }).map(() => ({
+                    title: title || donation.collectionName || donation.category || 'Donated Book',
+                    condition: condition || 'GOOD',
+                    isDonated: true,
+                    donationRequestId: donation.id,
+                    isAvailable: true,
+                    addedToMarketplaceAt: new Date(),
+                    pointsPrice,
+                    imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : null,
+                }));
+                await prisma.bookItem.createMany({ data: newItems });
             }
         }
 

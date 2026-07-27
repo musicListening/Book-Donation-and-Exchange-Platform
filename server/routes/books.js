@@ -77,19 +77,40 @@ router.get('/marketplace', async (req, res) => {
             orderBy: { addedToMarketplaceAt: 'desc' },
         });
 
-        const marketplaceItems = books.map((book) => ({
-            id: book.id,
-            title: book.title,
-            author: book.author,
-            genre: book.genre,
-            condition: book.condition,
-            pointsPrice: book.pointsPrice,
-            imageUrl: book.imageUrl,
-            donorImages: book.donationRequest?.donationImages || [],
-            collection: book.collection,
-            addedAt: book.addedToMarketplaceAt,
-        }));
+        // Group books by title, condition, and pointsPrice into a single card with quantity
+        const groupedMap = new Map();
 
+        for (const book of books) {
+            const cleanTitle = (book.title || '').replace(/\s*#\d+$/i, '').trim();
+            const key = `${cleanTitle.toLowerCase()}_${(book.condition || '').toLowerCase()}_${book.pointsPrice || 0}`;
+            
+            if (!groupedMap.has(key)) {
+                groupedMap.set(key, {
+                    id: book.id,
+                    bookIds: [book.id],
+                    title: cleanTitle,
+                    author: book.author,
+                    genre: book.genre,
+                    condition: book.condition,
+                    pointsPrice: book.pointsPrice,
+                    imageUrl: book.imageUrl,
+                    donorImages: book.donationRequest?.donationImages || [],
+                    collection: book.collection,
+                    addedAt: book.addedToMarketplaceAt,
+                    quantity: 1,
+                });
+            } else {
+                const existing = groupedMap.get(key);
+                existing.quantity += 1;
+                existing.bookIds.push(book.id);
+                if (!existing.imageUrl && book.imageUrl) existing.imageUrl = book.imageUrl;
+                if (book.donationRequest?.donationImages?.length && !existing.donorImages?.length) {
+                    existing.donorImages = book.donationRequest.donationImages;
+                }
+            }
+        }
+
+        const marketplaceItems = Array.from(groupedMap.values());
         res.json(marketplaceItems);
     } catch (error) {
         console.error('Marketplace fetch error:', error);
