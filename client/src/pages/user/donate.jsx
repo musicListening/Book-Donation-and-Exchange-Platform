@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { useNavigate } from 'react-router-dom';
 
 const Donate = () => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
     collections: [{ bookType: '', bookCount: 1 }],
@@ -16,6 +19,8 @@ const Donate = () => {
   const [filterType, setFilterType] = useState('All');
   const [donationCategory, setDonationCategory] = useState('books');
   const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1 }]);
+  const navigate = useNavigate();
+
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
@@ -48,7 +53,10 @@ const Donate = () => {
         })
         .catch(err => console.error('Error fetching donations:', err));
     }
-  }, []);
+
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
+  }, [navigate]);
 
 
   const updateCount = (index, delta) => {
@@ -317,7 +325,7 @@ const Donate = () => {
 
   return (
     <div style={styles.body}>
-      <Navbar variant="user" user={user} />
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}>
