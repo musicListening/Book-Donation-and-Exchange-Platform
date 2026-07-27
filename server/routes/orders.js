@@ -1,7 +1,6 @@
 // server/routes/orders.js
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../db');
 const router = express.Router();
 
 const MAX_ORDERS_PER_DRIVER = 5;

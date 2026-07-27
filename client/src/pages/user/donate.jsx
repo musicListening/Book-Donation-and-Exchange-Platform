@@ -46,9 +46,9 @@ const Donate = () => {
             type: d.category || d.type,
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
-            time: 'N/A', // Time not stored separately in backend
+            time: 'N/A', 
             status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
-            details: null // Not applicable if each collection is separate
+            details: null 
           }));
           setMyDonations(mappedDonations);
         })
@@ -343,12 +343,12 @@ const Donate = () => {
       
       const result = await res.json();
       
-      // Update local storage user points
+     
       const updatedUser = { ...user, points: result.updatedUser.points };
       setUser(updatedUser);
       localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
       
-      // Update local state for donations
+      
       setMyDonations(prev => prev.map(d => d.fullId === fullId ? { ...d, status: 'Completed' } : d));
       
       alert('Donation completed and points awarded!');
