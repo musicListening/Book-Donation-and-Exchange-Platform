@@ -3,6 +3,16 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { systemConfigAPI, API_BASE } from '../../services/api';
 
+// ===== BOOK CATEGORIES CONSTANT =====
+const BOOK_CATEGORIES = [
+  'Fiction',
+  'Non-Fiction',
+  'Academic',
+  'Children',
+  'Comics',
+  'Mixed'
+];
+
 function DonationSchedule() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [donations, setDonations] = useState([]);
@@ -39,7 +49,8 @@ function DonationSchedule() {
     userLevel: 0,
     currentPoints: 0,
     userId: null,
-    booksDonated: 0
+    booksDonated: 0,
+    category: '' // Added category field
   });
 
   // Download state
@@ -231,7 +242,8 @@ function DonationSchedule() {
       userLevel: donation.userLevel || 0,
       currentPoints: donation.userPoints || 0,
       userId: donation.userId || null,
-      booksDonated: donation.booksDonated || 0
+      booksDonated: donation.booksDonated || 0,
+      category: donation.category || '' // Initialize with existing category
     });
     // Reset download checkbox
     setDownloadReceiptAfterVerify(false);
@@ -279,6 +291,7 @@ function DonationSchedule() {
           isCollectionComplete: verifyForm.isComplete,
           bundleId: selectedBundleId || null,
           addToMarketplace,
+          category: verifyForm.category || selectedDonation.category // Send updated category
         })
       });
 
@@ -305,7 +318,8 @@ function DonationSchedule() {
 
       setVerifyForm({
         verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
-        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
+        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0,
+        category: ''
       });
       
       const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
@@ -328,7 +342,7 @@ function DonationSchedule() {
         price: calculatedPrice,
         condition: verifyForm.condition || 'good',
         description: '',
-        category: selectedDonation.category || 'General'
+        category: verifyForm.category || selectedDonation.category || 'General'
       });
       setShowMarketplaceModal(true);
 
@@ -412,7 +426,8 @@ function DonationSchedule() {
         awardPoints: 0,
         userLevel: 0,
         currentPoints: 0,
-        userId: null
+        userId: null,
+        category: ''
       });
 
       alert('Donation rejected.');
@@ -973,6 +988,56 @@ function DonationSchedule() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* ===== NEW: Category Dropdown for Staff ===== */}
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Category
+              </label>
+              {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
+                // For crafts, show as read-only
+                <div style={{
+                  padding: '10px 14px',
+                  background: '#f0f7f6',
+                  borderRadius: '8px',
+                  border: '1px solid #b2dfdb',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  color: '#1E4D4B',
+                  fontFamily: 'var(--font-family)'
+                }}>
+                  {selectedDonation.category}
+                </div>
+              ) : (
+                // For books, show dropdown
+                <select
+                  className="form-control"
+                  value={verifyForm.category || selectedDonation.category || ''}
+                  onChange={(e) => setVerifyForm({ ...verifyForm, category: e.target.value })}
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: '1px solid var(--border-light)', 
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontFamily: 'var(--font-family)',
+                    background: 'white'
+                  }}
+                >
+                  <option value="">Select a category...</option>
+                  {BOOK_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {!selectedDonation.category?.startsWith('Craft:') && (
+                <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {verifyForm.category ? `Selected: ${verifyForm.category}` : 'Select the correct category for this donation'}
+                </p>
+              )}
             </div>
 
             {/* Download Receipt Checkbox */}
