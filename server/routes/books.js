@@ -1,13 +1,13 @@
 // server/routes/books.js
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../db');
+const { uploadBook, uploadToCloudinary } = require('../config/cloudinary');
 const router = express.Router();
 
 // ===== CREATE Book Item =====
 router.post('/', async (req, res) => {
     try {
-        const { title, author, isbn, condition, genre, publicationYear, userId } = req.body;
+        const { title, author, isbn, condition, genre, publicationYear } = req.body;
 
         const book = await prisma.bookItem.create({
             data: {
@@ -18,7 +18,6 @@ router.post('/', async (req, res) => {
                 genre,
                 publicationYear: publicationYear ? parseInt(publicationYear) : null,
                 isAvailable: true,
-                userId,
             }
         });
 
@@ -42,28 +41,183 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ===== UPDATE Book =====
-router.put('/:id', async (req, res) => {
+// ===== GET Marketplace Books =====
+router.get('/marketplace', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { title, author, isbn, condition, genre, publicationYear, isAvailable } = req.body;
+        const { genre, condition, minPrice, maxPrice, search } = req.query;
 
-        const updated = await prisma.bookItem.update({
-            where: { id },
-            data: {
-                title,
-                author,
-                isbn,
-                condition,
-                genre,
-                publicationYear: publicationYear ? parseInt(publicationYear) : null,
-                isAvailable,
-            }
+        const where = {
+            isAvailable: true,
+            addedToMarketplaceAt: { not: null },
+            mysteryBoxId: null,
+        };
+
+        if (genre) where.genre = genre;
+        if (condition) where.condition = condition;
+        if (minPrice || maxPrice) {
+            where.pointsPrice = {};
+            if (minPrice) where.pointsPrice.gte = parseInt(minPrice);
+            if (maxPrice) where.pointsPrice.lte = parseInt(maxPrice);
+        }
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: 'insensitive' } },
+                { author: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        const books = await prisma.bookItem.findMany({
+            where,
+            include: {
+                collection: { select: { id: true, title: true, category: true } },
+                donationRequest: {
+                    select: { id: true, donationImages: true },
+                },
+            },
+            orderBy: { addedToMarketplaceAt: 'desc' },
         });
 
-        res.json(updated);
+        const marketplaceItems = books.map((book) => ({
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            genre: book.genre,
+            condition: book.condition,
+            pointsPrice: book.pointsPrice,
+            imageUrl: book.imageUrl,
+            donorImages: book.donationRequest?.donationImages || [],
+            collection: book.collection,
+            addedAt: book.addedToMarketplaceAt,
+        }));
+
+        res.json(marketplaceItems);
+    } catch (error) {
+        console.error('Marketplace fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch marketplace' });
+    }
+});
+
+// ===== GET Books in Collection =====
+router.get('/collection/:collectionId', async (req, res) => {
+    try {
+        const books = await prisma.bookItem.findMany({
+            where: { collectionId: req.params.collectionId },
+            include: {
+                donationRequest: { select: { id: true, userId: true, donationImages: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        res.json(books);
+    } catch (error) {
+        console.error('Fetch collection books error:', error);
+        res.status(500).json({ error: 'Failed to fetch collection books' });
+    }
+});
+
+// ===== UPDATE Book =====
+router.put('/:id', uploadBook.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, author, isbn, condition, genre, publicationYear,
+                collectionId, pointsPrice, isAvailable } = req.body;
+
+        let imageUrl = req.body.imageUrl || undefined;
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file);
+            imageUrl = result.secure_url;
+        }
+
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: {
+                title, author, isbn, condition, genre,
+                publicationYear: publicationYear ? parseInt(publicationYear) : undefined,
+                collectionId: collectionId || undefined,
+                pointsPrice: pointsPrice ? parseInt(pointsPrice) : undefined,
+                isAvailable: isAvailable === 'true' || isAvailable === true ? true : (isAvailable === 'false' || isAvailable === false ? false : undefined),
+                imageUrl,
+                addedToMarketplaceAt: (isAvailable === 'true' || isAvailable === true) ? new Date() : undefined,
+            },
+            include: { collection: true, donationRequest: true },
+        });
+
+        res.json(book);
     } catch (error) {
         console.error('Error updating book:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== Upload/Replace Book Image =====
+router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+        const result = await uploadToCloudinary(req.file);
+
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: { imageUrl: result.secure_url },
+            select: { id: true, title: true, imageUrl: true },
+        });
+
+        res.json(book);
+    } catch (error) {
+        console.error('Upload book image error:', error);
+        res.status(500).json({ error: 'Failed to upload image' });
+    }
+});
+
+// ===== Add Book to Marketplace =====
+router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { pointsPrice } = req.body;
+        
+        let imageUrl = undefined;
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file);
+            imageUrl = result.secure_url;
+        }
+
+        const updateData = {
+            isAvailable: true,
+            addedToMarketplaceAt: new Date(),
+        };
+        if (pointsPrice) updateData.pointsPrice = parseInt(pointsPrice);
+        if (imageUrl) updateData.imageUrl = imageUrl;
+
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: updateData,
+            include: { collection: true },
+        });
+
+        res.json(book);
+    } catch (error) {
+        console.error('Error adding book to marketplace:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== Remove Book from Marketplace =====
+router.put('/:id/remove-from-marketplace', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: {
+                isAvailable: false,
+                addedToMarketplaceAt: null,
+            },
+            include: { collection: true },
+        });
+        res.json(book);
+    } catch (error) {
+        console.error('Error removing book from marketplace:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -72,7 +226,15 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await prisma.bookItem.delete({ where: { id } });
+        try {
+            await prisma.bookItem.delete({ where: { id } });
+        } catch (e) {
+            console.warn('Hard delete book failed, applying soft delete:', e.message);
+            await prisma.bookItem.update({
+                where: { id },
+                data: { isAvailable: false, addedToMarketplaceAt: null }
+            });
+        }
         res.json({ message: 'Book deleted successfully' });
     } catch (error) {
         console.error('Error deleting book:', error);

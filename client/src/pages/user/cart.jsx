@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
 
 const Cart = () => {
   const [user, setUser] = useState({ points: 0 });
@@ -40,39 +41,65 @@ const Cart = () => {
     localStorage.setItem('ss_cart', JSON.stringify(newCart));
   };
 
-  const checkout = () => {
+  const checkout = async () => {
     if ((user.points || 0) < subtotalPoints) {
-      alert('Not enough points for the crafts in your cart!');
-      return;
+        alert('Not enough points for the crafts in your cart!');
+        return;
     }
     if (!address) {
-      alert('Please enter a delivery address');
-      return;
+        alert('Please enter a delivery address');
+        return;
     }
 
-    const totalPointsDeducted = subtotalPoints + pointsUsed;
-    const newUser = { ...user, points: user.points - totalPointsDeducted };
-    setUser(newUser);
-    localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+    try {
+        const token = localStorage.getItem('token');
+        const orderItems = cart.map(item => ({
+            bookItemId: item.type === 'bundles' ? item.id : null,
+            craftListingId: item.type === 'crafts' ? item.id : null,
+            quantity: 1,
+            pointsPrice: item.pointsPrice || item.price || 0,
+            cashPrice: item.type === 'bundles' ? (item.pointsPrice || item.price || 0) : 0,
+        }));
 
-    const orders = JSON.parse(localStorage.getItem('ss_orders') || '[]');
-    const newOrder = {
-      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
-      date: new Date().toISOString().split('T')[0],
-      items: cart.map(i => i.title),
-      total: finalTotalLKR,
-      totalPoints: subtotalPoints,
-      discount: finalDiscountLKR,
-      pointsUsed: pointsUsed,
-      status: 'Placed',
-      address: `${address}, ${city}, ${pincode}`
-    };
-    orders.unshift(newOrder);
-    localStorage.setItem('ss_orders', JSON.stringify(orders));
+        const totalPointsDeducted = subtotalPoints + pointsUsed;
 
-    localStorage.setItem('ss_cart', '[]');
-    alert('Order placed successfully!');
-    window.location.href = '/orders';
+        const response = await fetch(`${API_BASE}/orders`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: user.id,
+                items: orderItems,
+                shippingAddress: `${address}, ${city}, ${pincode}`,
+                phoneNumber: user.phoneNumber || '',
+                totalPoints: totalPointsDeducted,
+                cashAmount: finalTotalLKR
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to place order');
+        }
+
+        const order = await response.json();
+
+        // Update local user points
+        const newUser = { ...user, points: (user.points || 0) - totalPointsDeducted };
+        setUser(newUser);
+        localStorage.setItem('ss_current_user', JSON.stringify(newUser));
+        localStorage.setItem('user', JSON.stringify(newUser));
+
+        // Clear cart
+        localStorage.setItem('ss_cart', '[]');
+        alert('Order placed successfully!');
+        window.location.href = '/orders';
+    } catch (error) {
+        console.error('Error placing order:', error);
+        alert('Failed to place order: ' + error.message);
+    }
   };
 
   const styles = {

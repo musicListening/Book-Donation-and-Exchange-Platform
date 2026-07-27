@@ -42,7 +42,7 @@ const statsRoutes = require('./routes/stats');
 const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
-
+const craftRoutes = require('./routes/crafts');
 // 4. Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -59,6 +59,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/mystery-boxes', mysteryBoxRoutes);
+app.use('/api/crafts', craftRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {

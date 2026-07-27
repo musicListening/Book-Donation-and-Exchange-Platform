@@ -15,16 +15,21 @@ function DonationSchedule() {
   const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
   const [leveledUpResult, setLeveledUpResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState(null);
   const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
   const [marketplaceDonation, setMarketplaceDonation] = useState(null);
   const [marketplaceForm, setMarketplaceForm] = useState({
+    title: '',
     price: 0,
     condition: 'good',
     description: '',
     category: 'General'
   });
+  const [bundles, setBundles] = useState([]);
+  const [selectedBundleId, setSelectedBundleId] = useState('');
+  const [addToMarketplace, setAddToMarketplace] = useState(false);
   const [verifyForm, setVerifyForm] = useState({
     verifiedCount: 0,
     condition: 'good',
@@ -142,6 +147,7 @@ function DonationSchedule() {
           isCollectionComplete: donation.isCollectionComplete || false,
           awardedMysteryBox: donation.awardedMysteryBox || false,
           condition: donation.condition || null,
+          donationImages: donation.donationImages || [],
           booksDonated: user?.booksDonated || donation.user?.booksDonated || 0
         };
       });
@@ -208,7 +214,7 @@ function DonationSchedule() {
     return currentLevel;
   };
 
-  const handleVerifyDonation = (donation) => {
+  const handleVerifyDonation = async (donation) => {
     setSelectedDonation(donation);
     const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
     setVerifyForm({
@@ -223,6 +229,20 @@ function DonationSchedule() {
       booksDonated: donation.booksDonated || 0
     });
     setShowVerifyModal(true);
+
+    // Fetch available bundles for assignment
+    try {
+      const token = localStorage.getItem('token');
+      const bundleRes = await fetch(`${API_BASE}/collections`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (bundleRes.ok) {
+        const bundleData = await bundleRes.json();
+        setBundles(bundleData);
+      }
+    } catch (err) {
+      console.warn('Could not fetch bundles:', err);
+    }
   };
 
   const handleConfirmVerification = async () => {
@@ -249,7 +269,9 @@ function DonationSchedule() {
           condition: verifyForm.condition,
           notes: verifyForm.notes,
           staffId: currentUser.id,
-          isCollectionComplete: verifyForm.isComplete
+          isCollectionComplete: verifyForm.isComplete,
+          bundleId: selectedBundleId || null,
+          addToMarketplace,
         })
       });
 
@@ -271,22 +293,48 @@ function DonationSchedule() {
       setShowVerifyModal(false);
       
       const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
-      alert(`Verified! ${verifyForm.verifiedCount} books confirmed. ${points.total} points awarded.${levelUpMsg}`);
-      
+      const isCraftDonation = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
+      const itemLabel = isCraftDonation ? 'craft' : 'book';
+
       setVerifyForm({
         verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
         awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
       });
       
-      setMarketplaceDonation(selectedDonation);
-      setMarketplaceForm({
-        price: 0,
-        condition: verifyForm.condition || 'good',
-        description: '',
-        category: selectedDonation.category || 'General'
-      });
-      setShowMarketplaceModal(true);
-      fetchAllData();
+      if (addToMarketplace) {
+        alert(`Verified & Listed in Marketplace! ${verifyForm.verifiedCount} ${itemLabel}(s) confirmed. ${points.total} points awarded.${levelUpMsg}`);
+        setShowMarketplaceModal(false);
+        setMarketplaceDonation(null);
+        fetchAllData();
+      } else {
+        alert(`Verified! ${verifyForm.verifiedCount} ${itemLabel}(s) confirmed. ${points.total} points awarded.${levelUpMsg}`);
+
+        const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
+        const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
+
+        const defaultBookLkrPrice = (
+          (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
+          : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
+          : (verifyForm.condition === 'GOOD') ? 400 
+          : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
+          : 150
+        );
+
+        const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
+
+        const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
+
+        setMarketplaceDonation(selectedDonation);
+        setMarketplaceForm({
+          title: displayTitle,
+          price: calculatedPrice,
+          condition: verifyForm.condition || 'good',
+          description: '',
+          category: selectedDonation.category || 'General'
+        });
+        setShowMarketplaceModal(true);
+        fetchAllData();
+      }
       
     } catch (error) {
       console.error('Error verifying donation:', error);
@@ -299,21 +347,17 @@ function DonationSchedule() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/marketplace/items`, {
+      const response = await fetch(`${API_BASE}/donations/${marketplaceDonation.id}/publish-marketplace`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          donationId: marketplaceDonation.id,
-          title: `${marketplaceDonation.category} Book`,
-          description: marketplaceForm.description || `${marketplaceDonation.category} book in ${marketplaceForm.condition} condition`,
+          title: marketplaceForm.title,
           price: marketplaceForm.price,
-          condition: marketplaceForm.condition,
-          category: marketplaceForm.category,
-          donorId: marketplaceDonation.userId,
-          donorName: marketplaceDonation.donor
+          description: marketplaceForm.description || `${marketplaceDonation.category} in ${marketplaceForm.condition} condition`,
+          condition: marketplaceForm.condition
         })
       });
 
@@ -323,7 +367,7 @@ function DonationSchedule() {
 
       setShowMarketplaceModal(false);
       setMarketplaceDonation(null);
-      alert('Book added to marketplace successfully!');
+      alert('Item added to marketplace successfully!');
       
     } catch (error) {
       console.error('Error adding to marketplace:', error);
@@ -430,7 +474,7 @@ function DonationSchedule() {
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, color: 'var(--teal)', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               type="text"
               placeholder="Search by donor name..."
@@ -441,11 +485,29 @@ function DonationSchedule() {
                 border: '1px solid var(--border-light)',
                 borderRadius: '8px',
                 fontSize: '13px',
-                width: '220px',
+                width: '200px',
                 outline: 'none',
                 fontFamily: 'var(--font-family)'
               }}
             />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                border: '1px solid var(--border-light)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                outline: 'none',
+                background: 'white',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)'
+              }}
+            >
+              <option value="ALL">All Items (Books & Crafts)</option>
+              <option value="BOOKS">📚 Books Only</option>
+              <option value="CRAFTS">🎨 Crafts Only</option>
+            </select>
             <span style={{ 
               padding: '4px 12px', 
               borderRadius: '20px', 
@@ -455,7 +517,14 @@ function DonationSchedule() {
               fontWeight: '600',
               fontFamily: 'var(--font-family)'
             }}>
-              {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending
+              {donations.filter(d => {
+                const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+                const isCraft = d.category && d.category.startsWith('Craft:');
+                let matchesType = true;
+                if (typeFilter === 'BOOKS') matchesType = !isCraft;
+                if (typeFilter === 'CRAFTS') matchesType = isCraft;
+                return matchesSearch && matchesType;
+              }).length} pending
             </span>
           </div>
         </div>
@@ -466,10 +535,17 @@ function DonationSchedule() {
             <p>No pending donations.</p>
             <p style={{ fontSize: '13px' }}>Check back later for new submissions.</p>
           </div>
-        ) : donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+        ) : donations.filter(d => {
+          const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+          const isCraft = d.category && d.category.startsWith('Craft:');
+          let matchesType = true;
+          if (typeFilter === 'BOOKS') matchesType = !isCraft;
+          if (typeFilter === 'CRAFTS') matchesType = isCraft;
+          return matchesSearch && matchesType;
+        }).length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-light)', fontFamily: 'var(--font-family)' }}>
             <p style={{ fontSize: '24px' }}>No donations found</p>
-            <p>No donations found matching "{searchTerm}"</p>
+            <p>No donations found matching criteria.</p>
           </div>
         ) : (
           <div className="data-table">
@@ -478,7 +554,7 @@ function DonationSchedule() {
                 <tr>
                   <th>Donor Name</th>
                   <th>Category</th>
-                  <th>Books</th>
+                  <th>Type & Qty</th>
                   <th>Status</th>
                   <th>Submitted</th>
                   <th>Actions</th>
@@ -486,9 +562,17 @@ function DonationSchedule() {
               </thead>
               <tbody>
                 {donations
-                  .filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .filter(d => {
+                    const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+                    const isCraft = d.category && d.category.startsWith('Craft:');
+                    let matchesType = true;
+                    if (typeFilter === 'BOOKS') matchesType = !isCraft;
+                    if (typeFilter === 'CRAFTS') matchesType = isCraft;
+                    return matchesSearch && matchesType;
+                  })
                   .map((d) => {
                   const levelInfo = getLevelBadge(d.userLevel || 0);
+                  const isCraft = d.category && d.category.startsWith('Craft:');
                   return (
                     <tr key={d.id}>
                       <td>
@@ -500,7 +584,37 @@ function DonationSchedule() {
                         </div>
                       </td>
                       <td style={{ fontFamily: 'var(--font-family)' }}>{d.category || 'General'}</td>
-                      <td style={{ fontFamily: 'var(--font-family)' }}>{d.requestedCount || 0} books</td>
+                      <td style={{ fontFamily: 'var(--font-family)' }}>
+                        {isCraft ? (
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: '#FFF3E0',
+                            color: '#E65100',
+                            fontWeight: '700',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            🎨 Craft • {d.requestedCount || 0}
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: '#E8F5E9',
+                            color: '#2E7D32',
+                            fontWeight: '700',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            📚 Book • {d.requestedCount || 0}
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className="status-badge draft">Pending</span>
                       </td>
@@ -525,7 +639,14 @@ function DonationSchedule() {
           </div>
         )}
         <div className="table-footer">
-          <span>Showing {donations.filter(d => !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase())).length} pending donations{searchTerm ? ` (filtered by "${searchTerm}")` : ''}</span>
+          <span>Showing {donations.filter(d => {
+            const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+            const isCraft = d.category && d.category.startsWith('Craft:');
+            let matchesType = true;
+            if (typeFilter === 'BOOKS') matchesType = !isCraft;
+            if (typeFilter === 'CRAFTS') matchesType = isCraft;
+            return matchesSearch && matchesType;
+          }).length} pending donations</span>
         </div>
       </div>
 
@@ -549,6 +670,30 @@ function DonationSchedule() {
                 {selectedDonation.collectionName && <p><strong>Collection:</strong> {selectedDonation.collectionName}</p>}
                 {selectedDonation.notes && <p><strong>Notes:</strong> {selectedDonation.notes}</p>}
               </div>
+
+            {/* Donor Uploaded Images */}
+            {selectedDonation.donationImages && selectedDonation.donationImages.length > 0 && (
+              <div style={{ marginTop: 16, marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 8, fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-family)' }}>
+                  Donor Photos ({selectedDonation.donationImages.length})
+                </h4>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {selectedDonation.donationImages.map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Donation photo ${i + 1}`}
+                      style={{
+                        width: 100, height: 100, objectFit: 'cover',
+                        borderRadius: 8, border: '1px solid #DEE2E6',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => window.open(url, '_blank')}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
               {(() => {
                 const newBooksDonated = (selectedDonation.booksDonated || 0) + (verifyForm.verifiedCount || 0);
                 const predictedLevel = calculateLevelByBooks(newBooksDonated);
@@ -574,7 +719,9 @@ function DonationSchedule() {
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Actual Books Received</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? 'Actual Crafts Received' : 'Actual Books Received'}
+              </label>
               <input
                 type="number"
                 className="form-control"
@@ -614,6 +761,35 @@ function DonationSchedule() {
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
+            </div>
+
+            {/* Bundle Assignment */}
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Assign to Bundle</label>
+              <select
+                value={selectedBundleId}
+                onChange={(e) => setSelectedBundleId(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
+              >
+                <option value="">— No Bundle (Individual Listing) —</option>
+                {bundles.map((bundle) => (
+                  <option key={bundle.id} value={bundle.id}>
+                    {bundle.title} ({bundle.stock || 0} items)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Add to Marketplace */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+                <input
+                  type="checkbox"
+                  checked={addToMarketplace}
+                  onChange={(e) => setAddToMarketplace(e.target.checked)}
+                />
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Add verified books to Marketplace</span>
+              </label>
             </div>
 
             {selectedDonation.type === 'COLLECTION' && (
@@ -681,24 +857,49 @@ function DonationSchedule() {
           <div className="modal-content" style={{ maxWidth: '550px' }}>
             <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Add to Marketplace</h2>
             <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
-              Would you like to list this book in the marketplace?
+              Would you like to list this {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'} in the marketplace?
             </p>
 
             <div style={{ marginBottom: '20px', padding: '16px', background: '#f5f5f5', borderRadius: '8px', fontFamily: 'var(--font-family)' }}>
-              <p><strong>Book:</strong> {marketplaceDonation.category}</p>
+              <p><strong>Category:</strong> {marketplaceDonation.category}</p>
               <p><strong>Donor:</strong> {marketplaceDonation.donor}</p>
               <p><strong>Condition:</strong> {marketplaceForm.condition}</p>
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Price ($)</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Craft Name' : 'Book Name'}
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={marketplaceForm.title}
+                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, title: e.target.value })}
+                placeholder="Enter name..."
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: '1px solid var(--border-light)', 
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontFamily: 'var(--font-family)',
+                  marginBottom: '15px'
+                }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Price (Points)' : 'Selling Price (LKR / Rs.)'}
+              </label>
               <input
                 type="number"
                 className="form-control"
                 value={marketplaceForm.price}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseInt(e.target.value) || 0 })}
                 min="0"
-                step="0.01"
+                step="1"
+                placeholder={marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'e.g. 50' : 'e.g. 500'}
                 style={{ 
                   width: '100%', 
                   padding: '10px 14px', 
@@ -716,7 +917,7 @@ function DonationSchedule() {
                 className="form-control"
                 value={marketplaceForm.description}
                 onChange={(e) => setMarketplaceForm({ ...marketplaceForm, description: e.target.value })}
-                placeholder="Brief description of the book..."
+                placeholder={`Brief description of the ${marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'}...`}
                 rows="3"
                 style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
               />
