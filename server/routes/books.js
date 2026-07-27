@@ -171,6 +171,57 @@ router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
     }
 });
 
+// ===== Add Book to Marketplace =====
+router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { pointsPrice } = req.body;
+        
+        let imageUrl = undefined;
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file);
+            imageUrl = result.secure_url;
+        }
+
+        const updateData = {
+            isAvailable: true,
+            addedToMarketplaceAt: new Date(),
+        };
+        if (pointsPrice) updateData.pointsPrice = parseInt(pointsPrice);
+        if (imageUrl) updateData.imageUrl = imageUrl;
+
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: updateData,
+            include: { collection: true },
+        });
+
+        res.json(book);
+    } catch (error) {
+        console.error('Error adding book to marketplace:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== Remove Book from Marketplace =====
+router.put('/:id/remove-from-marketplace', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const book = await prisma.bookItem.update({
+            where: { id },
+            data: {
+                isAvailable: false,
+                addedToMarketplaceAt: null,
+            },
+            include: { collection: true },
+        });
+        res.json(book);
+    } catch (error) {
+        console.error('Error removing book from marketplace:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== DELETE Book =====
 router.delete('/:id', async (req, res) => {
     try {

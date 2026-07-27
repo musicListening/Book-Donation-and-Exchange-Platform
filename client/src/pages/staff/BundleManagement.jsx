@@ -248,6 +248,53 @@ function BundleManagement() {
     });
   };
 
+  const handleAddBookToMarketplace = async (bookId) => {
+      try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${API_BASE}/books/${bookId}/add-to-marketplace`, {
+              method: 'PUT',
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              }
+          });
+          if (!response.ok) throw new Error('Failed to add to marketplace');
+          alert('Book added to marketplace!');
+          await loadAllData();
+      } catch (error) {
+          console.error('Error adding book to marketplace:', error);
+          alert('Failed to add book to marketplace: ' + error.message);
+      }
+  };
+
+  const handleAddAllBooksToMarketplace = async (bundleId) => {
+      const books = bundleBooks[bundleId]?.books || [];
+      const inventoryBooks = books.filter(b => !b.isAvailable);
+      if (inventoryBooks.length === 0) {
+          alert('All books are already on the marketplace!');
+          return;
+      }
+      if (!window.confirm(`Add ${inventoryBooks.length} book(s) to marketplace?`)) return;
+      
+      try {
+          const token = localStorage.getItem('token');
+          for (const book of inventoryBooks) {
+              await fetch(`${API_BASE}/books/${book.id}/add-to-marketplace`, {
+                  method: 'PUT',
+                  headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                  }
+              });
+          }
+          alert(`${inventoryBooks.length} book(s) added to marketplace!`);
+          await loadAllData();
+      } catch (error) {
+          console.error('Error adding books to marketplace:', error);
+          alert('Failed to add some books: ' + error.message);
+      }
+  };
+
   return (
     <StaffLayout>
       <div className="content-header">
@@ -485,34 +532,57 @@ function BundleManagement() {
             <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Books in {selectedBundleForBooks.name}</h2>
             
             {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-                No books assigned to this bundle yet.
-              </div>
+                <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                    No books assigned to this bundle yet.
+                </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-                {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
-                  <div key={book.id} style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e5e5' }}>
-                    {book.imageUrl ? (
-                      <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
-                        {book.title?.[0] || 'B'}
-                      </div>
-                    )}
-                    <div style={{ padding: 12 }}>
-                      <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
-                      <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition}</p>
-                      <span style={{
-                        fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                        background: book.isAvailable ? '#E8F5E9' : '#FFF3E0',
-                        color: book.isAvailable ? '#2E7D32' : '#E65100',
-                      }}>
-                        {book.isAvailable ? 'Marketplace' : 'Inventory'}
-                      </span>
+                <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                        <button
+                            className="btn-small"
+                            onClick={() => handleAddAllBooksToMarketplace(selectedBundleForBooks.id)}
+                            style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                        >
+                            Add All to Marketplace ({(bundleBooks[selectedBundleForBooks.id]?.books || []).filter(b => !b.isAvailable).length})
+                        </button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+                        {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
+                            <div key={book.id} style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e5e5' }}>
+                                {book.imageUrl ? (
+                                    <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
+                                        {book.title?.[0] || 'B'}
+                                    </div>
+                                )}
+                                <div style={{ padding: 12 }}>
+                                    <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
+                                    <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition}</p>
+                                    {book.isAvailable ? (
+                                        <span style={{
+                                            fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                                            background: '#E8F5E9', color: '#2E7D32',
+                                        }}>
+                                            ✓ On Marketplace
+                                        </span>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleAddBookToMarketplace(book.id)}
+                                            style={{
+                                                width: '100%', padding: '6px 10px', fontSize: 12, fontWeight: 600,
+                                                background: '#1E4D4B', color: 'white', border: 'none',
+                                                borderRadius: 6, cursor: 'pointer', marginTop: 4
+                                            }}
+                                        >
+                                            Add to Marketplace
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>

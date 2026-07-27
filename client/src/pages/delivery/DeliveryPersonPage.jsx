@@ -370,7 +370,7 @@ const DeliveryPersonPage = () => {
                     <div className="order-id">Order #{currentOrder.id?.slice(0, 8) || 'N/A'}</div>
                     <h3>
                       {currentOrder.items?.length || 0} items • {currentOrder.totalPoints || 0} points
-                      {currentOrder.cashAmount && ` • $${currentOrder.cashAmount}`}
+                      {currentOrder.cashAmount ? ` • Rs. ${(currentOrder.cashAmount <= 100 ? currentOrder.cashAmount * 300 : currentOrder.cashAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                     </h3>
                   </div>
                   <div className="badge" style={{

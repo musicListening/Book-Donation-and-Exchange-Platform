@@ -204,7 +204,7 @@ const Marketplace = () => {
 
                   <div style={styles.productPriceRow}>
                     <span style={styles.productPrice}>
-                      {item.pointsPrice || item.price || 0} pts
+                      {currentTab === 'crafts' ? `${item.pointsPrice || item.price || 0} pts` : `Rs. ${item.pointsPrice || item.price || 0}`}
                     </span>
                     <button style={styles.btnAdd} onClick={() => addToCart(item, currentTab)}>Add</button>
                   </div>

@@ -49,9 +49,15 @@ const OrderHistoryPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Stats computed from actual data
+  // Driver per-delivery payout calculation (Rs. 450 LKR standard payout per delivery)
+  const getOrderEarningsLkr = (o) => {
+    if (o.cashAmount && o.cashAmount > 0) {
+      return o.cashAmount <= 100 ? o.cashAmount * 300 : o.cashAmount;
+    }
+    return 450; // Standard Rs. 450 LKR driver fee per completed delivery
+  };
   const completedCount = historyOrders.filter(o => o.status === 'COMPLETED').length;
-  const totalEarnings = historyOrders.reduce((sum, o) => sum + (o.cashAmount || o.totalPoints * 0.5), 0);
+  const totalEarningsLkr = historyOrders.reduce((sum, o) => sum + (o.status === 'COMPLETED' ? getOrderEarningsLkr(o) : 0), 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -64,7 +70,7 @@ const OrderHistoryPage = () => {
   return (
     <>
       <div className="page-header">
-        <h1 style={{ fontSize: '40px' }}>Order History</h1>
+        <h1 style={{ fontSize: '28px' }}>Order History</h1>
         <p>Review your completed missions and performance metrics.</p>
       </div>
 
@@ -82,7 +88,7 @@ const OrderHistoryPage = () => {
         <div className="stat-card">
           <span className="bg-icon material-symbols-outlined">payments</span>
           <div className="stat-label">Total Earnings</div>
-          <div className="stat-value">{loading ? '...' : `$${totalEarnings.toFixed(2)}`}</div>
+          <div className="stat-value">{loading ? '...' : `Rs. ${totalEarningsLkr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</div>
           <div className="stat-trend">
             <span className="material-symbols-outlined">auto_graph</span>
             Based on order data
@@ -153,7 +159,7 @@ const OrderHistoryPage = () => {
                     <td>{formatDate(order.deliveredAt || order.createdAt)}</td>
                     <td>{order.user?.name || 'N/A'}</td>
                     <td>{order.shippingAddress || 'N/A'}</td>
-                    <td><span className="earnings">${(order.cashAmount || order.totalPoints * 0.5).toFixed(2)}</span></td>
+                    <td><span className="earnings">Rs. {(order.status === 'COMPLETED' ? getOrderEarningsLkr(order) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                     <td>
                       <span className={`status-badge ${order.status === 'COMPLETED' ? 'completed' : 'cancelled'}`}>
                         {order.status}

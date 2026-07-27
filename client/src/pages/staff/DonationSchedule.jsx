@@ -312,13 +312,15 @@ function DonationSchedule() {
         const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
         const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
 
-        const calculatedPrice = userEnteredPrice || (
-          (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 50 
-          : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 40 
-          : (verifyForm.condition === 'GOOD') ? 30 
-          : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 20 
-          : 10
+        const defaultBookLkrPrice = (
+          (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
+          : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
+          : (verifyForm.condition === 'GOOD') ? 400 
+          : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
+          : 150
         );
+
+        const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
 
         const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
 
@@ -887,7 +889,9 @@ function DonationSchedule() {
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Price (Points)</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Price (Points)' : 'Selling Price (LKR / Rs.)'}
+              </label>
               <input
                 type="number"
                 className="form-control"
@@ -895,6 +899,7 @@ function DonationSchedule() {
                 onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseInt(e.target.value) || 0 })}
                 min="0"
                 step="1"
+                placeholder={marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'e.g. 50' : 'e.g. 500'}
                 style={{ 
                   width: '100%', 
                   padding: '10px 14px', 

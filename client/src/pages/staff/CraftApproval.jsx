@@ -355,7 +355,9 @@ export default function StaffMarketplace() {
 
                     {/* Price Row */}
                     <div style={styles.productPriceRow}>
-                      <span style={styles.productPrice}>🏷️ {item.pointsPrice || 0} pts</span>
+                      <span style={styles.productPrice}>
+                        🏷️ {isBook ? `Rs. ${item.pointsPrice || 0}` : `${item.pointsPrice || 0} pts`}
+                      </span>
                     </div>
 
                     {/* Staff Action Buttons (Edit & Delete) */}
@@ -469,7 +471,9 @@ export default function StaffMarketplace() {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, fontFamily: 'var(--font-family)' }}>Price (Points)</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, fontFamily: 'var(--font-family)' }}>
+                  {editingItem.type === 'book' ? 'Selling Price (Rs.)' : 'Price (Points)'}
+                </label>
                 <input
                   type="number"
                   value={editForm.pointsPrice}
