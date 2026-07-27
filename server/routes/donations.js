@@ -70,6 +70,21 @@ router.get('/', async (req, res) => {
     }
 });
 
+// ===== POINTS PREVIEW =====
+router.get('/points-preview', async (req, res) => {
+    try {
+        const { count, isCollection } = req.query;
+        const points = await calculateDonationPoints(
+            parseInt(count) || 0,
+            isCollection === 'true'
+        );
+        res.json(points);
+    } catch (error) {
+        console.error('Error calculating points preview:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== GET Single Donation =====
 router.get('/:id', async (req, res) => {
     try {
@@ -321,8 +336,15 @@ router.patch('/:id/verify', async (req, res) => {
                 for (const book of selectedBooks) {
                     await prisma.bookItem.update({
                         where: { id: book.id },
-                        data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+                        data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
                     });
+                    // Decrement bundle stock if book was in a collection
+                    if (book.collectionId) {
+                        await prisma.bookCollection.update({
+                            where: { id: book.collectionId },
+                            data: { stock: { decrement: 1 } }
+                        }).catch(() => {});
+                    }
                 }
 
                 await prisma.notification.create({
@@ -341,6 +363,31 @@ router.patch('/:id/verify', async (req, res) => {
         const bookItems = [];
         const craftListings = [];
         const { bundleId, addToMarketplace } = req.body;
+        
+        // Auto-find or create bundle for the donation's category
+        let finalBundleId = bundleId || null;
+        if (!finalBundleId && !isCraft && donation.category) {
+            // Try to find existing bundle for this category
+            let existingBundle = await prisma.bookCollection.findFirst({
+                where: { category: donation.category }
+            });
+            
+            if (!existingBundle) {
+                // Create a new bundle for this category
+                existingBundle = await prisma.bookCollection.create({
+                    data: {
+                        title: `${donation.category} Collection`,
+                        slug: `${donation.category.toLowerCase().replace(/\s+/g, '-')}-collection-${Date.now()}`,
+                        category: donation.category,
+                        stock: 0,
+                        pointsRequired: 0,
+                        type: 'STANDARD'
+                    }
+                });
+                console.log(`📦 Auto-created bundle: ${existingBundle.title}`);
+            }
+            finalBundleId = existingBundle.id;
+        }
 
         let dbCondition = 'GOOD';
         if (condition) {
@@ -382,7 +429,7 @@ router.patch('/:id/verify', async (req, res) => {
                         condition: dbCondition,
                         isDonated: true,
                         donationRequestId: donation.id,
-                        collectionId: bundleId || null,
+                        collectionId: finalBundleId,
                         isAvailable: addToMarketplace === true || addToMarketplace === 'true' ? true : false,
                         addedToMarketplaceAt: addToMarketplace === true || addToMarketplace === 'true' ? new Date() : null,
                         pointsPrice: initialPointsPrice,
@@ -391,6 +438,14 @@ router.patch('/:id/verify', async (req, res) => {
                 });
                 bookItems.push(bookItem);
             }
+        }
+
+        // Update bundle stock count
+        if (finalBundleId && bookItems.length > 0) {
+            await prisma.bookCollection.update({
+                where: { id: finalBundleId },
+                data: { stock: { increment: bookItems.length } }
+            });
         }
 
         res.json({
@@ -522,8 +577,15 @@ router.post('/:id/mystery-box', async (req, res) => {
         for (const book of selectedBooks) {
             await prisma.bookItem.update({
                 where: { id: book.id },
-                data: { mysteryBoxId: mysteryBox.id, isAvailable: false }
+                data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
             });
+            // Decrement bundle stock if book was in a collection
+            if (book.collectionId) {
+                await prisma.bookCollection.update({
+                    where: { id: book.collectionId },
+                    data: { stock: { decrement: 1 } }
+                }).catch(() => {});
+            }
         }
 
         await prisma.notification.create({
