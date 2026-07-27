@@ -11,12 +11,14 @@ import {
   ChevronDown,
   Menu,
   User,
+  Star,
 } from "lucide-react";
 import "../styles/AdminLayout.css";
 
 const navItems = [
   { path: "/admin/dashboard", label: "Analytics", icon: BarChart3 },
   { path: "/admin/users", label: "User Management", icon: Users },
+  { path: "/admin/reviews", label: "Reviews", icon: Star },
   { path: "/admin/reports/custom", label: "Reports", icon: FileText },
   { path: "/admin/config", label: "System Config", icon: Settings },
 ];

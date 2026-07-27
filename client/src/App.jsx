@@ -25,6 +25,7 @@ import UserManagement from './pages/admin/UserManagement';
 import CustomReportGeneration from './pages/admin/CustomReportGeneration';
 import SystemConfig from './pages/admin/SystemConfig';
 import AdminProfile from './pages/admin/AdminProfile';
+import ReviewManagement from './pages/admin/ReviewManagement';
 
 // Staff Pages
 import StaffDashboard from './pages/staff/StaffDashboard';
@@ -85,6 +86,7 @@ function App() {
         <Route path="/admin/users" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/reports/custom" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><CustomReportGeneration /></ProtectedRoute>} />
         <Route path="/admin/config" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><SystemConfig /></ProtectedRoute>} />
+        <Route path="/admin/reviews" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><ReviewManagement /></ProtectedRoute>} />
         <Route path="/admin/profile" element={<ProtectedRoute requiredRole="PLATFORM_ADMIN"><AdminProfile /></ProtectedRoute>} />
 
         {/* Staff Routes */}
