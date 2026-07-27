@@ -4,7 +4,7 @@ import { adminAPI } from "../../services/api";
 import "../../styles/CustomReportGeneration.css";
 
 export default function CustomReportGeneration() {
-  const [reportType, setReportType] = useState("Total Points Provided");
+  const [reportType, setReportType] = useState("System Logs");
   const [startDate, setStartDate] = useState("2026-01-01");
   const [endDate, setEndDate] = useState("2026-12-31");
   const [exportFormat, setExportFormat] = useState("PDF");
@@ -177,6 +177,7 @@ export default function CustomReportGeneration() {
                     onChange={(e) => setReportType(e.target.value)}
                     className="styled-select"
                   >
+                    <option>System Logs</option>
                     <option>Total Points Provided</option>
                     <option>Total Deliveries</option>
                     <option>Most Popular Collections</option>
