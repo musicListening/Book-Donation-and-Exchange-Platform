@@ -392,21 +392,3 @@ export const mysteryBoxAPI = {
         return response.json();
     },
 };
-
-// ===== NOTIFICATION API =====
-export const notificationAPI = {
-    getAllForUser: async (userId) => {
-        const response = await fetch(`${API_BASE}/notifications?userId=${userId}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    },
-    markAllAsRead: async (userId) => {
-        const response = await fetch(`${API_BASE}/notifications/read-all`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId })
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    }
-};

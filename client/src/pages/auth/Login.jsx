@@ -32,12 +32,6 @@ const Login = () => {
         throw new Error(data.message || 'Login failed');
       }
 
-      const previousUser = JSON.parse(localStorage.getItem('ss_current_user') || 'null');
-      if (previousUser && previousUser.id !== data.user.id) {
-        localStorage.removeItem('ss_cart');
-        localStorage.removeItem('ss_orders');
-      }
-
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('ss_current_user', JSON.stringify(data.user));
