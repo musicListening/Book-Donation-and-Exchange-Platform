@@ -2,8 +2,31 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { prisma, warmUpDb } = require('./db');
 const app = express();
+
+// 0. Security headers
+app.use(helmet());
+
+// 0b. Rate limiting — general API limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+// Stricter limiter for auth endpoints (login/register)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts, please try again later.' },
+});
 
 // 1. ENABLE CORS (MUST BE AT THE VERY TOP, BEFORE ROUTES!)
 const allowedOrigins = [
@@ -17,7 +40,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // allow all in dev; tighten in production
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -44,22 +67,22 @@ const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
 const craftRoutes = require('./routes/crafts');
 // 4. Register routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/reviews', reviewRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/users', apiLimiter, userRoutes);
+app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/reviews', apiLimiter, reviewRoutes);
 
 // CRUD Routes
-app.use('/api/tasks', taskRoutes);
-app.use('/api/shipments', shipmentRoutes);
-app.use('/api/collections', collectionRoutes);
-app.use('/api/books', bookRoutes);
-app.use('/api/donations', donationRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/community', communityRoutes);
-app.use('/api/mystery-boxes', mysteryBoxRoutes);
-app.use('/api/crafts', craftRoutes);
+app.use('/api/tasks', apiLimiter, taskRoutes);
+app.use('/api/shipments', apiLimiter, shipmentRoutes);
+app.use('/api/collections', apiLimiter, collectionRoutes);
+app.use('/api/books', apiLimiter, bookRoutes);
+app.use('/api/donations', apiLimiter, donationRoutes);
+app.use('/api/orders', apiLimiter, orderRoutes);
+app.use('/api/stats', apiLimiter, statsRoutes);
+app.use('/api/community', apiLimiter, communityRoutes);
+app.use('/api/mystery-boxes', apiLimiter, mysteryBoxRoutes);
+app.use('/api/crafts', apiLimiter, craftRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {
