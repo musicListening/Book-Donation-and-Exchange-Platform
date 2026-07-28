@@ -75,203 +75,64 @@ const Donate = () => {
       .catch(() => {});
   }, [navigate]);
 
-  // ===== GENERATE DYNAMIC FILE INPUTS BASED ON COUNT =====
-  const generateFileInputs = (count, type, collectionIndex) => {
-    const inputs = [];
-    const maxCount = Math.min(count, 10);
-    
-    for (let i = 0; i < maxCount; i++) {
-      inputs.push(
-        <div key={`${type}-${collectionIndex}-${i}`} style={{ 
-          marginBottom: 10, 
-          padding: '10px 16px',
-          background: '#F8F9FA',
-          borderRadius: 8,
-          border: '1px solid #DEE2E6',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ 
-            fontWeight: 600, 
-            color: '#1E4D4B',
-            minWidth: 100,
-            fontSize: 13
-          }}>
-            {type === 'book' ? `📚 Book ${i + 1}` : `🎨 Craft ${i + 1}`}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => {
-              if (type === 'book') {
-                updateBookFilesForIndex(collectionIndex, i, Array.from(e.target.files));
-              } else {
-                updateCraftFilesForIndex(collectionIndex, i, Array.from(e.target.files));
-              }
-            }}
-            style={{ 
-              flex: 1,
-              padding: '6px 8px',
-              border: '1px dashed #DEE2E6',
-              borderRadius: 6,
-              background: 'white',
-              fontSize: 13,
-              minWidth: 200
-            }}
-          />
-        </div>
-      );
-    }
-    
-    if (count > 10) {
-      inputs.push(
-        <div key={`${type}-${collectionIndex}-more`} style={{ 
-          padding: '10px 16px',
-          background: '#FFF3CD',
-          borderRadius: 8,
-          border: '1px solid #FFE082',
-          fontSize: 13,
-          color: '#856404'
-        }}>
-          <i className="fa-solid fa-info-circle"></i> Showing 10 of {count} items. Additional items can be uploaded together in one batch.
-        </div>
-      );
-    }
-    
-    return inputs;
-  };
-
-  // ===== BOOK FILE HANDLERS - FIXED DUPLICATES =====
-  const updateBookFilesForIndex = (collectionIndex, fileIndex, files) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      if (!newCols[collectionIndex].itemFiles) {
-        newCols[collectionIndex].itemFiles = {};
-      }
-      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
-        newCols[collectionIndex].itemFiles[fileIndex] = [];
-      }
-      // Prevent duplicate files by checking file name and size
-      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
-      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
-      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
-      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
-      return newCols;
-    });
-  };
-
-  const clearBookFilesForIndex = (collectionIndex) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[collectionIndex].itemFiles = {};
-      newCols[collectionIndex].files = [];
-      return newCols;
-    });
-  };
-
-  // ===== CRAFT FILE HANDLERS - FIXED DUPLICATES =====
-  const updateCraftFilesForIndex = (collectionIndex, fileIndex, files) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      if (!newCols[collectionIndex].itemFiles) {
-        newCols[collectionIndex].itemFiles = {};
-      }
-      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
-        newCols[collectionIndex].itemFiles[fileIndex] = [];
-      }
-      // Prevent duplicate files by checking file name and size
-      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
-      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
-      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
-      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
-      return newCols;
-    });
-  };
-
-  const clearCraftFilesForIndex = (collectionIndex) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[collectionIndex].itemFiles = {};
-      newCols[collectionIndex].files = [];
-      return newCols;
-    });
-  };
-
-  // ===== BOOK COLLECTION HANDLERS =====
   const updateBookCategory = (index, value) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCategory = value;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCategory: value } : col));
+  };
+
+  const updateBookTitle = (index, value) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookTitle: value } : col));
   };
 
   const updateBookCount = (index, delta) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      const currentCount = newCols[index].bookCount || 1;
-      const newCount = Math.max(1, Math.min(100, currentCount + delta));
-      newCols[index].bookCount = newCount;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, col.bookCount + delta)) } : col));
   };
 
   const setExactBookCount = (index, value) => {
     const val = parseInt(value) || 1;
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, val)) } : col));
+  };
+
+  const updateBookFiles = (index, files) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
+  };
+
+  const clearBookFiles = (index) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
   };
 
   const addBookCollection = () => {
-    setBookCollections(prev => [
-      ...prev, 
-      { 
-        id: Date.now() + Math.random(), 
-        bookCategory: '', 
-        bookTitle: '', 
-        bookCount: 1, 
-        files: [],
-        itemFiles: {} 
-      }
-    ]);
+    setBookCollections(prev => [...prev, { bookCategory: '', bookTitle: '', bookCount: 1, files: [] }]);
   };
 
   const removeBookCollection = (index) => {
     setBookCollections(prev => prev.filter((_, i) => i !== index));
   };
 
+  const updateCraftCollectionFiles = (index, files) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
+  };
+
+  const clearCraftFiles = (index) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
+  };
+
+  const updateCraftPoints = (index, value) => {
+    const val = parseInt(value) || 0;
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, pointsPrice: Math.max(0, val) } : col));
+  };
+
   // ===== CRAFT COLLECTION HANDLERS =====
   const updateCraftCount = (index, delta) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      const currentCount = newCols[index].craftCount || 1;
-      const newCount = Math.max(1, Math.min(100, currentCount + delta));
-      newCols[index].craftCount = newCount;
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, col.craftCount + delta)) } : col));
   };
 
   const setExactCraftCount = (index, value) => {
     const val = parseInt(value) || 1;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, val)) } : col));
   };
 
   const updateCraftType = (index, value) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftType = value;
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
   const updateCraftPoints = (index, value) => {
@@ -467,8 +328,8 @@ const Donate = () => {
       document.getElementById('successModal').style.display = 'flex';
       document.getElementById('finalPoints').innerText = points;
     } catch (error) {
-      console.error('Error creating donation:', error);
-      alert('Failed to submit donation. Please try again.');
+      console.error('Error creating donations:', error);
+      alert('Failed to submit donations: ' + error.message);
     }
   };
 
@@ -632,6 +493,31 @@ const Donate = () => {
                         <p style={{ fontSize: 11, color: '#6C757D', marginTop: 4 }}>
                           Based on {pointsPerBook} pts/book {col.bookCount > 1 ? `+ ${collectionBonusPct}% collection bonus` : ''}
                         </p>
+
+                        <div style={{ marginTop: 16 }}>
+                          <label style={styles.label}>Photos of the Book (Optional)</label>
+                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                updateBookFiles(idx, Array.from(e.target.files));
+                                e.target.value = null;
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                          {col.files && col.files.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                              <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                ✓ {col.files.length} photo(s) attached
+                              </p>
+                              <button type="button" onClick={() => clearBookFiles(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear photos</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
 
@@ -710,15 +596,28 @@ const Donate = () => {
                         )}
 
                         <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Price per Craft (Points)</label>
-                          <input
-                            type="number"
-                            style={{ ...styles.formControl, width: '100%' }}
-                            value={col.pointsPrice || 50}
-                            onChange={(e) => updateCraftPoints(idx, e.target.value)}
-                            min="0"
-                            step="10"
-                          />
+                          <label style={styles.label}>Photos for this Craft Item (Optional)</label>
+                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                updateCraftCollectionFiles(idx, Array.from(e.target.files));
+                                e.target.value = null;
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                          {col.files && col.files.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                              <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                ✓ {col.files.length} photo(s) attached
+                              </p>
+                              <button type="button" onClick={() => clearCraftFiles(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear photos</button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

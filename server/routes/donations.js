@@ -9,10 +9,23 @@ router.post('/', uploadDonation.array('images', 10), async (req, res) => {
     try {
         const { userId, type, collectionName, category, requestedCount, notes, dropOffDate, timeSlot } = req.body;
 
-        // Upload donor images to Cloudinary
+        // Upload donor images to Cloudinary with local fallback
         let donationImages = [];
         if (req.files && req.files.length > 0) {
-            donationImages = await uploadToCloudinaryMultiple(req.files);
+            try {
+                donationImages = await uploadToCloudinaryMultiple(req.files);
+            } catch (cloudinaryError) {
+                console.warn('⚠️ Cloudinary upload failed, falling back to local storage:', cloudinaryError.message);
+                const fs = require('fs');
+                const path = require('path');
+                donationImages = [];
+                for (const file of req.files) {
+                    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+                    const filepath = path.join(__dirname, '../uploads', filename);
+                    fs.writeFileSync(filepath, file.buffer);
+                    donationImages.push(`http://localhost:5000/uploads/${filename}`);
+                }
+            }
         }
 
         const donation = await prisma.donationRequest.create({

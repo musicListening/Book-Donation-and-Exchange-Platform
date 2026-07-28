@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model User {
@@ -35,6 +36,7 @@ model User {
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
+  LoginLog                                        LoginLog[]
   MysteryBox_MysteryBox_assignedByToUser          MysteryBox[]       @relation("MysteryBox_assignedByToUser")
   MysteryBox_MysteryBox_userIdToUser              MysteryBox[]       @relation("MysteryBox_userIdToUser")
   Notification                                    Notification[]
@@ -434,11 +436,11 @@ model PlatformReview {
 model LoginLog {
   id        String      @id @default(dbgenerated("gen_random_uuid()"))
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   action    AuditAction
   ip        String?
   userAgent String?
   createdAt DateTime    @default(now())
+  User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {
