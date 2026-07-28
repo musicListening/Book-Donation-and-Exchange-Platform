@@ -135,15 +135,6 @@ const Donate = () => {
     setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
-  const updateCraftPoints = (index, value) => {
-    const val = parseInt(value) || 0;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].pointsPrice = Math.max(0, val);
-      return newCols;
-    });
-  };
-
   const addCraftCollection = () => {
     setCraftCollections(prev => [
       ...prev, 
