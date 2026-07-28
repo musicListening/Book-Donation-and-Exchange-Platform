@@ -7,7 +7,7 @@ const router = express.Router();
 // ===== CREATE Donation Request =====
 router.post('/', uploadDonation.array('images', 10), async (req, res) => {
     try {
-        const { userId, type, collectionName, category, requestedCount, notes, dropOffDate } = req.body;
+        const { userId, type, collectionName, category, requestedCount, notes, dropOffDate, timeSlot } = req.body;
 
         // Upload donor images to Cloudinary
         let donationImages = [];
@@ -25,6 +25,7 @@ router.post('/', uploadDonation.array('images', 10), async (req, res) => {
                 verifiedCount: 0,
                 notes,
                 dropOffDate: dropOffDate ? new Date(dropOffDate) : null,
+                timeSlot: timeSlot || 'Morning (10:00 AM - 12:00 PM)',
                 pointsAwarded: 0,
                 donationImages,
             }
@@ -206,14 +207,12 @@ router.patch('/:id/update-points', async (req, res) => {
             awardedMysteryBox 
         });
 
-        // ✅ Only update points-related fields - status stays PENDING
         const updated = await prisma.donationRequest.update({
             where: { id },
             data: {
                 verifiedCount: parseInt(verifiedCount) || 0,
                 pointsAwarded: parseInt(pointsAwarded) || 0,
                 awardedMysteryBox: awardedMysteryBox === true || awardedMysteryBox === 'true',
-                // ✅ DO NOT change status - stays PENDING
             },
             include: { user: true }
         });
@@ -235,7 +234,8 @@ router.patch('/:id/verify', async (req, res) => {
             condition, 
             notes, 
             staffId,
-            isCollectionComplete
+            isCollectionComplete,
+            category
         } = req.body;
 
         const donation = await prisma.donationRequest.findUnique({
@@ -253,19 +253,27 @@ router.patch('/:id/verify', async (req, res) => {
         const newPoints = (user.points || 0) + points.total;
         const leveledUp = newLevel > (user.level !== undefined && user.level !== null ? user.level : 0);
 
+        // Update donation with category if provided
+        const updateData = {
+            status: 'VERIFIED',
+            verifiedCount: parseInt(verifiedCount) || 0,
+            condition: condition || 'good',
+            notes: notes || '',
+            pointsAwarded: points.total,
+            staffNotes: req.body.staffNotes || '',
+            isCollectionComplete: isCollection,
+            verifiedDate: new Date(),
+            verifiedBy: staffId || null
+        };
+
+        // If category is provided, update it
+        if (category) {
+            updateData.category = category;
+        }
+
         const updated = await prisma.donationRequest.update({
             where: { id },
-            data: {
-                status: 'VERIFIED',
-                verifiedCount: parseInt(verifiedCount) || 0,
-                condition: condition || 'good',
-                notes: notes || '',
-                pointsAwarded: points.total,
-                staffNotes: req.body.staffNotes || '',
-                isCollectionComplete: isCollection,
-                verifiedDate: new Date(),
-                verifiedBy: staffId || null
-            },
+            data: updateData,
             include: { user: true }
         });
 
@@ -323,13 +331,15 @@ router.patch('/:id/verify', async (req, res) => {
                 const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
                 const selectedBooks = shuffled.slice(0, Math.min(boxBookCount, shuffled.length));
 
+                // ✅ FIX: Add updatedAt here
                 const mysteryBox = await prisma.mysteryBox.create({
                     data: {
                         userId: user.id,
                         level: newLevel,
                         status: 'UNCLAIMED',
                         assignedBy: staffId || null,
-                        description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
+                        description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`,
+                        updatedAt: new Date(),
                     }
                 });
 
@@ -338,7 +348,6 @@ router.patch('/:id/verify', async (req, res) => {
                         where: { id: book.id },
                         data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
                     });
-                    // Decrement bundle stock if book was in a collection
                     if (book.collectionId) {
                         await prisma.bookCollection.update({
                             where: { id: book.collectionId },
@@ -364,16 +373,13 @@ router.patch('/:id/verify', async (req, res) => {
         const craftListings = [];
         const { bundleId, addToMarketplace } = req.body;
         
-        // Auto-find or create bundle for the donation's category
         let finalBundleId = bundleId || null;
         if (!finalBundleId && !isCraft && donation.category) {
-            // Try to find existing bundle for this category
             let existingBundle = await prisma.bookCollection.findFirst({
                 where: { category: donation.category }
             });
             
             if (!existingBundle) {
-                // Create a new bundle for this category
                 existingBundle = await prisma.bookCollection.create({
                     data: {
                         title: `${donation.category} Collection`,
@@ -440,7 +446,6 @@ router.patch('/:id/verify', async (req, res) => {
             }
         }
 
-        // Update bundle stock count
         if (finalBundleId && bookItems.length > 0) {
             await prisma.bookCollection.update({
                 where: { id: finalBundleId },
@@ -464,6 +469,7 @@ router.patch('/:id/verify', async (req, res) => {
     }
 });
 
+// ===== PUBLISH TO MARKETPLACE =====
 router.post('/:id/publish-marketplace', async (req, res) => {
     try {
         const { id } = req.params;
@@ -568,13 +574,15 @@ router.post('/:id/mystery-box', async (req, res) => {
         const shuffled = [...availableBooks].sort(() => 0.5 - Math.random());
         const selectedBooks = shuffled.slice(0, Math.min(bookCount, shuffled.length));
 
+        // ✅ FIX: Add updatedAt here
         const mysteryBox = await prisma.mysteryBox.create({
             data: {
                 userId: user.id,
                 level: user.level,
                 status: 'UNCLAIMED',
                 assignedBy: staffId || null,
-                description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
+                description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`,
+                updatedAt: new Date(),
             }
         });
 
@@ -583,7 +591,6 @@ router.post('/:id/mystery-box', async (req, res) => {
                 where: { id: book.id },
                 data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
             });
-            // Decrement bundle stock if book was in a collection
             if (book.collectionId) {
                 await prisma.bookCollection.update({
                     where: { id: book.collectionId },
@@ -643,7 +650,6 @@ router.put('/:id/complete', async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Use a transaction to ensure both operations succeed
         const result = await prisma.$transaction(async (tx) => {
             const donation = await tx.donationRequest.findUnique({ where: { id } });
             
