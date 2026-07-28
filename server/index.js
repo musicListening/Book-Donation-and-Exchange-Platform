@@ -81,7 +81,7 @@ app.use('/api/collections', apiLimiter, collectionRoutes);
 app.use('/api/books', apiLimiter, bookRoutes);
 app.use('/api/donations', apiLimiter, authenticate, donationRoutes);
 app.use('/api/orders', apiLimiter, authenticate, orderRoutes);
-app.use('/api/stats', apiLimiter, authenticate, statsRoutes);
+app.use('/api/stats', apiLimiter, statsRoutes);
 app.use('/api/community', apiLimiter, communityRoutes);
 app.use('/api/mystery-boxes', apiLimiter, authenticate, mysteryBoxRoutes);
 app.use('/api/crafts', apiLimiter, craftRoutes);
