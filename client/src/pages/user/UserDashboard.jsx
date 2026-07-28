@@ -28,15 +28,24 @@ const UserDashboard = () => {
     const fetchData = async () => {
       try {
         try {
+          const token = localStorage.getItem('token');
           await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ userId: storedUser.id })
           });
         } catch (autoErr) {}
 
+        const token = localStorage.getItem('token');
         const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
+          fetch(`${API_BASE}/users`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }).then(r => r.ok ? r.json() : []),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
           systemConfigAPI.getAll()
         ]);
@@ -99,7 +108,6 @@ const UserDashboard = () => {
   const handleClaim = async (boxId) => {
     setClaiming(boxId);
     try {
-      await mysteryBoxAPI.claim(boxId);
       const response = await mysteryBoxAPI.claim(boxId);
       const updatedBox = response.box || response;
       const cost = getPointsCostForLevel(updatedBox?.level || 0);
@@ -122,10 +130,12 @@ const UserDashboard = () => {
     if (!user) return alert('Please log in first.');
     setReviewSaving(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/reviews`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ userId: user.id, rating: userReview.rating, comment: userReview.comment })
       });

@@ -30,18 +30,26 @@ const MysteryBoxes = () => {
     try {
       // 1. First silently auto-assign any mystery boxes the user is entitled to
       try {
+        const token = localStorage.getItem('token');
         await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ userId })
         });
       } catch (autoErr) {
         console.error('Error auto-assigning mystery boxes:', autoErr);
       }
 
-      // 2. Fetch fresh user data, mystery boxes, and system config in parallel
+      const token = localStorage.getItem('token');
       const [freshUsers, boxes, config] = await Promise.all([
-        fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
+        fetch(`${API_BASE}/users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }).then(r => r.ok ? r.json() : []),
         mysteryBoxAPI.getByUser(userId),
         systemConfigAPI.getAll()
       ]);
