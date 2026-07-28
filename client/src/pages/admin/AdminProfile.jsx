@@ -51,8 +51,12 @@ export default function AdminProfile() {
         formData.append('profileImage', profileFile);
       }
 
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/users/${user.id}/profile`, {
         method: 'PUT',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: formData,
       });
 

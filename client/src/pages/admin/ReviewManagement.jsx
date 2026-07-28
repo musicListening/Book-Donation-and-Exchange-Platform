@@ -5,6 +5,17 @@ import { showToast } from "../../utils/toast";
 
 const API_URL = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
+function authFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 const statusOptions = ["All Statuses", "Approved", "Pending"];
 const ratingOptions = ["All Ratings", "5", "4", "3", "2", "1"];
 
@@ -24,7 +35,7 @@ export default function ReviewManagement() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch(`${API_URL}/reviews/admin/all`);
+      const response = await authFetch(`${API_URL}/reviews/admin/all`);
       if (!response.ok) throw new Error("Failed to fetch reviews");
       const data = await response.json();
       setReviews(data);
@@ -40,7 +51,7 @@ export default function ReviewManagement() {
 
   const handleToggleApproval = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/reviews/admin/${id}/approve`, { method: "PATCH" });
+      const response = await authFetch(`${API_URL}/reviews/admin/${id}/approve`, { method: "PATCH" });
       if (!response.ok) throw new Error("Failed to update approval");
       showToast("Review approval status updated.", "success");
       fetchReviews();
@@ -52,7 +63,7 @@ export default function ReviewManagement() {
 
   const handleDeleteReview = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/reviews/admin/${id}`, { method: "DELETE" });
+      const response = await authFetch(`${API_URL}/reviews/admin/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete review");
       showToast("Review deleted successfully.", "success");
       setConfirmAction(null);

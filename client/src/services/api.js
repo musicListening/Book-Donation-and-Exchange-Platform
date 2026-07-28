@@ -1,18 +1,26 @@
 // src/services/api.js
 export const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem('token');
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 // ===== USER API =====
 export const userAPI = {
   getById: async (id) => {
     console.log('📡 GET /users');
-    const users = await fetch(`${API_BASE}/users`).then(r => r.json());
+    const users = await fetch(`${API_BASE}/users`, { headers: authHeaders() }).then(r => r.json());
     const user = users.find(u => u.id === id);
     if (!user) throw new Error('User not found');
     return user;
   },
   getAll: async () => {
     console.log('📡 GET /users');
-    const response = await fetch(`${API_BASE}/users`);
+    const response = await fetch(`${API_BASE}/users`, { headers: authHeaders() });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   },
@@ -22,7 +30,7 @@ export const userAPI = {
 export const adminAPI = {
   getDashboard: async () => {
     console.log('📡 GET /admin/dashboard');
-    const response = await fetch(`${API_BASE}/admin/dashboard`);
+    const response = await fetch(`${API_BASE}/admin/dashboard`, { headers: authHeaders() });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   },
@@ -30,10 +38,26 @@ export const adminAPI = {
     const params = new URLSearchParams({ type, startDate, endDate });
     console.log(`📡 GET /admin/report?${params}`);
     const response = await fetch(`${API_BASE}/admin/report?${params}`, {
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: authHeaders({ 'Cache-Control': 'no-cache' }),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
+  },
+};
+
+// ===== AUTH API =====
+export const authAPI = {
+  logout: async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
   },
 };
 
@@ -42,7 +66,7 @@ export const taskAPI = {
     // GET all tasks
     getAll: async () => {
         console.log('📡 GET /tasks');
-        const response = await fetch(`${API_BASE}/tasks`);
+        const response = await fetch(`${API_BASE}/tasks`, { headers: authHeaders() });
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || `HTTP ${response.status}`);
@@ -55,7 +79,7 @@ export const taskAPI = {
         console.log('📡 POST /tasks', data);
         const response = await fetch(`${API_BASE}/tasks`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -70,7 +94,7 @@ export const taskAPI = {
         console.log(`📡 PUT /tasks/${id}`, data);
         const response = await fetch(`${API_BASE}/tasks/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -85,6 +109,7 @@ export const taskAPI = {
         console.log(`📡 DELETE /tasks/${id}`);
         const response = await fetch(`${API_BASE}/tasks/${id}`, {
             method: 'DELETE',
+            headers: authHeaders(),
         });
         if (!response.ok) {
             const error = await response.json();
@@ -98,7 +123,7 @@ export const taskAPI = {
         console.log(`📡 PUT /tasks/${id}/status`, { status });
         const response = await fetch(`${API_BASE}/tasks/${id}/status`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ status }),
         });
         if (!response.ok) {
@@ -113,7 +138,7 @@ export const taskAPI = {
 export const systemConfigAPI = {
   getAll: async () => {
     console.log('📡 GET /admin/config');
-    const response = await fetch(`${API_BASE}/admin/config`);
+    const response = await fetch(`${API_BASE}/admin/config`, { headers: authHeaders() });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   },
@@ -121,7 +146,7 @@ export const systemConfigAPI = {
     console.log('📡 PUT /admin/config', config);
     const response = await fetch(`${API_BASE}/admin/config`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(config),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -145,7 +170,7 @@ export const collectionAPI = {
         console.log('📡 POST /collections', data);
         const response = await fetch(`${API_BASE}/collections`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -159,7 +184,7 @@ export const collectionAPI = {
         console.log(`📡 PUT /collections/${id}`, data);
         const response = await fetch(`${API_BASE}/collections/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -173,6 +198,7 @@ export const collectionAPI = {
         console.log(`📡 DELETE /collections/${id}`);
         const response = await fetch(`${API_BASE}/collections/${id}`, {
             method: 'DELETE',
+            headers: authHeaders(),
         });
         if (!response.ok) {
             const error = await response.json();
@@ -200,7 +226,7 @@ export const bookAPI = {
         console.log('📡 POST /books', data);
         const response = await fetch(`${API_BASE}/books`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -214,7 +240,7 @@ export const bookAPI = {
         console.log(`📡 PUT /books/${id}`, data);
         const response = await fetch(`${API_BASE}/books/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -228,6 +254,7 @@ export const bookAPI = {
         console.log(`📡 DELETE /books/${id}`);
         const response = await fetch(`${API_BASE}/books/${id}`, {
             method: 'DELETE',
+            headers: authHeaders(),
         });
         if (!response.ok) {
             const error = await response.json();
@@ -242,7 +269,7 @@ export const bookAPI = {
 export const shipmentAPI = {
     getAll: async (status) => {
         console.log('📡 GET /shipments' + (status && status !== 'All' ? `?status=${status}` : ''));
-        const response = await fetch(`${API_BASE}/shipments${status && status !== 'All' ? `?status=${status}` : ''}`);
+        const response = await fetch(`${API_BASE}/shipments${status && status !== 'All' ? `?status=${status}` : ''}`, { headers: authHeaders() });
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || `HTTP ${response.status}`);
@@ -254,7 +281,7 @@ export const shipmentAPI = {
         console.log('📡 POST /shipments', data);
         const response = await fetch(`${API_BASE}/shipments`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -268,7 +295,7 @@ export const shipmentAPI = {
         console.log(`📡 PUT /shipments/${id}`, data);
         const response = await fetch(`${API_BASE}/shipments/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -282,6 +309,7 @@ export const shipmentAPI = {
         console.log(`📡 DELETE /shipments/${id}`);
         const response = await fetch(`${API_BASE}/shipments/${id}`, {
             method: 'DELETE',
+            headers: authHeaders(),
         });
         if (!response.ok) {
             const error = await response.json();

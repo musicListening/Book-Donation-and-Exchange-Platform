@@ -4,31 +4,49 @@ import { adminAPI } from "../../services/api";
 import "../../styles/CustomReportGeneration.css";
 
 export default function CustomReportGeneration() {
-  const [reportType, setReportType] = useState("Total Points Provided");
+  const [reportType, setReportType] = useState("System Logs");
   const [startDate, setStartDate] = useState("2026-01-01");
   const [endDate, setEndDate] = useState("2026-12-31");
   const [exportFormat, setExportFormat] = useState("PDF");
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [anonymizeUsers, setAnonymizeUsers] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [currentReport, setCurrentReport] = useState(null);
   const [notification, setNotification] = useState("");
   const [error, setError] = useState("");
 
-  const handleGenerateReport = async () => {
-    setIsGenerating(true);
+  const handlePreview = async () => {
+    setIsPreviewing(true);
     setError("");
     setNotification("");
     try {
       const data = await adminAPI.getReport(reportType, startDate, endDate);
       if (!data || !data.rows) throw new Error("No data returned");
       setCurrentReport(data);
-      exportReport(data, exportFormat);
-      setNotification(`Report generated and downloaded as ${exportFormat}!`);
+    } catch (err) {
+      setError("Failed to load preview. Please try again.");
+      console.error("Preview error:", err);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!currentReport) {
+      setError("Please preview the report first.");
+      return;
+    }
+    setIsGenerating(true);
+    setError("");
+    setNotification("");
+    try {
+      exportReport(currentReport, exportFormat);
+      setNotification(`Report downloaded as ${exportFormat}!`);
       setTimeout(() => setNotification(""), 4000);
     } catch (err) {
-      setError("Failed to generate report. Please try again.");
-      console.error("Report error:", err);
+      setError("Failed to export report. Please try again.");
+      console.error("Export error:", err);
     } finally {
       setIsGenerating(false);
     }
@@ -177,6 +195,7 @@ export default function CustomReportGeneration() {
                     onChange={(e) => setReportType(e.target.value)}
                     className="styled-select"
                   >
+                    <option>System Logs</option>
                     <option>Total Points Provided</option>
                     <option>Total Deliveries</option>
                     <option>Most Popular Collections</option>
@@ -261,15 +280,26 @@ export default function CustomReportGeneration() {
                 )}
               </div>
 
-              {/* Primary CTA */}
-              <button 
-                onClick={handleGenerateReport}
-                className="btn-generate-report"
-                disabled={isGenerating}
-              >
-                <span className="btn-icon-symbol">🪄</span>
-                {isGenerating ? "Generating..." : "Generate Report"}
-              </button>
+              {/* Primary CTAs */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  onClick={handlePreview}
+                  className="btn-generate-report"
+                  disabled={isPreviewing || isGenerating}
+                  style={{ flex: 1, background: '#fff', color: '#1A6B68', border: '2px solid #1A6B68' }}
+                >
+                  {isPreviewing ? "Loading..." : "Preview Report"}
+                </button>
+                <button 
+                  onClick={handleGenerateReport}
+                  className="btn-generate-report"
+                  disabled={isPreviewing || isGenerating || !currentReport}
+                  style={{ flex: 1, opacity: currentReport ? 1 : 0.5 }}
+                >
+                  <span className="btn-icon-symbol">📥</span>
+                  {isGenerating ? "Exporting..." : `Export ${exportFormat}`}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -278,7 +308,7 @@ export default function CustomReportGeneration() {
             <div className="document-preview-card">
               {!report ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-neutral)', fontSize: '0.95rem' }}>
-                  {isGenerating ? '' : 'Click "Generate Report" to view live data'}
+                  {isPreviewing ? '' : 'Click "Preview Report" to see your data here'}
                 </div>
               ) : (
                 <>
@@ -314,18 +344,17 @@ export default function CustomReportGeneration() {
                       <tbody>
                         {report.rows.map((row, index) => (
                           <tr key={index}>
-                            <td className="font-mono">{maskUserIdentity(row.col1)}</td>
-                            <td>{maskUserIdentity(row.col2)}</td>
-                            <td>
-                              {row.col3 === "High" || (typeof row.col3 === 'string' && (row.col3.includes("Level 5") || row.col3.includes("Expert"))) ? (
-                                <span className="pill-status success">{row.col3}</span>
-                              ) : row.col3 === "Medium" || (typeof row.col3 === 'string' && (row.col3.includes("Level 4") || row.col3.includes("Level 3"))) ? (
-                                <span className="pill-status warning">{row.col3}</span>
-                              ) : (
-                                row.col3
-                              )}
-                            </td>
-                            <td>{row.col4}</td>
+                            {report.headers.map((_, i) => {
+                              const val = row[`col${i + 1}`];
+                              if (i === 0) return <td key={i} className="font-mono">{maskUserIdentity(val)}</td>;
+                              if (i === 1 && (val === "High" || (typeof val === 'string' && (val.includes("Level 5") || val.includes("Expert"))))) {
+                                return <td key={i}><span className="pill-status success">{val}</span></td>;
+                              }
+                              if (i === 1 && (val === "Medium" || (typeof val === 'string' && (val.includes("Level 4") || val.includes("Level 3"))))) {
+                                return <td key={i}><span className="pill-status warning">{val}</span></td>;
+                              }
+                              return <td key={i}>{typeof val === 'string' ? maskUserIdentity(val) : val}</td>;
+                            })}
                           </tr>
                         ))}
                       </tbody>
@@ -364,13 +393,13 @@ export default function CustomReportGeneration() {
               )}
 
               {/* Live Preview Mode Overlay (Absolute position) */}
-              {isGenerating && (
+              {isPreviewing && (
                 <div className="loading-report-overlay">
                   <div className="spinner-loader"></div>
-                  <p className="loading-text">Compiling database rows...</p>
+                  <p className="loading-text">Fetching report data...</p>
                 </div>
               )}
-              {!isGenerating && report && (
+              {!isPreviewing && report && (
                 <div className="live-preview-indicator-overlay">
                   <div className="indicator-badge">
                     <span className="pulsing-eye">👁</span>

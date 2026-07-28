@@ -13,6 +13,7 @@ import {
   User,
   Star,
 } from "lucide-react";
+import { authAPI } from "../services/api";
 import "../styles/AdminLayout.css";
 
 const navItems = [
@@ -37,6 +38,8 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
   }, []);
 
   const handleLogout = () => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    if (u?.id) authAPI.logout(u.id);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("ss_current_user");

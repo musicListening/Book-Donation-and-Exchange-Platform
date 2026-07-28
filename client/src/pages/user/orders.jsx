@@ -4,8 +4,8 @@ import { API_BASE } from '../../services/api';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
-
-  const [user, setUser] = useState({ name: 'User', points: 0 });
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState({ name: 'User', points: 0, id: '' });
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -43,11 +43,60 @@ const Orders = () => {
 
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
+    
+    if (storedUser.id) {
+      fetchOrders(storedUser.id);
+    }
   }, []);
 
-  const getStatusIndex = (status) => {
-    const statuses = ['Placed', 'Packed', 'Shipped', 'Delivered'];
-    return statuses.indexOf(status);
+  // ===== FETCH ORDERS FOR SPECIFIC USER =====
+  const fetchOrders = async (userId) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch only orders for this specific user
+      const response = await fetch(`${API_BASE}/orders?userId=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+
+      const data = await response.json();
+      
+      // Format orders for display
+      const formattedOrders = data.map(order => ({
+        id: order.id,
+        status: order.status || 'PENDING',
+        date: new Date(order.createdAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        }),
+        total: order.cashAmount || 0,
+        totalPoints: order.totalPoints || 0,
+        items: order.items?.map(item => item.title || 'Book') || ['Book'],
+        discount: 0 // Calculate if needed
+      }));
+
+      setOrders(formattedOrders);
+      
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      showToast('Failed to load orders', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -80,40 +129,58 @@ const Orders = () => {
   };
 
   const styles = {
-    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 72, margin: 0 },
-    header: { position: 'fixed', top: 0, left: 0, width: '100%', height: 72, background: 'white', borderBottom: '1px solid #DEE2E6', zIndex: 1000, padding: '0 40px' },
-    navbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', maxWidth: 1440, margin: '0 auto' },
-    logo: { fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 800, color: '#1E4D4B', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 },
-    navLinks: { display: 'flex', gap: 32, listStyle: 'none', margin: 0, padding: 0 },
-    navLink: { textDecoration: 'none', color: '#343A40', fontWeight: 500 },
-    navLinkActive: { color: '#1E4D4B' },
+    body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', paddingTop: 72, margin: 0, minHeight: '100vh' },
     mainContent: { maxWidth: 1000, margin: '60px auto', padding: '0 20px' },
     pageHeader: { marginBottom: 40 },
-    pageHeaderH1: { fontFamily: 'Playfair Display, serif', fontSize: 32 },
+    pageHeaderH1: { fontFamily: 'Playfair Display, serif', fontSize: 32, color: '#1E4D4B' },
+    pageSubtitle: { color: '#6C757D', marginTop: 4 },
     orderCard: { background: 'white', borderRadius: 16, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 24, border: '1px solid #DEE2E6' },
     orderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #DEE2E6', paddingBottom: 20, marginBottom: 24 },
     orderId: { fontWeight: 800, fontSize: 18, color: '#1E4D4B' },
-    orderDate: { color: '#6C757D', fontSize: 14 },
-    orderTotal: { fontWeight: 700, color: '#343A40' },
+    orderDate: { color: '#6C757D', fontSize: 14, marginTop: 4 },
+    orderTotal: { fontWeight: 700, color: '#343A40', fontSize: 18 },
     orderItems: { marginBottom: 32 },
     orderItemText: { fontSize: 15, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 },
-    stepper: { display: 'flex', justifyContent: 'space-between', position: 'relative', marginTop: 20 },
-    stepperBefore: { content: '""', position: 'absolute', top: 15, left: 0, width: '100%', height: 2, background: '#DEE2E6', zIndex: 1 },
+    stepper: { display: 'flex', justifyContent: 'space-between', position: 'relative', marginTop: 20, padding: '0 20px' },
+    stepperLine: { position: 'absolute', top: 15, left: '10%', width: '80%', height: 2, background: '#DEE2E6', zIndex: 1 },
     step: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, zIndex: 2, position: 'relative', flex: 1 },
-    stepCircle: { width: 32, height: 32, borderRadius: '50%', background: 'white', border: '2px solid #DEE2E6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#6C757D' },
+    stepCircle: { width: 32, height: 32, borderRadius: '50%', background: 'white', border: '2px solid #DEE2E6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#6C757D' },
     stepCircleActive: { background: '#2A9D8F', borderColor: '#2A9D8F', color: 'white' },
     stepLabel: { fontSize: 12, fontWeight: 600, color: '#6C757D', textAlign: 'center' },
     stepLabelActive: { color: '#2A9D8F', fontWeight: 700 },
-    emptyOrders: { textAlign: 'center', padding: '80px 0' }
+    emptyOrders: { textAlign: 'center', padding: '80px 0' },
+    loadingState: { textAlign: 'center', padding: '60px 0', color: '#6C757D' },
+    statusBadge: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }
   };
+
+  if (loading) {
+    return (
+      <div style={styles.body}>
+        <Navbar variant="user" user={user} cartCount={cartCount} />
+        <main style={styles.mainContent}>
+          <div style={styles.loadingState}>
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 32, color: '#1E4D4B' }}></i>
+            <p style={{ marginTop: 12 }}>Loading your orders...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (orders.length === 0) {
     return (
       <div style={styles.body}>
         <Navbar variant="user" user={user} cartCount={cartCount} />
         <main style={styles.mainContent}>
-          <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>My Orders</h1><p>Track your book bundles and craft deliveries.</p></div>
-          <div style={styles.emptyOrders}><i className="fa-solid fa-box-open" style={{ fontSize: 64, color: '#DEE2E6', marginBottom: 20 }}></i><h3>No orders yet</h3><p>Items you redeem in the marketplace will appear here.</p></div>
+          <div style={styles.pageHeader}>
+            <h1 style={styles.pageHeaderH1}>My Orders</h1>
+            <p style={styles.pageSubtitle}>Track your book bundles and craft deliveries.</p>
+          </div>
+          <div style={styles.emptyOrders}>
+            <i className="fa-solid fa-box-open" style={{ fontSize: 64, color: '#DEE2E6', marginBottom: 20 }}></i>
+            <h3>No orders yet</h3>
+            <p style={{ color: '#6C757D' }}>Items you redeem in the marketplace will appear here.</p>
+          </div>
         </main>
       </div>
     );
@@ -124,19 +191,33 @@ const Orders = () => {
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
-        <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>My Orders</h1><p>Track your book bundles and craft deliveries.</p></div>
+        <div style={styles.pageHeader}>
+          <h1 style={styles.pageHeaderH1}>My Orders</h1>
+          <p style={styles.pageSubtitle}>Track your book bundles and craft deliveries.</p>
+        </div>
 
         <div>
           {orders.map(order => {
             const currentStatusIndex = getStatusIndex(order.status);
-            const statuses = ['Placed', 'Packed', 'Shipped', 'Delivered'];
+            const statusDisplay = getStatusDisplay(order.status);
+            const statusColor = getStatusColor(order.status);
+            const isCancelled = order.status === 'CANCELLED';
+            
+            // Steps for the stepper
+            const steps = ['Placed', 'Processing', 'Delivered'];
+            
             return (
               <div key={order.id} style={styles.orderCard}>
                 <div style={styles.orderHeader}>
                   <div>
-                    <span style={styles.orderId}>{order.id}</span>
-                    <span style={{ marginLeft: 12, padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: order.status === 'Cancelled' ? '#FEE2E2' : '#E0F2FE', color: order.status === 'Cancelled' ? '#EF4444' : '#0284C7' }}>
-                      {order.status}
+                    <span style={styles.orderId}>{formatOrderId(order.id)}</span>
+                    <span style={{ 
+                      ...styles.statusBadge,
+                      background: statusColor.bg,
+                      color: statusColor.text,
+                      marginLeft: 12
+                    }}>
+                      {statusDisplay}
                     </span>
                     <div style={styles.orderDate}>Ordered on {order.date}</div>
                   </div>
@@ -153,25 +234,68 @@ const Orders = () => {
                     )}
                   </div>
                 </div>
-                <div style={styles.orderItems}>{order.items.map((item, idx) => <p key={idx} style={styles.orderItemText}><i className="fa-solid fa-book"></i> {item}</p>)}</div>
+
+                <div style={styles.orderItems}>
+                  {order.items.map((item, idx) => (
+                    <p key={idx} style={styles.orderItemText}>
+                      <i className="fa-solid fa-book" style={{ color: '#1E4D4B' }}></i> {item}
+                    </p>
+                  ))}
+                </div>
                 
-                {order.status !== 'Cancelled' ? (
+                {!isCancelled ? (
                   <div style={styles.stepper}>
-                    {statuses.map((status, idx) => (
-                      <div key={status} style={styles.step}>
-                        <div style={{ ...styles.stepCircle, ...(currentStatusIndex >= idx ? styles.stepCircleActive : {}) }}>
-                          {idx === 0 && <i className="fa-solid fa-file-invoice"></i>}
-                          {idx === 1 && <i className="fa-solid fa-box"></i>}
-                          {idx === 2 && <i className="fa-solid fa-truck-fast"></i>}
-                          {idx === 3 && <i className="fa-solid fa-house-chimney"></i>}
+                    <div style={styles.stepperLine} />
+                    {steps.map((step, idx) => {
+                      const isActive = currentStatusIndex >= idx;
+                      
+                      // Icons for each step
+                      const icons = [
+                        <i className="fa-solid fa-file-invoice"></i>,
+                        <i className="fa-solid fa-box"></i>,
+                        <i className="fa-solid fa-house-chimney"></i>
+                      ];
+                      
+                      return (
+                        <div key={step} style={styles.step}>
+                          <div style={{ 
+                            ...styles.stepCircle, 
+                            ...(isActive ? styles.stepCircleActive : {})
+                          }}>
+                            {icons[idx]}
+                          </div>
+                          <div style={{ 
+                            ...styles.stepLabel, 
+                            ...(isActive ? styles.stepLabelActive : {})
+                          }}>
+                            {step}
+                          </div>
+                          {isActive && idx < steps.length - 1 && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              top: 15, 
+                              right: '-50%', 
+                              width: '100%', 
+                              height: 2, 
+                              background: '#2A9D8F', 
+                              zIndex: 0 
+                            }} />
+                          )}
                         </div>
-                        <div style={{ ...styles.stepLabel, ...(currentStatusIndex >= idx ? styles.stepLabelActive : {}) }}>{status}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div style={{ color: '#EF4444', fontWeight: 600, textAlign: 'center', padding: '20px 0', background: '#FEF2F2', borderRadius: 8 }}>
-                    <i className="fa-solid fa-circle-xmark" style={{ marginRight: 8 }}></i>This order was cancelled and points were refunded.
+                  <div style={{ 
+                    color: '#721C24', 
+                    fontWeight: 600, 
+                    textAlign: 'center', 
+                    padding: '20px 0', 
+                    background: '#F8D7DA', 
+                    borderRadius: 8 
+                  }}>
+                    <i className="fa-solid fa-circle-xmark" style={{ marginRight: 8 }}></i>
+                    This order was cancelled and points were refunded.
                   </div>
                 )}
               </div>

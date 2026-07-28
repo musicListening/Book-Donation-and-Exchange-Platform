@@ -25,16 +25,17 @@ const Donate = () => {
   const [filterType, setFilterType] = useState('All');
   const [donationCategory, setDonationCategory] = useState('books');
   const [bookCollections, setBookCollections] = useState([
-    { bookCategory: '', bookTitle: '', bookCount: 1, files: [] }
+    { id: Date.now(), bookCategory: '', bookTitle: '', bookCount: 1, files: [], itemFiles: {} }
   ]);
-  const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1, pointsPrice: 50, files: [] }]);
+  const [craftCollections, setCraftCollections] = useState([
+    { id: Date.now(), craftType: '', craftCount: 1, pointsPrice: 50, files: [], itemFiles: {} }
+  ]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
     
-    // Fetch user donations from backend
     if (storedUser.id) {
       fetch(`${API_BASE}/donations?userId=${storedUser.id}`)
         .then(res => {
@@ -47,9 +48,8 @@ const Donate = () => {
             setMyDonations([]);
             return;
           }
-          // Map backend data to frontend format
           const mappedDonations = data.map(d => ({
-            id: d.id.substring(0, 8).toUpperCase(), // Shorten UUID for display
+            id: d.id.substring(0, 8).toUpperCase(),
             fullId: d.id,
             type: d.category || d.type,
             count: d.requestedCount,
@@ -66,7 +66,6 @@ const Donate = () => {
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
     
-    // Fetch system config for points calculation
     fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -122,6 +121,7 @@ const Donate = () => {
     setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, pointsPrice: Math.max(0, val) } : col));
   };
 
+  // ===== CRAFT COLLECTION HANDLERS =====
   const updateCraftCount = (index, delta) => {
     setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, col.craftCount + delta)) } : col));
   };
@@ -135,8 +135,27 @@ const Donate = () => {
     setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
+  const updateCraftPoints = (index, value) => {
+    const val = parseInt(value) || 0;
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].pointsPrice = Math.max(0, val);
+      return newCols;
+    });
+  };
+
   const addCraftCollection = () => {
-    setCraftCollections(prev => [...prev, { craftType: '', craftCount: 1 }]);
+    setCraftCollections(prev => [
+      ...prev, 
+      { 
+        id: Date.now() + Math.random(), 
+        craftType: '', 
+        craftCount: 1, 
+        pointsPrice: 50, 
+        files: [],
+        itemFiles: {} 
+      }
+    ]);
   };
 
   const removeCraftCollection = (index) => {
@@ -174,6 +193,7 @@ const Donate = () => {
 
   const prevStep = () => setStep(step - 1);
 
+  // ===== FIXED: Combined Donation Submission - NO DUPLICATE IMAGES =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || !user.id) {
@@ -181,73 +201,104 @@ const Donate = () => {
       return;
     }
     
+    // Calculate totals
     const totalBooks = donationCategory === 'books'
       ? bookCollections.reduce((sum, col) => sum + col.bookCount, 0)
       : 0;
-    const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
+    const totalCrafts = donationCategory === 'crafts' 
+      ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) 
+      : 0;
+    
+    // Calculate points
     const points = donationCategory === 'books' 
       ? bookCollections.reduce((sum, col) => sum + (col.bookCount * pointsPerBook) + (col.bookCount > 1 ? Math.round((col.bookCount * pointsPerBook) * (collectionBonusPct / 100)) : 0), 0)
       : (totalCrafts * 10);
     
     try {
+      const bodyData = new FormData();
+      bodyData.append('userId', user.id);
+      bodyData.append('type', donationCategory === 'books' ? 'SINGLE_BOOK' : 'COLLECTION');
+      bodyData.append('dropOffDate', formData.selectedDate);
+      bodyData.append('timeSlot', formData.timeSlot);
+      bodyData.append('notes', formData.notes || '');
+      
       if (donationCategory === 'books') {
+        // Combine all book collection details
+        const collectionDetails = bookCollections.map(col => 
+          `${col.bookCategory}: ${col.bookCount} book${col.bookCount > 1 ? 's' : ''}`
+        ).join(' | ');
+        
+        bodyData.append('collectionName', collectionDetails || 'Books');
+        bodyData.append('category', collectionDetails || 'Books');
+        bodyData.append('requestedCount', totalBooks);
+        
+        // ===== FIX: Collect images - ONE PER BOOK, NO DUPLICATES =====
+        const allFiles = [];
         for (const col of bookCollections) {
-          const bodyData = new FormData();
-          bodyData.append('userId', user.id);
-          bodyData.append('type', 'SINGLE_BOOK');
-          bodyData.append('collectionName', col.bookCategory || 'Books');
-          bodyData.append('category', col.bookCategory);
-          bodyData.append('requestedCount', col.bookCount);
-          bodyData.append('notes', formData.notes || '');
-          bodyData.append('dropOffDate', formData.selectedDate);
-
           if (col.files && col.files.length > 0) {
-            for (let i = 0; i < col.files.length; i++) {
-              bodyData.append('images', col.files[i]);
+            // Only take files up to the number of books
+            const filesToAdd = col.files.slice(0, col.bookCount);
+            for (const file of filesToAdd) {
+              // Check if file already exists (by name + size)
+              const isDuplicate = allFiles.some(f => f.name === file.name && f.size === file.size);
+              if (!isDuplicate) {
+                allFiles.push(file);
+              }
             }
-          }
-
-          const response = await fetch(`${API_BASE}/donations`, {
-            method: 'POST',
-            body: bodyData
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to save book donation');
           }
         }
+        
+        // Add each unique image to FormData (max one per book)
+        if (allFiles.length > 0) {
+          for (let i = 0; i < Math.min(allFiles.length, totalBooks); i++) {
+            bodyData.append('images', allFiles[i]);
+          }
+        }
+        
+        console.log(`📸 Books: ${totalBooks}, Unique Images: ${Math.min(allFiles.length, totalBooks)}`);
+        
       } else {
+        // Crafts
+        const collectionDetails = craftCollections.map(col => 
+          `${col.craftType}: ${col.craftCount} item${col.craftCount > 1 ? 's' : ''}`
+        ).join(' | ');
+        
+        bodyData.append('category', 'Craft: ' + collectionDetails);
+        bodyData.append('requestedCount', totalCrafts);
+        bodyData.append('collectionName', collectionDetails);
+        
+        // Collect images - ONE PER CRAFT, NO DUPLICATES
+        const allFiles = [];
         for (const col of craftCollections) {
-          const bodyData = new FormData();
-          bodyData.append('userId', user.id);
-          bodyData.append('type', 'COLLECTION');
-          bodyData.append('category', 'Craft: ' + col.craftType);
-          bodyData.append('requestedCount', col.craftCount);
-          bodyData.append('notes', (formData.notes ? `${formData.notes} | ` : '') + `Expected Points: ${col.pointsPrice || 50}`);
-          bodyData.append('dropOffDate', formData.selectedDate);
-          
           if (col.files && col.files.length > 0) {
-            for (let i = 0; i < col.files.length; i++) {
-              bodyData.append('images', col.files[i]);
-            }
-          } else if (donationFiles) {
-            for (let i = 0; i < donationFiles.length; i++) {
-              bodyData.append('images', donationFiles[i]);
+            const filesToAdd = col.files.slice(0, col.craftCount);
+            for (const file of filesToAdd) {
+              const isDuplicate = allFiles.some(f => f.name === file.name && f.size === file.size);
+              if (!isDuplicate) {
+                allFiles.push(file);
+              }
             }
           }
-
-          const response = await fetch(`${API_BASE}/donations`, {
-            method: 'POST',
-            body: bodyData
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to save craft donation');
+        }
+        if (allFiles.length > 0) {
+          for (let i = 0; i < Math.min(allFiles.length, totalCrafts); i++) {
+            bodyData.append('images', allFiles[i]);
           }
         }
       }
+
+      const response = await fetch(`${API_BASE}/donations`, {
+        method: 'POST',
+        body: bodyData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save donation');
+      }
+
+      const result = await response.json();
+      console.log('Donation created with images:', result);
 
       // Re-fetch donations to update UI
       fetch(`${API_BASE}/donations?userId=${user.id}`)
@@ -292,11 +343,9 @@ const Donate = () => {
       
       const result = await res.json();
       
-     
       const updatedUser = { ...user, points: result.updatedUser.points };
       setUser(updatedUser);
       localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
-      
       
       setMyDonations(prev => prev.map(d => d.fullId === fullId ? { ...d, status: 'Completed' } : d));
       
@@ -380,7 +429,7 @@ const Donate = () => {
                 {donationCategory === 'books' && (
                   <>
                     {bookCollections.map((col, idx) => (
-                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                      <div key={col.id || idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
                         {bookCollections.length > 1 && (
                           <button type="button" onClick={() => removeBookCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
                             <i className="fa-solid fa-trash"></i>
@@ -414,6 +463,24 @@ const Donate = () => {
                             <button type="button" onClick={() => updateBookCount(idx, 1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>+</button>
                           </div>
                         </div>
+
+                        {/* ===== DYNAMIC FILE INPUTS FOR BOOKS ===== */}
+                        {col.bookCount > 0 && (
+                          <div style={{ marginTop: 16 }}>
+                            <label style={styles.label}>📸 Upload Photos for Each Book ({col.bookCount} book{col.bookCount > 1 ? 's' : ''})</label>
+                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                              {generateFileInputs(col.bookCount, 'book', idx)}
+                            </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                                <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                  ✓ {col.files.length} photo(s) attached
+                                </p>
+                                <button type="button" onClick={() => clearBookFilesForIndex(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear all photos</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <div style={{ background: '#E8F5E9', padding: 12, borderRadius: 8, marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: '#2E7D32' }}>
@@ -476,7 +543,7 @@ const Donate = () => {
                 {donationCategory === 'crafts' && (
                   <>
                     {craftCollections.map((col, idx) => (
-                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                      <div key={col.id || idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
                         {craftCollections.length > 1 && (
                           <button type="button" onClick={() => removeCraftCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
                             <i className="fa-solid fa-trash"></i>
@@ -493,14 +560,40 @@ const Donate = () => {
                             <option value="Mixed Media">Mixed Media / Other</option>
                           </select>
                         </div>
-                        <div style={{ marginBottom: 16 }}>
+                        
+                        <div style={styles.formGroup}>
                           <label style={styles.label}>Number of Items</label>
-                          <div style={styles.numberInput}>
-                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} onChange={(e) => setExactCraftCount(idx, e.target.value)} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button type="button" onClick={() => updateCraftCount(idx, -1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>-</button>
+                            <input
+                              type="number"
+                              style={{ ...styles.formControl, width: 80, textAlign: 'center', fontWeight: 600 }}
+                              value={col.craftCount}
+                              onChange={(e) => setExactCraftCount(idx, e.target.value)}
+                              min="1"
+                              max="100"
+                            />
+                            <button type="button" onClick={() => updateCraftCount(idx, 1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>+</button>
                           </div>
                         </div>
 
-
+                        {/* ===== DYNAMIC FILE INPUTS FOR CRAFTS ===== */}
+                        {col.craftCount > 0 && (
+                          <div style={{ marginTop: 16 }}>
+                            <label style={styles.label}>📸 Upload Photos for Each Craft ({col.craftCount} craft{col.craftCount > 1 ? 's' : ''})</label>
+                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                              {generateFileInputs(col.craftCount, 'craft', idx)}
+                            </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                                <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                  ✓ {col.files.length} photo(s) attached
+                                </p>
+                                <button type="button" onClick={() => clearCraftFilesForIndex(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear all photos</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <div style={{ marginTop: 16 }}>
                           <label style={styles.label}>Photos for this Craft Item (Optional)</label>
@@ -567,16 +660,24 @@ const Donate = () => {
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ color: '#6C757D', display: 'block', marginBottom: 4 }}>Collections:</span>
                     {donationCategory === 'books' ? bookCollections.map((col, idx) => (
-                        <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
+                        <div key={col.id || idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                 <strong>{col.bookCategory || 'Not Selected'}</strong>
                                 <span>{col.bookCount} Book(s)</span>
                             </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ fontSize: 12, color: '#2E7D32' }}>✓ {col.files.length} photo(s) attached</div>
+                            )}
                         </div>
                     )) : craftCollections.map((col, idx) => (
-                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
-                        <strong>{col.craftType || 'Not Selected'}</strong>
-                        <span>{col.craftCount} Items</span>
+                      <div key={col.id || idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>{col.craftType || 'Not Selected'}</strong>
+                          <span>{col.craftCount} Items</span>
+                        </div>
+                        {col.files && col.files.length > 0 && (
+                          <div style={{ fontSize: 12, color: '#2E7D32' }}>✓ {col.files.length} photo(s) attached</div>
+                        )}
                       </div>
                     ))}
                   </div>
