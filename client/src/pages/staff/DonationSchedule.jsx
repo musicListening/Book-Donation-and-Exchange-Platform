@@ -1,4 +1,6 @@
 // pages/staff/DonationSchedule.jsx
+// Complete file with fixes - I'll send the whole thing
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StaffLayout from '../../components/StaffLayout';
@@ -13,6 +15,15 @@ const BOOK_CATEGORIES = [
   'Children',
   'Comics',
   'Mixed'
+];
+
+// ===== CRAFT CATEGORIES CONSTANT =====
+const CRAFT_CATEGORIES = [
+  'Craft: Paper Crafts (Origami, Quilling)',
+  'Craft: Woodwork (Carvings, Small Furniture)',
+  'Craft: Textiles (Knitting, Crochet, Sewing)',
+  'Craft: Upcycled Materials',
+  'Craft: Mixed Media / Other'
 ];
 
 function DonationSchedule() {
@@ -73,7 +84,6 @@ function DonationSchedule() {
     fetchAllData();
     fetchConfig();
 
-    // Check if coming from verification
     const fromVerification = sessionStorage.getItem('fromVerification');
     if (fromVerification === 'true') {
       sessionStorage.removeItem('fromVerification');
@@ -236,27 +246,22 @@ function DonationSchedule() {
   const validateForm = () => {
     const errors = {};
     
-    // Validate verified count
     if (verifyForm.verifiedCount === undefined || verifyForm.verifiedCount === null) {
-      errors.verifiedCount = 'Please enter the number of books received';
+      errors.verifiedCount = 'Please enter the number of items received';
     } else if (verifyForm.verifiedCount < 0) {
-      errors.verifiedCount = 'Number of books cannot be negative';
+      errors.verifiedCount = 'Number of items cannot be negative';
     } else if (verifyForm.verifiedCount > (selectedDonation?.requestedCount || 0)) {
       errors.verifiedCount = `Cannot verify more than the submitted count (${selectedDonation?.requestedCount || 0})`;
     } else if (verifyForm.verifiedCount === 0) {
-      errors.verifiedCount = 'Please enter at least 1 book received';
+      errors.verifiedCount = 'Please enter at least 1 item received';
     }
 
-    // Validate condition
     if (!verifyForm.condition) {
-      errors.condition = 'Please select a book condition';
+      errors.condition = 'Please select a condition';
     }
 
-    // Validate category (only for books, not crafts)
-    if (!selectedDonation?.category?.startsWith('Craft:')) {
-      if (!verifyForm.category || verifyForm.category === '') {
-        errors.category = 'Please select a category';
-      }
+    if (!verifyForm.category || verifyForm.category === '') {
+      errors.category = 'Please select a category';
     }
 
     setValidationErrors(errors);
@@ -282,29 +287,32 @@ function DonationSchedule() {
     setDownloadReceiptAfterVerify(false);
     setShowVerifyModal(true);
 
-    // Fetch bundles to get the correct bundle ID for each category
+    // ===== FETCH BUNDLES =====
     try {
       const token = localStorage.getItem('token');
+      console.log('🔍 Fetching bundles...');
       const bundleRes = await fetch(`${API_BASE}/collections`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (bundleRes.ok) {
         const bundleData = await bundleRes.json();
         setBundles(bundleData);
+        console.log('✅ Bundles fetched:', bundleData.map(b => ({ id: b.id, category: b.category, type: b.type })));
+      } else {
+        console.error('❌ Failed to fetch bundles:', bundleRes.status);
       }
     } catch (err) {
       console.warn('Could not fetch bundles:', err);
     }
   };
 
-  // ===== FIXED: UPDATED HANDLE CONFIRM VERIFICATION =====
+  // ===== HANDLE CONFIRM VERIFICATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
       showToast('No donation selected', 'error');
       return;
     }
 
-    // ===== RUN VALIDATION =====
     if (!validateForm()) {
       showToast('Please fix the validation errors before continuing', 'error');
       return;
@@ -317,16 +325,27 @@ function DonationSchedule() {
         return;
       }
 
+      const isCraft = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
+      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
+      
+      console.log(`🔍 Selected Category from form: "${selectedCategory}"`);
+      console.log(`🔍 Is Craft: ${isCraft}`);
+      console.log(`🔍 Available bundles:`, bundles.map(b => ({ id: b.id, category: b.category, type: b.type })));
+
       // ===== FIND BUNDLE ID FOR THE SELECTED CATEGORY =====
+      let bundleIdForCategory = null;
+      
       const getBundleIdForCategory = (category) => {
         const matchingBundle = bundles.find(b => b.category === category);
         return matchingBundle ? matchingBundle.id : null;
       };
       
-      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
-      const bundleIdForCategory = getBundleIdForCategory(selectedCategory);
+      bundleIdForCategory = getBundleIdForCategory(selectedCategory);
+      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}, isCraft: ${isCraft}`);
 
-      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}`);
+      if (!bundleIdForCategory) {
+        console.log(`⚠️ No bundle found for category: ${selectedCategory}, backend will create one`);
+      }
 
       const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/verify`, {
         method: 'PATCH',
@@ -341,8 +360,9 @@ function DonationSchedule() {
           staffId: currentUser.id,
           isCollectionComplete: verifyForm.isComplete,
           bundleId: bundleIdForCategory,
-          addToMarketplace: true, // Always add to marketplace
-          category: selectedCategory
+          addToMarketplace: false,
+          category: selectedCategory,
+          isCraft: isCraft
         })
       });
 
@@ -372,7 +392,6 @@ function DonationSchedule() {
       });
       setValidationErrors({});
 
-      // ===== REFRESH DATA FIRST =====
       await fetchAllData();
 
       if (downloadReceiptAfterVerify) {
@@ -381,14 +400,14 @@ function DonationSchedule() {
         }, 500);
       }
 
-      showToast(`Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
+      const itemType = isCraft ? 'Craft' : 'Books';
+      const displayCategory = isCraft ? selectedCategory.replace('Craft: ', '') : selectedCategory;
+      showToast(`✅ Donation verified! ${points} points awarded. ${itemType} added to "${displayCategory}" bundle.${levelUpMsg}`, 'success');
 
-      // ===== FIX: Navigate to Bundle Management with session flag =====
       setTimeout(() => {
-        // Set flag to indicate we're coming from verification
         sessionStorage.setItem('fromVerification', 'true');
         
-        if (window.confirm(`✅ Donation verified successfully!\n\nBooks added to "${selectedCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the books?`)) {
+        if (window.confirm(`✅ Donation verified successfully!\n\n${itemType} added to "${displayCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the items?`)) {
           navigate('/staff/bundle-management');
         } else {
           showToast('You can also go to Bundle Management from the sidebar.', 'info');
@@ -856,7 +875,7 @@ function DonationSchedule() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px', fontFamily: 'var(--font-family)' }}>
                 <p><strong>Type:</strong> {selectedDonation.type || 'SINGLE_BOOK'}</p>
                 <p><strong>Category:</strong> {selectedDonation.category}</p>
-                <p><strong>Books Submitted:</strong> {selectedDonation.requestedCount}</p>
+                <p><strong>Items Submitted:</strong> {selectedDonation.requestedCount}</p>
                 <p><strong>Est. Points:</strong> {selectedDonation.estimatedPoints}</p>
                 <p><strong>Current Level:</strong> {getLevelBadge(selectedDonation.userLevel || 0).label}</p>
                 <p><strong>Current Points:</strong> {selectedDonation.userPoints || 0}</p>
@@ -929,7 +948,6 @@ function DonationSchedule() {
                     verifiedCount: count,
                     awardPoints: points.total
                   });
-                  // Clear validation error when user types
                   if (validationErrors.verifiedCount) {
                     setValidationErrors({ ...validationErrors, verifiedCount: '' });
                   }
@@ -952,14 +970,14 @@ function DonationSchedule() {
                 </p>
               )}
               <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
-                Max allowed: {selectedDonation?.requestedCount || 0} books
+                Max allowed: {selectedDonation?.requestedCount || 0} items
               </p>
             </div>
 
             {/* ===== CONDITION WITH VALIDATION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                Book Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
+                Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
               </label>
               <select
                 className="form-control"
@@ -990,58 +1008,71 @@ function DonationSchedule() {
               )}
             </div>
 
-            {/* ===== CATEGORY WITH VALIDATION ===== */}
+            {/* ===== CATEGORY WITH VALIDATION - FIXED ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                Book Category {!selectedDonation?.category?.startsWith('Craft:') && <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>}
+                Category <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
               </label>
+              
               {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
-                <div style={{
-                  padding: '10px 14px',
-                  background: '#f0f7f6',
-                  borderRadius: '8px',
-                  border: '1px solid #b2dfdb',
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  color: '#1E4D4B',
-                  fontFamily: 'var(--font-family)'
-                }}>
-                  {selectedDonation.category}
-                </div>
+                <select
+                  className="form-control"
+                  value={verifyForm.category || selectedDonation.category || ''}
+                  onChange={(e) => {
+                    setVerifyForm({ ...verifyForm, category: e.target.value });
+                    if (validationErrors.category) {
+                      setValidationErrors({ ...validationErrors, category: '' });
+                    }
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontFamily: 'var(--font-family)',
+                    background: 'white'
+                  }}
+                >
+                  <option value="">Select a craft category...</option>
+                  {CRAFT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat.replace('Craft: ', '')}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                <>
-                  <select
-                    className="form-control"
-                    value={verifyForm.category || selectedDonation.category || ''}
-                    onChange={(e) => {
-                      setVerifyForm({ ...verifyForm, category: e.target.value });
-                      if (validationErrors.category) {
-                        setValidationErrors({ ...validationErrors, category: '' });
-                      }
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '10px 14px', 
-                      border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
-                      borderRadius: '8px',
-                      fontSize: '15px',
-                      fontFamily: 'var(--font-family)',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="">Select a category...</option>
-                    {BOOK_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  {validationErrors.category && (
-                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
-                      {validationErrors.category}
-                    </p>
-                  )}
-                </>
+                <select
+                  className="form-control"
+                  value={verifyForm.category || selectedDonation.category || ''}
+                  onChange={(e) => {
+                    setVerifyForm({ ...verifyForm, category: e.target.value });
+                    if (validationErrors.category) {
+                      setValidationErrors({ ...validationErrors, category: '' });
+                    }
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontFamily: 'var(--font-family)',
+                    background: 'white'
+                  }}
+                >
+                  <option value="">Select a book category...</option>
+                  {BOOK_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {validationErrors.category && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {validationErrors.category}
+                </p>
               )}
             </div>
 
