@@ -431,9 +431,10 @@ router.get('/report', async (req, res) => {
 
       const rows = Object.values(userMap).map(u => ({
         col1: u.name,
-        col2: roleLabels[u.role] || u.role,
-        col3: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
-        col4: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+        col2: u.email,
+        col3: roleLabels[u.role] || u.role,
+        col4: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
+        col5: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
       }));
 
       // Chart data: logins per role
@@ -453,7 +454,7 @@ router.get('/report', async (req, res) => {
       return res.json({
         title: 'System Activity Logs',
         subtitle: 'Login and logout activity for all staff roles',
-        headers: ['Staff Member', 'Role', 'Last Login', 'Last Logout'],
+        headers: ['Staff Member', 'Email', 'Role', 'Last Login', 'Last Logout'],
         rows,
         chartData,
       });
