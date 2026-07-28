@@ -31,13 +31,38 @@ const Donate = () => {
     { id: Date.now(), craftType: '', craftCount: 1, pointsPrice: 50, files: [], itemFiles: {} }
   ]);
   const navigate = useNavigate();
+  useEffect(() => {
+    const handleError = (msg, url, line) => {
+      alert(`Runtime Error: ${msg}\nat ${url}:${line}`);
+    };
+    const handleRejection = (e) => {
+      alert(`Unhandled Promise Rejection: ${e.reason}`);
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
+    let storedUser = { points: 0, name: 'User' };
+    try {
+      const u = localStorage.getItem('ss_current_user');
+      if (u && u !== 'undefined') storedUser = JSON.parse(u);
+    } catch (e) {
+      console.error('Error parsing user:', e);
+    }
     setUser(storedUser);
     
     if (storedUser.id) {
-      fetch(`${API_BASE}/donations?userId=${storedUser.id}`)
+      const token = localStorage.getItem('token');
+      fetch(`${API_BASE}/donations?userId=${storedUser.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch');
           return res.json();
@@ -63,10 +88,21 @@ const Donate = () => {
         .catch(err => console.error('Error fetching donations:', err));
     }
 
-    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    let storedCart = [];
+    try {
+      const c = localStorage.getItem('ss_cart');
+      if (c && c !== 'undefined') storedCart = JSON.parse(c);
+    } catch (e) {
+      console.error('Error parsing cart:', e);
+    }
     setCartCount(storedCart.length);
     
-    fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`)
+    const token = localStorage.getItem('token');
+    fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data.baseRate) setPointsPerBook(data.baseRate);
@@ -135,15 +171,6 @@ const Donate = () => {
     setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
-  const updateCraftPoints = (index, value) => {
-    const val = parseInt(value) || 0;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].pointsPrice = Math.max(0, val);
-      return newCols;
-    });
-  };
-
   const addCraftCollection = () => {
     setCraftCollections(prev => [
       ...prev, 
@@ -160,6 +187,65 @@ const Donate = () => {
 
   const removeCraftCollection = (index) => {
     setCraftCollections(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearBookFilesForIndex = (index) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
+  };
+
+  const clearCraftFilesForIndex = (index) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
+  };
+
+  const generateFileInputs = (count, categoryType, collectionIdx) => {
+    const inputs = [];
+    const collections = categoryType === 'book' ? bookCollections : craftCollections;
+    const col = collections[collectionIdx];
+    const files = col.files || [];
+
+    for (let i = 0; i < count; i++) {
+      const isAttached = !!files[i];
+      inputs.push(
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: '#495057', minWidth: 60 }}>Item #{i + 1}:</span>
+          <label style={{
+            background: isAttached ? '#E8F5E9' : '#FFF',
+            border: isAttached ? '1px solid #2E7D32' : '1px solid #DEE2E6',
+            color: isAttached ? '#2E7D32' : '#495057',
+            padding: '6px 12px',
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: 'pointer',
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <i className={isAttached ? "fa-solid fa-circle-check" : "fa-solid fa-upload"}></i>
+            {isAttached ? 'Change Photo' : 'Upload Photo'}
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const selectedFile = e.target.files[0];
+                if (selectedFile) {
+                  const updatedFiles = [...files];
+                  updatedFiles[i] = selectedFile;
+                  if (categoryType === 'book') {
+                    setBookCollections(prev => prev.map((c, idx) => idx === collectionIdx ? { ...c, files: updatedFiles } : c));
+                  } else {
+                    setCraftCollections(prev => prev.map((c, idx) => idx === collectionIdx ? { ...c, files: updatedFiles } : c));
+                  }
+                }
+              }}
+            />
+          </label>
+          {isAttached && <span style={{ fontSize: 12, color: '#6C757D', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files[i].name}</span>}
+        </div>
+      );
+    }
+    return inputs;
   };
 
   const nextStep = () => {
@@ -287,8 +373,12 @@ const Donate = () => {
         }
       }
 
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/donations`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: bodyData
       });
 
@@ -301,7 +391,11 @@ const Donate = () => {
       console.log('Donation created with images:', result);
 
       // Re-fetch donations to update UI
-      fetch(`${API_BASE}/donations?userId=${user.id}`)
+      fetch(`${API_BASE}/donations?userId=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch after submit');
           return res.json();
@@ -335,7 +429,13 @@ const Donate = () => {
 
   const handleCompleteDonation = async (fullId) => {
     try {
-      const res = await fetch(`${API_BASE}/donations/${fullId}/complete`, { method: 'PUT' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/donations/${fullId}/complete`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to complete donation');
@@ -395,8 +495,9 @@ const Donate = () => {
     ? bookCollections.reduce((sum, col) => sum + (col.bookCount * pointsPerBook) + (col.bookCount > 1 ? Math.round((col.bookCount * pointsPerBook) * (collectionBonusPct / 100)) : 0), 0)
     : (totalCrafts * 10);
 
-  return (
-    <div style={styles.body}>
+  try {
+    return (
+      <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
@@ -727,20 +828,19 @@ const Donate = () => {
               </select>
             </div>
           </div>
-          
           {myDonations.filter(d => 
             (filterStatus === 'All' || d.status === filterStatus) && 
-            (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+            (filterType === 'All' || (filterType === 'Books' && !(d.type || '').includes('Craft')) || (filterType === 'Crafts' && (d.type || '').includes('Craft')))
           ).length === 0 ? (
             <div style={{ background: 'white', padding: 40, borderRadius: 12, textAlign: 'center', border: '1px dashed #DEE2E6' }}>
-              <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
+               <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
               <p style={{ color: '#6C757D' }}>No donations match your filters.</p>
             </div>
           ) : (
             <div style={styles.donationsGrid}>
               {myDonations.filter(d => 
                 (filterStatus === 'All' || d.status === filterStatus) && 
-                (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+                (filterType === 'All' || (filterType === 'Books' && !(d.type || '').includes('Craft')) || (filterType === 'Crafts' && (d.type || '').includes('Craft')))
               ).map((donation, idx) => (
                 <div key={idx} style={styles.donationCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -797,7 +897,17 @@ const Donate = () => {
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error('Render crash:', err);
+    return (
+      <div style={{ padding: 40, color: 'red', background: '#FFF3CD', border: '1px solid #FFEBAA', borderRadius: 8, margin: 40 }}>
+        <h3>Render Error (Please report this error message):</h3>
+        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{err.message}</pre>
+        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>{err.stack}</pre>
+      </div>
+    );
+  }
 };
 
 export default Donate;
