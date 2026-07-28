@@ -20,15 +20,14 @@ const Home = () => {
     const frameRef = useRef(null);
 
     useEffect(() => {
-      const numTarget = Number(target) || 0;
-      if (!start || numTarget <= 0) return;
+      if (!start || target <= 0) return;
       const startTime = performance.now();
       const animate = (now) => {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         // ease-out cubic
         const eased = 1 - Math.pow(1 - progress, 3);
-        setValue(Math.floor(eased * numTarget));
+        setValue(Math.floor(eased * target));
         if (progress < 1) {
           frameRef.current = requestAnimationFrame(animate);
         }
@@ -379,9 +378,9 @@ const Home = () => {
     
     testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
-    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease', display: 'flex', flexDirection: 'column' },
-    testimonialAvatar: { width: 56, height: 56, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
-    testimonialAuthor: { marginTop: 'auto', paddingTop: 24, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
+    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
+    testimonialAvatar: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', margin: '0 auto 16px', fontWeight: 'bold', objectFit: 'cover' },
+    testimonialAuthor: { marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' },
     authorName: { margin: 0, fontSize: 16, color: '#343A40', fontWeight: 700 },
     authorRole: { fontSize: 13, color: '#6C757D', marginTop: 4 },
     testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
@@ -619,7 +618,7 @@ const Home = () => {
                     {review.user?.name?.charAt(0) || 'U'}
                   </div>
                 )}
-                <div style={{ textAlign: 'left' }}>
+                <div>
                   <h4 style={styles.authorName}>{review.user?.name || 'Anonymous User'}</h4>
                   <span style={styles.authorRole}>ShareShelf Member</span>
                 </div>

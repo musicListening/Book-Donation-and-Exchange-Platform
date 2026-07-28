@@ -46,12 +46,7 @@ const Profile = () => {
         // Try to get fresh user data and sync with localStorage
         let activeUser = storedUser;
         try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`${API_BASE}/users`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+          const res = await fetch(`${API_BASE}/users`);
           const users = await res.json();
           const freshUser = users.find(u => u.id === storedUser.id);
           if (freshUser) {
@@ -67,13 +62,9 @@ const Profile = () => {
         if (activeUser && activeUser.id) {
           // Silently auto-assign any mystery boxes the user is entitled to based on their level
           try {
-            const token = localStorage.getItem('token');
             await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
               method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId: activeUser.id })
             });
           } catch (autoErr) {
@@ -85,8 +76,9 @@ const Profile = () => {
             const boxes = await mysteryBoxAPI.getByUser(activeUser.id);
             const seen = new Set();
             const uniqueBoxes = (boxes || []).filter(b => {
-              if (seen.has(b.id)) return false;
-              seen.add(b.id);
+              const key = `${b.level}-${b.status}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
               return true;
             });
             setMysteryBoxes(uniqueBoxes);
@@ -96,12 +88,7 @@ const Profile = () => {
 
           // Fetch user points transactions
           try {
-            const token = localStorage.getItem('token');
-            const txRes = await fetch(`${API_BASE}/users/${activeUser.id}/transactions`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
+            const txRes = await fetch(`${API_BASE}/users/${activeUser.id}/transactions`);
             if (txRes.ok) {
               const txData = await txRes.json();
               setTransactions(txData);
@@ -112,12 +99,7 @@ const Profile = () => {
 
           // Fetch user donation requests
           try {
-            const token = localStorage.getItem('token');
-            const donRes = await fetch(`${API_BASE}/donations/user/${activeUser.id}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
+            const donRes = await fetch(`${API_BASE}/donations/user/${activeUser.id}`);
             if (donRes.ok) {
               const donData = await donRes.json();
               setDonations(donData);
@@ -154,12 +136,7 @@ const Profile = () => {
 
       // Fetch fresh user data to reflect point deduction
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/users`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const res = await fetch(`${API_BASE}/users`);
         const users = await res.json();
         const freshUser = users.find(u => u.id === user.id);
         if (freshUser) {
@@ -185,12 +162,7 @@ const Profile = () => {
 
       // Refresh point transactions
       try {
-        const token = localStorage.getItem('token');
-        const txRes = await fetch(`${API_BASE}/users/${user.id}/transactions`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const txRes = await fetch(`${API_BASE}/users/${user.id}/transactions`);
         if (txRes.ok) {
           const txData = await txRes.json();
           setTransactions(txData);

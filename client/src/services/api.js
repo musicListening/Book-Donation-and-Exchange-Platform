@@ -403,12 +403,7 @@ export const donationAPI = {
 // ===== MYSTERY BOX API =====
 export const mysteryBoxAPI = {
     getByUser: async (userId) => {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`, {
-            headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-            }
-        });
+        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
     },

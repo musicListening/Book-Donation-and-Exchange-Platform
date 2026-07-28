@@ -8,47 +8,45 @@ const Orders = () => {
   const [user, setUser] = useState({ name: 'User', points: 0, id: '' });
   const [cartCount, setCartCount] = useState(0);
 
-  const getStatusIndex = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PENDING' || s === 'PLACED') return 0;
-    if (s === 'PROCESSING') return 1;
-    if (s === 'DELIVERED' || s === 'COMPLETED') return 2;
-    return -1;
-  };
-
-  const getStatusDisplay = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PENDING' || s === 'PLACED') return 'Placed';
-    if (s === 'PROCESSING') return 'Processing';
-    if (s === 'DELIVERED' || s === 'COMPLETED') return 'Completed';
-    if (s === 'CANCELLED') return 'Cancelled';
-    return status;
-  };
-
-  const getStatusColor = (status) => {
-    const s = (status || '').toUpperCase();
-    if (s === 'PENDING' || s === 'PLACED') return { bg: '#E0F2FE', text: '#0284C7' };
-    if (s === 'PROCESSING') return { bg: '#FEF3C7', text: '#D97706' };
-    if (s === 'DELIVERED' || s === 'COMPLETED') return { bg: '#D1FAE5', text: '#059669' };
-    if (s === 'CANCELLED') return { bg: '#FEE2E2', text: '#EF4444' };
-    return { bg: '#F3F4F6', text: '#374151' };
-  };
-
-  const formatOrderId = (id) => {
-    if (!id) return '';
-    return 'ORDER-' + id.substring(0, 8).toUpperCase();
-  };
-
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { name: 'User', points: 0, id: '' };
     setUser(storedUser);
     
-    if (storedUser.id) {
-      fetchOrders(storedUser.id);
-    }
+    const fetchOrders = async () => {
+      if (!storedUser.id) return;
+      try {
+        const res = await fetch(`${API_BASE}/orders?userId=${storedUser.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mappedOrders = data.map(o => ({
+            id: o.id.substring(0,8).toUpperCase(),
+            fullId: o.id,
+            date: new Date(o.createdAt).toLocaleDateString(),
+            total: o.cashAmount || 0,
+            totalPoints: o.totalPoints || 0,
+            discount: 0, // Not explicitly stored per order yet
+            status: o.status,
+            items: o.items.map(i => {
+              if (i.bookItem) return i.bookItem.title;
+              if (i.collection) return i.collection.title;
+              if (i.craftListing) return i.craftListing.title;
+              return 'Unknown Item';
+            })
+          }));
+          setOrders(mappedOrders);
+        }
+      } catch (err) {
+        console.error('Failed to fetch orders', err);
+      }
+    };
+    fetchOrders();
 
     const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
     setCartCount(storedCart.length);
+    
+    if (storedUser.id) {
+      fetchOrders(storedUser.id);
+    }
   }, []);
 
   // ===== FETCH ORDERS FOR SPECIFIC USER =====
@@ -78,8 +76,7 @@ const Orders = () => {
       
       // Format orders for display
       const formattedOrders = data.map(order => ({
-        id: order.id.substring(0, 8).toUpperCase(),
-        fullId: order.id,
+        id: order.id,
         status: order.status || 'PENDING',
         date: new Date(order.createdAt).toLocaleDateString('en-US', {
           month: 'short',
@@ -88,19 +85,15 @@ const Orders = () => {
         }),
         total: order.cashAmount || 0,
         totalPoints: order.totalPoints || 0,
-        items: order.items?.map(i => {
-          if (i.bookItem) return i.bookItem.title;
-          if (i.collection) return i.collection.title;
-          if (i.craftListing) return i.craftListing.title;
-          return 'Unknown Item';
-        }) || [],
-        discount: 0
+        items: order.items?.map(item => item.title || 'Book') || ['Book'],
+        discount: 0 // Calculate if needed
       }));
 
       setOrders(formattedOrders);
       
     } catch (error) {
       console.error('Error fetching orders:', error);
+      showToast('Failed to load orders', 'error');
     } finally {
       setLoading(false);
     }
@@ -110,13 +103,9 @@ const Orders = () => {
     if (!window.confirm('Are you sure you want to cancel this order? Your points will be refunded.')) return;
     
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Cancelled' })
       });
       if (res.ok) {
@@ -164,8 +153,7 @@ const Orders = () => {
     statusBadge: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 }
   };
 
-  try {
-    if (loading) {
+  if (loading) {
     return (
       <div style={styles.body}>
         <Navbar variant="user" user={user} cartCount={cartCount} />
@@ -316,17 +304,7 @@ const Orders = () => {
         </div>
       </main>
     </div>
-    );
-  } catch (err) {
-    console.error('Render crash:', err);
-    return (
-      <div style={{ padding: 40, color: 'red', background: '#FFF3CD', border: '1px solid #FFEBAA', borderRadius: 8, margin: 40 }}>
-        <h3>Render Error (Please report this error message):</h3>
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{err.message}</pre>
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>{err.stack}</pre>
-      </div>
-    );
-  }
+  );
 };
 
 export default Orders;
