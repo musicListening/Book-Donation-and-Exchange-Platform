@@ -196,7 +196,7 @@ router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
 router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { pointsPrice } = req.body;
+        const { pointsPrice, title } = req.body;
         
         let imageUrl = undefined;
         if (req.file) {
@@ -209,6 +209,7 @@ router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, re
             addedToMarketplaceAt: new Date(),
         };
         if (pointsPrice) updateData.pointsPrice = parseInt(pointsPrice);
+        if (title) updateData.title = title;
         if (imageUrl) updateData.imageUrl = imageUrl;
 
         const book = await prisma.bookItem.update({

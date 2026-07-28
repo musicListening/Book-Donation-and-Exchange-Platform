@@ -26,6 +26,7 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
+  loginLogs                                       LoginLog[]
   Cart                                            Cart?
   craftListings                                   CraftListing[]
   Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
@@ -74,6 +75,7 @@ model DonationRequest {
   requestedCount       Int
   verifiedCount        Int
   dropOffDate          DateTime?
+  timeSlot             String? 
   verifiedDate         DateTime?
   verifiedBy           String?
   pointsAwarded        Int                @default(0)
@@ -424,10 +426,20 @@ model PlatformReview {
   userId     String   @unique
   rating     Int
   comment    String?
-  isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  isApproved Boolean  @default(false)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginLog {
+  id        String      @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    AuditAction
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
 }
 
 enum UserRole {
@@ -479,6 +491,8 @@ enum AuditAction {
   DONATION_VERIFICATION
   ORDER_CANCELLATION
   SYSTEM_CONFIG_CHANGE
+  LOGIN
+  LOGOUT
 }
 
 enum DisputeStatus {

@@ -332,7 +332,7 @@ export default function StaffMarketplace() {
                         <span>{item.genre?.[0] || item.title?.[0] || (isBook ? '📚' : '🎨')}</span>
                       </div>
                     )}
-                    <span style={styles.productBadge}>{isBook ? (item.genre || 'Book') : 'Craft'}</span>
+                    <span style={styles.productBadge}>{isBook ? (item.collection?.category || item.genre || 'Book') : 'Craft'}</span>
                     <span style={{
                       position: 'absolute', top: 12, right: 12,
                       background: '#1E4D4B', color: 'white',

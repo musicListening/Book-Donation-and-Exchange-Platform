@@ -267,7 +267,6 @@ const Donate = () => {
             throw new Error(errorData.error || 'Failed to save book donation');
           }
         }
-        }
       } else {
         for (const col of craftCollections) {
           const bodyData = new FormData();

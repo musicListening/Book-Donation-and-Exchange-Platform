@@ -3,6 +3,16 @@ import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { collectionAPI, bookAPI, API_BASE } from '../../services/api';
 
+// ===== BOOK CATEGORIES CONSTANT =====
+const BOOK_CATEGORIES = [
+  'Fiction',
+  'Non-Fiction',
+  'Academic',
+  'Children',
+  'Comics',
+  'Mixed'
+];
+
 function BundleManagement() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [bundles, setBundles] = useState([]);
@@ -13,6 +23,17 @@ function BundleManagement() {
   const [bundleBooks, setBundleBooks] = useState({});
   const [showBooksModal, setShowBooksModal] = useState(false);
   const [selectedBundleForBooks, setSelectedBundleForBooks] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  const [showAddToMarketplaceModal, setShowAddToMarketplaceModal] = useState(false);
+  const [selectedBookToMarketplace, setSelectedBookToMarketplace] = useState(null);
+  const [marketplaceFormData, setMarketplaceFormData] = useState({
+    title: '',
+    price: '',
+    image: null,
+    imagePreview: null
+  });
   
   // Bundle form data
   const [formData, setFormData] = useState({
@@ -20,17 +41,15 @@ function BundleManagement() {
     includes: '',
     items: '',
     value: '',
-    status: 'DRAFT'
+    status: 'DRAFT',
+    category: 'General'
   });
 
   // Stats
   const [stats, setStats] = useState({
     totalBundles: 0,
     draftBundles: 0,
-    publishedBundles: 0,
-    totalBooks: 0,
-    uniqueTitles: 0,
-    lowStockItems: 0
+    publishedBundles: 0
   });
 
   // Load user from localStorage
@@ -61,13 +80,56 @@ function BundleManagement() {
     }
   }, []);
 
+  // ===== CHECK FOR VERIFICATION FLAG =====
+  useEffect(() => {
+    const fromVerification = sessionStorage.getItem('fromVerification');
+    if (fromVerification === 'true') {
+      sessionStorage.removeItem('fromVerification');
+      console.log('🔄 Coming from verification - refreshing bundles...');
+      loadAllData();
+    }
+  }, []);
+
+  // ===== CREATE DEFAULT BUNDLES FOR EACH CATEGORY =====
+  const createDefaultBundles = async () => {
+    try {
+      const existingBundles = await collectionAPI.getAll();
+      const existingCategories = existingBundles.map(b => b.category);
+      
+      // Create bundles for each category that doesn't exist
+      for (const category of BOOK_CATEGORIES) {
+        if (!existingCategories.includes(category)) {
+          await collectionAPI.create({
+            title: `${category} Collection`,
+            description: `Collection of ${category} books`,
+            category: category,
+            stock: 0,
+            pointsRequired: 0,
+            cashPrice: 0,
+            isRare: false,
+            userId: currentUser.id
+          });
+          console.log(`✅ Created default bundle for ${category}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating default bundles:', error);
+    }
+  };
+
   // ===== LOAD ALL DATA =====
   const loadAllData = async () => {
     setLoading(true);
     try {
       // Load bundles
-      const bundlesData = await collectionAPI.getAll();
+      let bundlesData = await collectionAPI.getAll();
       console.log('✅ Bundles loaded:', bundlesData);
+      
+      // If no bundles exist, create default ones
+      if (bundlesData.length === 0) {
+        await createDefaultBundles();
+        bundlesData = await collectionAPI.getAll();
+      }
       
       const mappedBundles = bundlesData.map(item => ({
         id: item.id,
@@ -84,7 +146,8 @@ function BundleManagement() {
         }),
         createdAt: item.createdAt,
         cashPrice: item.cashPrice || 0,
-        stock: item.stock || 0
+        stock: item.stock || 0,
+        category: item.category || 'General'
       }));
       setBundles(mappedBundles);
       
@@ -99,32 +162,24 @@ function BundleManagement() {
               count: booksData.length,
               books: booksData,
             };
+            console.log(`📚 Bundle ${col.category} has ${booksData.length} books`);
           }
         } catch (err) {
+          console.error(`Error fetching books for ${col.category}:`, err);
           bookCounts[col.id] = { count: 0, books: [] };
         }
       }
       setBundleBooks(bookCounts);
       
-      // Load inventory (just for stats)
-      const inventoryData = await bookAPI.getAll();
-      console.log('✅ Inventory loaded for stats:', inventoryData);
-      
-      // Calculate all stats
+      // Calculate stats
       const totalBundles = mappedBundles.length;
       const draftBundles = mappedBundles.filter(b => b.status === 'DRAFT').length;
       const publishedBundles = mappedBundles.filter(b => b.status === 'PUBLISHED').length;
-      const totalBooks = inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
-      const uniqueTitles = inventoryData.length;
-      const lowStockItems = inventoryData.filter(item => (item.quantity || 0) < 10);
       
       setStats({
         totalBundles,
         draftBundles,
-        publishedBundles,
-        totalBooks,
-        uniqueTitles,
-        lowStockItems: lowStockItems.length
+        publishedBundles
       });
       
     } catch (error) {
@@ -137,7 +192,7 @@ function BundleManagement() {
 
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [refreshTrigger]);
 
   const getUserInitials = () => {
     if (currentUser.name) {
@@ -148,6 +203,46 @@ function BundleManagement() {
       return currentUser.name[0].toUpperCase();
     }
     return 'SU';
+  };
+
+  // ===== VALIDATION FUNCTION =====
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name || formData.name.trim() === '') {
+      errors.name = 'Bundle name is required';
+    } else if (formData.name.length < 3) {
+      errors.name = 'Bundle name must be at least 3 characters';
+    }
+
+    if (!formData.includes || formData.includes.trim() === '') {
+      errors.includes = 'Description is required';
+    }
+
+    if (!formData.items || formData.items === '') {
+      errors.items = 'Number of items is required';
+    } else if (parseInt(formData.items) < 0) {
+      errors.items = 'Items cannot be negative';
+    } else if (parseInt(formData.items) === 0) {
+      errors.items = 'Items must be at least 1';
+    }
+
+    if (!formData.value || formData.value === '') {
+      errors.value = 'Value is required';
+    } else if (parseFloat(formData.value) < 0) {
+      errors.value = 'Value cannot be negative';
+    }
+
+    if (!formData.category || formData.category === 'General' || formData.category === '') {
+      errors.category = 'Please select a category';
+    }
+
+    if (!formData.status) {
+      errors.status = 'Status is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // ===== BUNDLE CRUD =====
@@ -167,11 +262,16 @@ function BundleManagement() {
   const filteredBundles = getFilteredBundles();
 
   const handleCreate = async () => {
+    if (!validateForm()) {
+      alert('Please fix the validation errors before continuing.');
+      return;
+    }
+
     try {
       const newBundle = await collectionAPI.create({
         title: formData.name,
         description: formData.includes,
-        category: 'General',
+        category: formData.category || 'General',
         stock: parseInt(formData.items),
         pointsRequired: Math.round(parseFloat(formData.value) / 100),
         cashPrice: parseFloat(formData.value),
@@ -192,21 +292,29 @@ function BundleManagement() {
 
   const handleEdit = (bundle) => {
     setEditingBundle(bundle);
+    setValidationErrors({});
     setFormData({
       name: bundle.name,
       includes: bundle.includes,
       items: bundle.items.toString(),
       value: bundle.value.toString(),
-      status: bundle.status
+      status: bundle.status,
+      category: bundle.category || 'General'
     });
     setShowModal(true);
   };
 
   const handleUpdate = async () => {
+    if (!validateForm()) {
+      alert('Please fix the validation errors before continuing.');
+      return;
+    }
+
     try {
       const updated = await collectionAPI.update(editingBundle.id, {
         title: formData.name,
         description: formData.includes,
+        category: formData.category || 'General',
         stock: parseInt(formData.items),
         pointsRequired: Math.round(parseFloat(formData.value) / 100),
         cashPrice: parseFloat(formData.value),
@@ -244,22 +352,47 @@ function BundleManagement() {
       includes: '',
       items: '',
       value: '',
-      status: 'DRAFT'
+      status: 'DRAFT',
+      category: 'General'
     });
+    setValidationErrors({});
   };
 
-  const handleAddBookToMarketplace = async (bookId) => {
+  const openMarketplaceForm = (book) => {
+      setSelectedBookToMarketplace(book);
+      setMarketplaceFormData({
+          title: book.title || '',
+          price: book.pointsPrice || book.cashPrice || '',
+          image: null,
+          imagePreview: book.imageUrl || null
+      });
+      setShowAddToMarketplaceModal(true);
+  };
+
+  const submitToMarketplace = async (e) => {
+      e.preventDefault();
       try {
           const token = localStorage.getItem('token');
-          const response = await fetch(`${API_BASE}/books/${bookId}/add-to-marketplace`, {
+          const formData = new FormData();
+          formData.append('title', marketplaceFormData.title);
+          formData.append('pointsPrice', marketplaceFormData.price);
+          if (marketplaceFormData.image) {
+              formData.append('image', marketplaceFormData.image);
+          }
+          
+          const response = await fetch(`${API_BASE}/books/${selectedBookToMarketplace.id}/add-to-marketplace`, {
               method: 'PUT',
               headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-              }
+                  'Authorization': `Bearer ${token}`
+              },
+              body: formData
           });
-          if (!response.ok) throw new Error('Failed to add to marketplace');
-          alert('Book added to marketplace!');
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Failed to add to marketplace');
+          }
+          alert('book is added to the marcketplace');
+          setShowAddToMarketplaceModal(false);
           await loadAllData();
       } catch (error) {
           console.error('Error adding book to marketplace:', error);
@@ -295,6 +428,29 @@ function BundleManagement() {
       }
   };
 
+  // Group bundles by category - only show the 6 main categories
+  const getBundlesByCategory = () => {
+    const grouped = {};
+    const filtered = getFilteredBundles();
+    
+    BOOK_CATEGORIES.forEach(cat => {
+      grouped[cat] = [];
+    });
+    
+    filtered.forEach(bundle => {
+      const category = bundle.category || 'General';
+      if (BOOK_CATEGORIES.includes(category)) {
+        grouped[category].push(bundle);
+      }
+    });
+    
+    return grouped;
+  };
+
+  const bundlesByCategory = getBundlesByCategory();
+  const categoryNames = BOOK_CATEGORIES;
+
+  // Rest of the component remains the same (JSX)...
   return (
     <StaffLayout>
       <div className="content-header">
@@ -309,48 +465,28 @@ function BundleManagement() {
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+      {/* ===== STATS CARDS - ONLY 3 ===== */}
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <div className="stat-card">
-          <h3>📦 TOTAL BUNDLES</h3>
+          <h3>TOTAL BUNDLES</h3>
           <div className="stat-value">{stats.totalBundles}</div>
-          <div className="stat-trend">Active collections</div>
+          <div className="stat-trend">Active collection</div>
         </div>
 
         <div className="stat-card">
-          <h3>⏳ DRAFT</h3>
+          <h3>DRAFT</h3>
           <div className="stat-value" style={{ color: '#ffc107' }}>{stats.draftBundles}</div>
           <div className="stat-trend">Awaiting approval</div>
         </div>
 
         <div className="stat-card">
-          <h3>✅ PUBLISHED</h3>
+          <h3>PUBLISHED</h3>
           <div className="stat-value" style={{ color: '#28a745' }}>{stats.publishedBundles}</div>
           <div className="stat-trend">Available in marketplace</div>
         </div>
-
-        <div className="stat-card">
-          <h3>📚 TOTAL BOOKS</h3>
-          <div className="stat-value">{stats.totalBooks.toLocaleString()}</div>
-          <div className="stat-trend">In inventory</div>
-        </div>
-
-        <div className="stat-card">
-          <h3>📖 UNIQUE TITLES</h3>
-          <div className="stat-value">{stats.uniqueTitles}</div>
-          <div className="stat-trend">Different books</div>
-        </div>
-
-        <div className="stat-card">
-          <h3>⚠️ LOW STOCK</h3>
-          <div className="stat-value" style={{ color: stats.lowStockItems > 0 ? '#dc3545' : '#28a745' }}>
-            {stats.lowStockItems}
-          </div>
-          <div className="stat-trend">{stats.lowStockItems > 0 ? '⚠️ Needs attention' : '✅ All good'}</div>
-        </div>
       </div>
 
-      {/* ===== BUNDLES TABLE ===== */}
+      {/* ===== BUNDLES TABLE BY CATEGORY ===== */}
       <div className="bundle-table-section">
         <div className="table-header">
           <h3>Bundle Inventory</h3>
@@ -381,128 +517,284 @@ function BundleManagement() {
 
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading bundles...</div>
-        ) : filteredBundles.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            No bundles found. Click "New Bundle" to create one!
-          </div>
         ) : (
-          <div className="data-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>BUNDLE ID</th>
-                  <th>BUNDLE NAME</th>
-                  <th>ITEMS</th>
-                  <th>VALUE (Rs.)</th>
-                  <th>STATUS</th>
-                  <th>DATE CREATED</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBundles.map((bundle) => (
-                  <tr key={bundle.id}>
-                    <td className="bundle-id">{bundle.bundleId}</td>
-                    <td>
-                      <div className="bundle-name">{bundle.name}</div>
-                      <div className="bundle-includes">{bundle.includes}</div>
-                    </td>
-                    <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
-                    <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className={`status-badge ${bundle.status.toLowerCase()}`}>
-                        {bundle.status}
-                      </span>
-                    </td>
-                    <td>{bundle.date}</td>
-                    <td>
-                      <div className="action-group">
-                        <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
-                          View Books ({bundleBooks[bundle.id]?.count || 0})
-                        </button>
-                        <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
-                        <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+          <>
+            {categoryNames.map(category => {
+              const bundlesInCategory = bundlesByCategory[category] || [];
+              return (
+                <div key={category} style={{ marginBottom: '32px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px',
+                    marginBottom: '12px',
+                    padding: '8px 16px',
+                    background: '#f0f7f6',
+                    borderRadius: '8px',
+                    borderLeft: '4px solid #1E4D4B'
+                  }}>
+                    <h4 style={{ 
+                      margin: 0, 
+                      color: '#1E4D4B',
+                      fontSize: '18px',
+                      fontWeight: '600'
+                    }}>
+                      {category}
+                    </h4>
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#64748b',
+                      background: 'white',
+                      padding: '2px 12px',
+                      borderRadius: '12px',
+                      fontWeight: '500'
+                    }}>
+                      {bundlesInCategory.length} bundle(s)
+                    </span>
+                  </div>
 
-        <div className="table-footer">
-          <span>Showing {filteredBundles.length} of {bundles.length} bundles</span>
-        </div>
+                  {bundlesInCategory.length === 0 ? (
+                    <div style={{ 
+                      padding: '20px', 
+                      textAlign: 'center', 
+                      color: '#94a3b8',
+                      background: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px dashed #e5e5e5'
+                    }}>
+                      No {category} bundles yet. Books verified with {category} category will appear here.
+                    </div>
+                  ) : (
+                    <div className="data-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>BUNDLE ID</th>
+                            <th>BUNDLE NAME</th>
+                            <th>ITEMS</th>
+                            <th>VALUE (Rs.)</th>
+                            <th>STATUS</th>
+                            <th>DATE CREATED</th>
+                            <th>ACTIONS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bundlesInCategory.map((bundle) => (
+                            <tr key={bundle.id}>
+                              <td className="bundle-id">{bundle.bundleId}</td>
+                              <td>
+                                <div className="bundle-name">{bundle.name}</div>
+                                <div className="bundle-includes">{bundle.includes}</div>
+                              </td>
+                              <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
+                              <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
+                              <td>
+                                <span className={`status-badge ${bundle.status.toLowerCase()}`}>
+                                  {bundle.status}
+                                </span>
+                              </td>
+                              <td>{bundle.date}</td>
+                              <td>
+                                <div className="action-group">
+                                  <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                                    View Books ({bundleBooks[bundle.id]?.count || 0})
+                                  </button>
+                                  <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
+                                  <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className="table-footer">
+              <span>Showing {filteredBundles.length} of {bundles.length} bundles across 6 categories</span>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* ===== MODAL ===== */}
+      {/* ===== MODAL WITH VALIDATIONS ===== */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingBundle ? 'Edit Bundle' : 'Create New Bundle'}</h2>
             
             <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>Bundle Name</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                Bundle Name <span style={{ color: '#dc3545' }}>*</span>
+              </label>
               <input 
                 type="text" 
                 className="form-control"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, name: e.target.value});
+                  if (validationErrors.name) {
+                    setValidationErrors({...validationErrors, name: ''});
+                  }
+                }}
                 placeholder="Enter bundle name"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.name ? '#dc3545' : '#e5e5e5'}`,
+                  borderRadius: '8px' 
+                }}
               />
+              {validationErrors.name && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.name}</p>
+              )}
             </div>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>Includes Description</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                Includes Description <span style={{ color: '#dc3545' }}>*</span>
+              </label>
               <input 
                 type="text" 
                 className="form-control"
                 value={formData.includes}
-                onChange={(e) => setFormData({...formData, includes: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, includes: e.target.value});
+                  if (validationErrors.includes) {
+                    setValidationErrors({...validationErrors, includes: ''});
+                  }
+                }}
                 placeholder="e.g., Includes: Author 1, Author 2"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.includes ? '#dc3545' : '#e5e5e5'}`,
+                  borderRadius: '8px' 
+                }}
               />
+              {validationErrors.includes && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.includes}</p>
+              )}
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                Category <span style={{ color: '#dc3545' }}>*</span>
+              </label>
+              <select
+                className="form-control"
+                value={formData.category || 'General'}
+                onChange={(e) => {
+                  setFormData({...formData, category: e.target.value});
+                  if (validationErrors.category) {
+                    setValidationErrors({...validationErrors, category: ''});
+                  }
+                }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.category ? '#dc3545' : '#e5e5e5'}`,
+                  borderRadius: '8px' 
+                }}
+              >
+                <option value="General">Select a category...</option>
+                {BOOK_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              {validationErrors.category && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.category}</p>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>Number of Items</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Number of Items <span style={{ color: '#dc3545' }}>*</span>
+                </label>
                 <input 
                   type="number" 
                   className="form-control"
                   value={formData.items}
-                  onChange={(e) => setFormData({...formData, items: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, items: e.target.value});
+                    if (validationErrors.items) {
+                      setValidationErrors({...validationErrors, items: ''});
+                    }
+                  }}
                   placeholder="0"
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                  min="1"
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: `1px solid ${validationErrors.items ? '#dc3545' : '#e5e5e5'}`,
+                    borderRadius: '8px' 
+                  }}
                 />
+                {validationErrors.items && (
+                  <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.items}</p>
+                )}
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>Value (Rs.)</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Value (Rs.) <span style={{ color: '#dc3545' }}>*</span>
+                </label>
                 <input 
                   type="number" 
                   className="form-control"
                   value={formData.value}
-                  onChange={(e) => setFormData({...formData, value: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, value: e.target.value});
+                    if (validationErrors.value) {
+                      setValidationErrors({...validationErrors, value: ''});
+                    }
+                  }}
                   placeholder="0.00"
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                  min="0"
+                  step="0.01"
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: `1px solid ${validationErrors.value ? '#dc3545' : '#e5e5e5'}`,
+                    borderRadius: '8px' 
+                  }}
                 />
+                {validationErrors.value && (
+                  <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.value}</p>
+                )}
               </div>
             </div>
 
             <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>Status</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                Status <span style={{ color: '#dc3545' }}>*</span>
+              </label>
               <select 
                 className="form-control"
                 value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                onChange={(e) => {
+                  setFormData({...formData, status: e.target.value});
+                  if (validationErrors.status) {
+                    setValidationErrors({...validationErrors, status: ''});
+                  }
+                }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.status ? '#dc3545' : '#e5e5e5'}`,
+                  borderRadius: '8px' 
+                }}
               >
                 <option value="DRAFT">Draft</option>
                 <option value="PUBLISHED">Published</option>
               </select>
+              {validationErrors.status && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.status}</p>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -530,14 +822,20 @@ function BundleManagement() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: 800 }}>
             <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Books in {selectedBundleForBooks.name}</h2>
+            <p style={{ color: '#64748b', marginBottom: 16, fontSize: 14 }}>
+              Category: <strong>{selectedBundleForBooks.category || 'General'}</strong>
+            </p>
             
             {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-                    No books assigned to this bundle yet.
+                    No books assigned to this bundle yet. Verified books will appear here.
                 </div>
             ) : (
                 <>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <span style={{ fontSize: 14, color: '#64748b' }}>
+                          Total Books: {(bundleBooks[selectedBundleForBooks.id]?.books || []).length}
+                        </span>
                         <button
                             className="btn-small"
                             onClick={() => handleAddAllBooksToMarketplace(selectedBundleForBooks.id)}
@@ -558,17 +856,19 @@ function BundleManagement() {
                                 )}
                                 <div style={{ padding: 12 }}>
                                     <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
-                                    <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition}</p>
+                                    <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition || 'No condition'}</p>
+                                    <p style={{ fontSize: 11, color: '#6C757D', margin: '0 0 6px' }}>Category: {book.category || 'General'}</p>
                                     {book.isAvailable ? (
                                         <span style={{
                                             fontSize: 11, padding: '2px 8px', borderRadius: 4,
                                             background: '#E8F5E9', color: '#2E7D32',
+                                            display: 'inline-block'
                                         }}>
-                                            ✓ On Marketplace
+                                            On Marketplace
                                         </span>
                                     ) : (
                                         <button
-                                            onClick={() => handleAddBookToMarketplace(book.id)}
+                                            onClick={() => openMarketplaceForm(book)}
                                             style={{
                                                 width: '100%', padding: '6px 10px', fontSize: 12, fontWeight: 600,
                                                 background: '#1E4D4B', color: 'white', border: 'none',
@@ -594,6 +894,87 @@ function BundleManagement() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add to Marketplace Modal */}
+      {showAddToMarketplaceModal && selectedBookToMarketplace && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: 500 }}>
+            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Add to Marketplace</h2>
+            <form onSubmit={submitToMarketplace}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Title <span style={{ color: '#dc3545' }}>*</span>
+                </label>
+                <input 
+                  type="text" 
+                  required
+                  value={marketplaceFormData.title}
+                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, title: e.target.value})}
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Price (Points) <span style={{ color: '#dc3545' }}>*</span>
+                </label>
+                <input 
+                  type="number" 
+                  required
+                  min="0"
+                  value={marketplaceFormData.price}
+                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, price: e.target.value})}
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Image
+                </label>
+                {marketplaceFormData.imagePreview && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <img src={marketplaceFormData.imagePreview} alt="Preview" style={{ height: '100px', borderRadius: '8px', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setMarketplaceFormData({
+                        ...marketplaceFormData,
+                        image: file,
+                        imagePreview: URL.createObjectURL(file)
+                      });
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button 
+                  type="button"
+                  className="btn-secondary" 
+                  onClick={() => setShowAddToMarketplaceModal(false)}
+                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#1E4D4B', color: 'white' }}
+                >
+                  Add to Marketplace
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
