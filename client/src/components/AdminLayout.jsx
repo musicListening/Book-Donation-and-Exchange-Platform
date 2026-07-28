@@ -37,8 +37,12 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
     return () => clearInterval(timer);
   }, []);
 
+  const getUser = () => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
+  };
+
   const handleLogout = () => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    const u = getUser();
     if (u?.id) authAPI.logout(u.id);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -47,7 +51,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
     navigate("/");
   };
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getUser();
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';

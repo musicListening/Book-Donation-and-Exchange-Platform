@@ -49,17 +49,18 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("Monthly");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     adminAPI.getDashboard()
       .then((d) => {
         setData(d);
         setLoading(false);
-        showToast("Analytics dashboard loaded successfully.", "success");
       })
       .catch((err) => {
         console.error("Dashboard data fetch failed:", err);
         setLoading(false);
+        setError("Failed to load dashboard data. Please try again.");
         showToast("Failed to load dashboard data. Please try again.", "error");
       });
   }, []);
@@ -70,6 +71,18 @@ export default function AdminDashboard() {
         <div className="loading-box">
           <span className="loading-spinner-char">⏳</span>
           <p className="loading-text">Loading dashboard analytics...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout title="Admin Console" hideNotifications={true}>
+        <div className="dashboard-content-wrapper">
+          <div style={{ backgroundColor: '#FDF2F2', color: '#C02B2B', border: '1px solid #FECACA', borderRadius: '8px', padding: '1rem 1.25rem', fontSize: '0.9rem', fontWeight: 500, marginTop: '1.5rem' }}>
+            ⚠ {error}
+          </div>
         </div>
       </AdminLayout>
     );

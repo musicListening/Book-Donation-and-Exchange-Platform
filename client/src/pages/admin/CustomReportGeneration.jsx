@@ -25,7 +25,12 @@ export default function CustomReportGeneration() {
       if (!data || !data.rows) throw new Error("No data returned");
       setCurrentReport(data);
     } catch (err) {
-      setError("Failed to load preview. Please try again.");
+      const msg = err.message?.includes("HTTP 500")
+        ? `Server error: Unable to generate "${reportType}" report. The database query may have failed.`
+        : err.message?.includes("HTTP 404")
+        ? `Report type "${reportType}" is not available on the server.`
+        : `Failed to load preview: ${err.message || "Please try again."}`;
+      setError(msg);
       console.error("Preview error:", err);
     } finally {
       setIsPreviewing(false);

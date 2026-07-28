@@ -13,12 +13,18 @@ export default function AdminProfile() {
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('user'));
-    if (stored) {
-      setUser(stored);
-      setName(stored.name || '');
-      setEmail(stored.email || '');
-      setProfileImage(stored.profileImage || '');
+    try {
+      const stored = JSON.parse(localStorage.getItem('user'));
+      if (stored) {
+        setUser(stored);
+        setName(stored.name || '');
+        setEmail(stored.email || '');
+        setProfileImage(stored.profileImage || '');
+      } else {
+        setMessage({ type: 'error', text: 'User data not found. Please log in again.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Invalid user data. Please log in again.' });
     }
   }, []);
 
@@ -30,6 +36,13 @@ export default function AdminProfile() {
       setTimeout(() => setMessage(null), 3000);
       return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image must be under 5MB.' });
+      setTimeout(() => setMessage(null), 3000);
+      e.target.value = '';
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setProfileFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
@@ -237,6 +250,7 @@ export default function AdminProfile() {
                 onClick={() => {
                   setName(user?.name || '');
                   setProfileFile(null);
+                  if (previewUrl) URL.revokeObjectURL(previewUrl);
                   setPreviewUrl('');
                   setMessage(null);
                 }}
