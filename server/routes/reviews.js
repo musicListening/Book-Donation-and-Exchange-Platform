@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db');
+const { authenticate, requireRole } = require('../middleware/auth');
 
 // GET top 3 approved reviews for the homepage
 router.get('/top', async (req, res) => {
@@ -29,7 +30,7 @@ router.get('/top', async (req, res) => {
 });
 
 // GET all reviews for admin
-router.get('/admin/all', async (req, res) => {
+router.get('/admin/all', authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     const reviews = await prisma.platformReview.findMany({
       orderBy: { createdAt: 'desc' },
@@ -52,7 +53,7 @@ router.get('/admin/all', async (req, res) => {
 });
 
 // PATCH toggle approval status
-router.patch('/admin/:id/approve', async (req, res) => {
+router.patch('/admin/:id/approve', authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     const review = await prisma.platformReview.findUnique({
       where: { id: req.params.id }
@@ -76,7 +77,7 @@ router.patch('/admin/:id/approve', async (req, res) => {
 });
 
 // DELETE a review
-router.delete('/admin/:id', async (req, res) => {
+router.delete('/admin/:id', authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     await prisma.platformReview.delete({ where: { id: req.params.id } });
     res.json({ message: 'Review deleted successfully' });
@@ -100,7 +101,7 @@ router.get('/me/:userId', async (req, res) => {
 });
 
 // POST create or update review (new reviews start unapproved)
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { userId, rating, comment } = req.body;
 

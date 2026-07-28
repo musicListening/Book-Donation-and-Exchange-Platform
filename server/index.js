@@ -66,22 +66,24 @@ const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
 const craftRoutes = require('./routes/crafts');
+
+// 3b. Auth middleware
+const { authenticate, requireRole } = require('./middleware/auth');
+
 // 4. Register routes
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', apiLimiter, userRoutes);
-app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/users', apiLimiter, authenticate, userRoutes);
+app.use('/api/admin', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), adminRoutes);
 app.use('/api/reviews', apiLimiter, reviewRoutes);
-
-// CRUD Routes
-app.use('/api/tasks', apiLimiter, taskRoutes);
-app.use('/api/shipments', apiLimiter, shipmentRoutes);
+app.use('/api/tasks', apiLimiter, authenticate, taskRoutes);
+app.use('/api/shipments', apiLimiter, authenticate, shipmentRoutes);
 app.use('/api/collections', apiLimiter, collectionRoutes);
 app.use('/api/books', apiLimiter, bookRoutes);
-app.use('/api/donations', apiLimiter, donationRoutes);
-app.use('/api/orders', apiLimiter, orderRoutes);
-app.use('/api/stats', apiLimiter, statsRoutes);
+app.use('/api/donations', apiLimiter, authenticate, donationRoutes);
+app.use('/api/orders', apiLimiter, authenticate, orderRoutes);
+app.use('/api/stats', apiLimiter, authenticate, statsRoutes);
 app.use('/api/community', apiLimiter, communityRoutes);
-app.use('/api/mystery-boxes', apiLimiter, mysteryBoxRoutes);
+app.use('/api/mystery-boxes', apiLimiter, authenticate, mysteryBoxRoutes);
 app.use('/api/crafts', apiLimiter, craftRoutes);
 
 // 5. Health check endpoint
