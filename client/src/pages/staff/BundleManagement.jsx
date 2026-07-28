@@ -24,6 +24,7 @@ function BundleManagement() {
   const [showBooksModal, setShowBooksModal] = useState(false);
   const [selectedBundleForBooks, setSelectedBundleForBooks] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Bundle form data
   const [formData, setFormData] = useState({
@@ -67,6 +68,16 @@ function BundleManagement() {
         role: 'OPERATIONS_STAFF',
         id: 'test-user-123'
       });
+    }
+  }, []);
+
+  // ===== CHECK FOR VERIFICATION FLAG =====
+  useEffect(() => {
+    const fromVerification = sessionStorage.getItem('fromVerification');
+    if (fromVerification === 'true') {
+      sessionStorage.removeItem('fromVerification');
+      console.log('🔄 Coming from verification - refreshing bundles...');
+      loadAllData();
     }
   }, []);
 
@@ -142,8 +153,10 @@ function BundleManagement() {
               count: booksData.length,
               books: booksData,
             };
+            console.log(`📚 Bundle ${col.category} has ${booksData.length} books`);
           }
         } catch (err) {
+          console.error(`Error fetching books for ${col.category}:`, err);
           bookCounts[col.id] = { count: 0, books: [] };
         }
       }
@@ -170,7 +183,7 @@ function BundleManagement() {
 
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [refreshTrigger]);
 
   const getUserInitials = () => {
     if (currentUser.name) {
@@ -187,19 +200,16 @@ function BundleManagement() {
   const validateForm = () => {
     const errors = {};
     
-    // Validate bundle name
     if (!formData.name || formData.name.trim() === '') {
       errors.name = 'Bundle name is required';
     } else if (formData.name.length < 3) {
       errors.name = 'Bundle name must be at least 3 characters';
     }
 
-    // Validate includes description
     if (!formData.includes || formData.includes.trim() === '') {
       errors.includes = 'Description is required';
     }
 
-    // Validate items
     if (!formData.items || formData.items === '') {
       errors.items = 'Number of items is required';
     } else if (parseInt(formData.items) < 0) {
@@ -208,19 +218,16 @@ function BundleManagement() {
       errors.items = 'Items must be at least 1';
     }
 
-    // Validate value
     if (!formData.value || formData.value === '') {
       errors.value = 'Value is required';
     } else if (parseFloat(formData.value) < 0) {
       errors.value = 'Value cannot be negative';
     }
 
-    // Validate category
     if (!formData.category || formData.category === 'General' || formData.category === '') {
       errors.category = 'Please select a category';
     }
 
-    // Validate status
     if (!formData.status) {
       errors.status = 'Status is required';
     }
@@ -246,7 +253,6 @@ function BundleManagement() {
   const filteredBundles = getFilteredBundles();
 
   const handleCreate = async () => {
-    // Run validation
     if (!validateForm()) {
       alert('Please fix the validation errors before continuing.');
       return;
@@ -290,7 +296,6 @@ function BundleManagement() {
   };
 
   const handleUpdate = async () => {
-    // Run validation
     if (!validateForm()) {
       alert('Please fix the validation errors before continuing.');
       return;
@@ -396,15 +401,12 @@ function BundleManagement() {
     const grouped = {};
     const filtered = getFilteredBundles();
     
-    // Initialize with all 6 categories
     BOOK_CATEGORIES.forEach(cat => {
       grouped[cat] = [];
     });
     
-    // Add bundles to their respective categories
     filtered.forEach(bundle => {
       const category = bundle.category || 'General';
-      // Only add if it's one of the 6 main categories
       if (BOOK_CATEGORIES.includes(category)) {
         grouped[category].push(bundle);
       }
@@ -414,8 +416,9 @@ function BundleManagement() {
   };
 
   const bundlesByCategory = getBundlesByCategory();
-  const categoryNames = BOOK_CATEGORIES; // Always show all 6 categories
+  const categoryNames = BOOK_CATEGORIES;
 
+  // Rest of the component remains the same (JSX)...
   return (
     <StaffLayout>
       <div className="content-header">
@@ -484,7 +487,6 @@ function BundleManagement() {
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading bundles...</div>
         ) : (
           <>
-            {/* Category Sections - Always show all 6 */}
             {categoryNames.map(category => {
               const bundlesInCategory = bundlesByCategory[category] || [];
               return (
@@ -579,7 +581,6 @@ function BundleManagement() {
               );
             })}
 
-            {/* Summary */}
             <div className="table-footer">
               <span>Showing {filteredBundles.length} of {bundles.length} bundles across 6 categories</span>
             </div>
@@ -593,7 +594,6 @@ function BundleManagement() {
           <div className="modal-content">
             <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingBundle ? 'Edit Bundle' : 'Create New Bundle'}</h2>
             
-            {/* Bundle Name */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Bundle Name <span style={{ color: '#dc3545' }}>*</span>
@@ -621,7 +621,6 @@ function BundleManagement() {
               )}
             </div>
 
-            {/* Includes Description */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Includes Description <span style={{ color: '#dc3545' }}>*</span>
@@ -649,7 +648,6 @@ function BundleManagement() {
               )}
             </div>
 
-            {/* Category */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Category <span style={{ color: '#dc3545' }}>*</span>
@@ -680,7 +678,6 @@ function BundleManagement() {
               )}
             </div>
 
-            {/* Items and Value */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
@@ -740,7 +737,6 @@ function BundleManagement() {
               </div>
             </div>
 
-            {/* Status */}
             <div className="form-group" style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Status <span style={{ color: '#dc3545' }}>*</span>
@@ -769,7 +765,6 @@ function BundleManagement() {
               )}
             </div>
 
-            {/* Buttons */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button 
                 className="btn-secondary" 
