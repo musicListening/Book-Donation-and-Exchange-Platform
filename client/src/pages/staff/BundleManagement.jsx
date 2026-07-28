@@ -13,6 +13,15 @@ const BOOK_CATEGORIES = [
   'Mixed'
 ];
 
+// ===== CRAFT CATEGORIES CONSTANT - UPDATED =====
+const CRAFT_CATEGORIES = [
+  'Craft: Paper Crafts (Origami, Quilling)',
+  'Craft: Woodwork (Carvings, Small Furniture)',
+  'Craft: Textiles (Knitting, Crochet, Sewing)',
+  'Craft: Upcycled Materials',
+  'Craft: Mixed Media / Other'
+];
+
 function BundleManagement() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [bundles, setBundles] = useState([]);
@@ -24,7 +33,9 @@ function BundleManagement() {
   const [showBooksModal, setShowBooksModal] = useState(false);
   const [selectedBundleForBooks, setSelectedBundleForBooks] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [bundleType, setBundleType] = useState('book');
+  const [showBookBundles, setShowBookBundles] = useState(true);
+  const [showCraftBundles, setShowCraftBundles] = useState(true);
   
   // Bundle form data
   const [formData, setFormData] = useState({
@@ -33,14 +44,17 @@ function BundleManagement() {
     items: '',
     value: '',
     status: 'DRAFT',
-    category: 'General'
+    category: 'General',
+    type: 'book'
   });
 
   // Stats
   const [stats, setStats] = useState({
     totalBundles: 0,
     draftBundles: 0,
-    publishedBundles: 0
+    publishedBundles: 0,
+    totalBooks: 0,
+    totalCrafts: 0
   });
 
   // Load user from localStorage
@@ -71,36 +85,45 @@ function BundleManagement() {
     }
   }, []);
 
-  // ===== CHECK FOR VERIFICATION FLAG =====
-  useEffect(() => {
-    const fromVerification = sessionStorage.getItem('fromVerification');
-    if (fromVerification === 'true') {
-      sessionStorage.removeItem('fromVerification');
-      console.log('🔄 Coming from verification - refreshing bundles...');
-      loadAllData();
-    }
-  }, []);
-
   // ===== CREATE DEFAULT BUNDLES FOR EACH CATEGORY =====
   const createDefaultBundles = async () => {
     try {
       const existingBundles = await collectionAPI.getAll();
       const existingCategories = existingBundles.map(b => b.category);
       
-      // Create bundles for each category that doesn't exist
+      // Create book bundles for each category that doesn't exist
       for (const category of BOOK_CATEGORIES) {
         if (!existingCategories.includes(category)) {
           await collectionAPI.create({
             title: `${category} Collection`,
             description: `Collection of ${category} books`,
             category: category,
+            type: 'book',
             stock: 0,
             pointsRequired: 0,
             cashPrice: 0,
             isRare: false,
             userId: currentUser.id
           });
-          console.log(`✅ Created default bundle for ${category}`);
+          console.log(`✅ Created default book bundle for ${category}`);
+        }
+      }
+      
+      // Create craft bundles for each category that doesn't exist
+      for (const category of CRAFT_CATEGORIES) {
+        if (!existingCategories.includes(category)) {
+          await collectionAPI.create({
+            title: category,
+            description: `Collection of ${category} items`,
+            category: category,
+            type: 'craft',
+            stock: 0,
+            pointsRequired: 0,
+            cashPrice: 0,
+            isRare: false,
+            userId: currentUser.id
+          });
+          console.log(`✅ Created default craft bundle for ${category}`);
         }
       }
     } catch (error) {
@@ -138,12 +161,16 @@ function BundleManagement() {
         createdAt: item.createdAt,
         cashPrice: item.cashPrice || 0,
         stock: item.stock || 0,
-        category: item.category || 'General'
+        category: item.category || 'General',
+        type: item.type || 'book'
       }));
       setBundles(mappedBundles);
       
       // Fetch book counts for each collection
       const bookCounts = {};
+      let totalBooks = 0;
+      let totalCrafts = 0;
+      
       for (const col of bundlesData) {
         try {
           const booksRes = await fetch(`${API_BASE}/books/collection/${col.id}`);
@@ -153,10 +180,13 @@ function BundleManagement() {
               count: booksData.length,
               books: booksData,
             };
-            console.log(`📚 Bundle ${col.category} has ${booksData.length} books`);
+            if (col.type === 'craft') {
+              totalCrafts += booksData.length;
+            } else {
+              totalBooks += booksData.length;
+            }
           }
         } catch (err) {
-          console.error(`Error fetching books for ${col.category}:`, err);
           bookCounts[col.id] = { count: 0, books: [] };
         }
       }
@@ -170,7 +200,9 @@ function BundleManagement() {
       setStats({
         totalBundles,
         draftBundles,
-        publishedBundles
+        publishedBundles,
+        totalBooks,
+        totalCrafts
       });
       
     } catch (error) {
@@ -183,7 +215,7 @@ function BundleManagement() {
 
   useEffect(() => {
     loadAllData();
-  }, [refreshTrigger]);
+  }, []);
 
   const getUserInitials = () => {
     if (currentUser.name) {
@@ -263,6 +295,7 @@ function BundleManagement() {
         title: formData.name,
         description: formData.includes,
         category: formData.category || 'General',
+        type: formData.type || 'book',
         stock: parseInt(formData.items),
         pointsRequired: Math.round(parseFloat(formData.value) / 100),
         cashPrice: parseFloat(formData.value),
@@ -284,13 +317,15 @@ function BundleManagement() {
   const handleEdit = (bundle) => {
     setEditingBundle(bundle);
     setValidationErrors({});
+    setBundleType(bundle.type || 'book');
     setFormData({
       name: bundle.name,
       includes: bundle.includes,
       items: bundle.items.toString(),
       value: bundle.value.toString(),
       status: bundle.status,
-      category: bundle.category || 'General'
+      category: bundle.category || 'General',
+      type: bundle.type || 'book'
     });
     setShowModal(true);
   };
@@ -306,6 +341,7 @@ function BundleManagement() {
         title: formData.name,
         description: formData.includes,
         category: formData.category || 'General',
+        type: formData.type || 'book',
         stock: parseInt(formData.items),
         pointsRequired: Math.round(parseFloat(formData.value) / 100),
         cashPrice: parseFloat(formData.value),
@@ -344,9 +380,11 @@ function BundleManagement() {
       items: '',
       value: '',
       status: 'DRAFT',
-      category: 'General'
+      category: 'General',
+      type: 'book'
     });
     setValidationErrors({});
+    setBundleType('book');
   };
 
   const handleAddBookToMarketplace = async (bookId) => {
@@ -360,11 +398,11 @@ function BundleManagement() {
               }
           });
           if (!response.ok) throw new Error('Failed to add to marketplace');
-          alert('Book added to marketplace!');
+          alert('Item added to marketplace!');
           await loadAllData();
       } catch (error) {
-          console.error('Error adding book to marketplace:', error);
-          alert('Failed to add book to marketplace: ' + error.message);
+          console.error('Error adding item to marketplace:', error);
+          alert('Failed to add item to marketplace: ' + error.message);
       }
   };
 
@@ -372,10 +410,10 @@ function BundleManagement() {
       const books = bundleBooks[bundleId]?.books || [];
       const inventoryBooks = books.filter(b => !b.isAvailable);
       if (inventoryBooks.length === 0) {
-          alert('All books are already on the marketplace!');
+          alert('All items are already on the marketplace!');
           return;
       }
-      if (!window.confirm(`Add ${inventoryBooks.length} book(s) to marketplace?`)) return;
+      if (!window.confirm(`Add ${inventoryBooks.length} item(s) to marketplace?`)) return;
       
       try {
           const token = localStorage.getItem('token');
@@ -388,37 +426,51 @@ function BundleManagement() {
                   }
               });
           }
-          alert(`${inventoryBooks.length} book(s) added to marketplace!`);
+          alert(`${inventoryBooks.length} item(s) added to marketplace!`);
           await loadAllData();
       } catch (error) {
-          console.error('Error adding books to marketplace:', error);
-          alert('Failed to add some books: ' + error.message);
+          console.error('Error adding items to marketplace:', error);
+          alert('Failed to add some items: ' + error.message);
       }
   };
 
-  // Group bundles by category - only show the 6 main categories
-  const getBundlesByCategory = () => {
-    const grouped = {};
+  // Group bundles by type and category
+  const getBundlesByType = () => {
+    const bookBundles = {};
+    const craftBundles = {};
     const filtered = getFilteredBundles();
     
+    // Initialize book categories
     BOOK_CATEGORIES.forEach(cat => {
-      grouped[cat] = [];
+      bookBundles[cat] = [];
     });
     
+    // Initialize craft categories
+    CRAFT_CATEGORIES.forEach(cat => {
+      craftBundles[cat] = [];
+    });
+    
+    // Add bundles to their respective type and category
     filtered.forEach(bundle => {
       const category = bundle.category || 'General';
-      if (BOOK_CATEGORIES.includes(category)) {
-        grouped[category].push(bundle);
+      if (bundle.type === 'craft') {
+        if (CRAFT_CATEGORIES.includes(category)) {
+          craftBundles[category].push(bundle);
+        }
+      } else {
+        if (BOOK_CATEGORIES.includes(category)) {
+          bookBundles[category].push(bundle);
+        }
       }
     });
     
-    return grouped;
+    return { bookBundles, craftBundles };
   };
 
-  const bundlesByCategory = getBundlesByCategory();
-  const categoryNames = BOOK_CATEGORIES;
+  const { bookBundles, craftBundles } = getBundlesByType();
+  const bookCategoryNames = BOOK_CATEGORIES;
+  const craftCategoryNames = CRAFT_CATEGORIES;
 
-  // Rest of the component remains the same (JSX)...
   return (
     <StaffLayout>
       <div className="content-header">
@@ -433,12 +485,12 @@ function BundleManagement() {
         </div>
       </div>
 
-      {/* ===== STATS CARDS - ONLY 3 ===== */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      {/* ===== STATS CARDS ===== */}
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <div className="stat-card">
           <h3>TOTAL BUNDLES</h3>
           <div className="stat-value">{stats.totalBundles}</div>
-          <div className="stat-trend">Active collection</div>
+          <div className="stat-trend">All collections</div>
         </div>
 
         <div className="stat-card">
@@ -452,9 +504,21 @@ function BundleManagement() {
           <div className="stat-value" style={{ color: '#28a745' }}>{stats.publishedBundles}</div>
           <div className="stat-trend">Available in marketplace</div>
         </div>
+
+        <div className="stat-card">
+          <h3>BOOKS</h3>
+          <div className="stat-value">{stats.totalBooks}</div>
+          <div className="stat-trend">In book bundles</div>
+        </div>
+
+        <div className="stat-card">
+          <h3>CRAFTS</h3>
+          <div className="stat-value">{stats.totalCrafts}</div>
+          <div className="stat-trend">In craft bundles</div>
+        </div>
       </div>
 
-      {/* ===== BUNDLES TABLE BY CATEGORY ===== */}
+      {/* ===== BUNDLES TABLE ===== */}
       <div className="bundle-table-section">
         <div className="table-header">
           <h3>Bundle Inventory</h3>
@@ -483,106 +547,285 @@ function BundleManagement() {
           </div>
         </div>
 
+        {/* ===== FILTER TOGGLES ===== */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '20px',
+          padding: '12px 16px',
+          background: '#f8fafc',
+          borderRadius: '8px',
+          border: '1px solid #e5e5e5'
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+            <input
+              type="checkbox"
+              checked={showBookBundles}
+              onChange={(e) => setShowBookBundles(e.target.checked)}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <span style={{ fontWeight: '500' }}>📚 Show Book Bundles</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+            <input
+              type="checkbox"
+              checked={showCraftBundles}
+              onChange={(e) => setShowCraftBundles(e.target.checked)}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <span style={{ fontWeight: '500' }}>🎨 Show Craft Bundles</span>
+          </label>
+        </div>
+
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading bundles...</div>
         ) : (
           <>
-            {categoryNames.map(category => {
-              const bundlesInCategory = bundlesByCategory[category] || [];
-              return (
-                <div key={category} style={{ marginBottom: '32px' }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px',
-                    marginBottom: '12px',
-                    padding: '8px 16px',
-                    background: '#f0f7f6',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #1E4D4B'
+            {/* ===== BOOK BUNDLES SECTION ===== */}
+            {showBookBundles && (
+              <div style={{ marginBottom: '40px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  marginBottom: '16px',
+                  padding: '12px 20px',
+                  background: '#1E4D4B',
+                  borderRadius: '8px',
+                  color: 'white'
+                }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>📚 Book Bundles</h3>
+                  <span style={{
+                    fontSize: '13px',
+                    background: 'rgba(255,255,255,0.2)',
+                    padding: '2px 12px',
+                    borderRadius: '12px'
                   }}>
-                    <h4 style={{ 
-                      margin: 0, 
-                      color: '#1E4D4B',
-                      fontSize: '18px',
-                      fontWeight: '600'
-                    }}>
-                      {category}
-                    </h4>
-                    <span style={{
-                      fontSize: '12px',
-                      color: '#64748b',
-                      background: 'white',
-                      padding: '2px 12px',
-                      borderRadius: '12px',
-                      fontWeight: '500'
-                    }}>
-                      {bundlesInCategory.length} bundle(s)
-                    </span>
-                  </div>
-
-                  {bundlesInCategory.length === 0 ? (
-                    <div style={{ 
-                      padding: '20px', 
-                      textAlign: 'center', 
-                      color: '#94a3b8',
-                      background: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '1px dashed #e5e5e5'
-                    }}>
-                      No {category} bundles yet. Books verified with {category} category will appear here.
-                    </div>
-                  ) : (
-                    <div className="data-table">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>BUNDLE ID</th>
-                            <th>BUNDLE NAME</th>
-                            <th>ITEMS</th>
-                            <th>VALUE (Rs.)</th>
-                            <th>STATUS</th>
-                            <th>DATE CREATED</th>
-                            <th>ACTIONS</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {bundlesInCategory.map((bundle) => (
-                            <tr key={bundle.id}>
-                              <td className="bundle-id">{bundle.bundleId}</td>
-                              <td>
-                                <div className="bundle-name">{bundle.name}</div>
-                                <div className="bundle-includes">{bundle.includes}</div>
-                              </td>
-                              <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
-                              <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
-                              <td>
-                                <span className={`status-badge ${bundle.status.toLowerCase()}`}>
-                                  {bundle.status}
-                                </span>
-                              </td>
-                              <td>{bundle.date}</td>
-                              <td>
-                                <div className="action-group">
-                                  <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
-                                    View Books ({bundleBooks[bundle.id]?.count || 0})
-                                  </button>
-                                  <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
-                                  <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                    {Object.values(bookBundles).reduce((sum, arr) => sum + arr.length, 0)} bundle(s)
+                  </span>
                 </div>
-              );
-            })}
 
-            <div className="table-footer">
-              <span>Showing {filteredBundles.length} of {bundles.length} bundles across 6 categories</span>
+                {bookCategoryNames.map(category => {
+                  const bundlesInCategory = bookBundles[category] || [];
+                  return (
+                    <div key={category} style={{ marginBottom: '24px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        marginBottom: '12px',
+                        padding: '8px 16px',
+                        background: '#f0f7f6',
+                        borderRadius: '8px',
+                        borderLeft: '4px solid #1E4D4B'
+                      }}>
+                        <h4 style={{ 
+                          margin: 0, 
+                          color: '#1E4D4B',
+                          fontSize: '16px',
+                          fontWeight: '600'
+                        }}>
+                          {category}
+                        </h4>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#64748b',
+                          background: 'white',
+                          padding: '2px 12px',
+                          borderRadius: '12px',
+                          fontWeight: '500'
+                        }}>
+                          {bundlesInCategory.length} bundle(s)
+                        </span>
+                      </div>
+
+                      {bundlesInCategory.length === 0 ? (
+                        <div style={{ 
+                          padding: '16px', 
+                          textAlign: 'center', 
+                          color: '#94a3b8',
+                          background: '#f8fafc',
+                          borderRadius: '8px',
+                          border: '1px dashed #e5e5e5'
+                        }}>
+                          No {category} book bundles yet. Books verified with {category} category will appear here.
+                        </div>
+                      ) : (
+                        <div className="data-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>BUNDLE ID</th>
+                                <th>BUNDLE NAME</th>
+                                <th>ITEMS</th>
+                                <th>VALUE (Rs.)</th>
+                                <th>STATUS</th>
+                                <th>DATE CREATED</th>
+                                <th>ACTIONS</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bundlesInCategory.map((bundle) => (
+                                <tr key={bundle.id}>
+                                  <td className="bundle-id">{bundle.bundleId}</td>
+                                  <td>
+                                    <div className="bundle-name">{bundle.name}</div>
+                                    <div className="bundle-includes">{bundle.includes}</div>
+                                  </td>
+                                  <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
+                                  <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
+                                  <td>
+                                    <span className={`status-badge ${bundle.status.toLowerCase()}`}>
+                                      {bundle.status}
+                                    </span>
+                                  </td>
+                                  <td>{bundle.date}</td>
+                                  <td>
+                                    <div className="action-group">
+                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                                        View Items ({bundleBooks[bundle.id]?.count || 0})
+                                      </button>
+                                      <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
+                                      <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ===== CRAFT BUNDLES SECTION ===== */}
+            {showCraftBundles && (
+              <div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  marginBottom: '16px',
+                  padding: '12px 20px',
+                  background: '#6B4F3C',
+                  borderRadius: '8px',
+                  color: 'white'
+                }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>🎨 Craft Bundles</h3>
+                  <span style={{
+                    fontSize: '13px',
+                    background: 'rgba(255,255,255,0.2)',
+                    padding: '2px 12px',
+                    borderRadius: '12px'
+                  }}>
+                    {Object.values(craftBundles).reduce((sum, arr) => sum + arr.length, 0)} bundle(s)
+                  </span>
+                </div>
+
+                {craftCategoryNames.map(category => {
+                  const bundlesInCategory = craftBundles[category] || [];
+                  // Extract display name without "Craft: " prefix
+                  const displayName = category.replace('Craft: ', '');
+                  return (
+                    <div key={category} style={{ marginBottom: '24px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        marginBottom: '12px',
+                        padding: '8px 16px',
+                        background: '#f5f0eb',
+                        borderRadius: '8px',
+                        borderLeft: '4px solid #6B4F3C'
+                      }}>
+                        <h4 style={{ 
+                          margin: 0, 
+                          color: '#6B4F3C',
+                          fontSize: '16px',
+                          fontWeight: '600'
+                        }}>
+                          {displayName}
+                        </h4>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#64748b',
+                          background: 'white',
+                          padding: '2px 12px',
+                          borderRadius: '12px',
+                          fontWeight: '500'
+                        }}>
+                          {bundlesInCategory.length} bundle(s)
+                        </span>
+                      </div>
+
+                      {bundlesInCategory.length === 0 ? (
+                        <div style={{ 
+                          padding: '16px', 
+                          textAlign: 'center', 
+                          color: '#94a3b8',
+                          background: '#faf8f6',
+                          borderRadius: '8px',
+                          border: '1px dashed #e5e5e5'
+                        }}>
+                          No {displayName} craft bundles yet. Crafts verified with {category} category will appear here.
+                        </div>
+                      ) : (
+                        <div className="data-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>BUNDLE ID</th>
+                                <th>BUNDLE NAME</th>
+                                <th>ITEMS</th>
+                                <th>VALUE (Rs.)</th>
+                                <th>STATUS</th>
+                                <th>DATE CREATED</th>
+                                <th>ACTIONS</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bundlesInCategory.map((bundle) => (
+                                <tr key={bundle.id}>
+                                  <td className="bundle-id">{bundle.bundleId}</td>
+                                  <td>
+                                    <div className="bundle-name">{bundle.name}</div>
+                                    <div className="bundle-includes">{bundle.includes}</div>
+                                  </td>
+                                  <td>{bundleBooks[bundle.id]?.count || bundle.items || 0}</td>
+                                  <td>Rs. {bundle.value.toLocaleString('en-IN')}</td>
+                                  <td>
+                                    <span className={`status-badge ${bundle.status.toLowerCase()}`}>
+                                      {bundle.status}
+                                    </span>
+                                  </td>
+                                  <td>{bundle.date}</td>
+                                  <td>
+                                    <div className="action-group">
+                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                                        View Items ({bundleBooks[bundle.id]?.count || 0})
+                                      </button>
+                                      <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
+                                      <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="table-footer" style={{ marginTop: '20px' }}>
+              <span>Showing {filteredBundles.length} of {bundles.length} bundles across book and craft categories</span>
             </div>
           </>
         )}
@@ -594,6 +837,32 @@ function BundleManagement() {
           <div className="modal-content">
             <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingBundle ? 'Edit Bundle' : 'Create New Bundle'}</h2>
             
+            {/* Bundle Type */}
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                Bundle Type <span style={{ color: '#dc3545' }}>*</span>
+              </label>
+              <select
+                className="form-control"
+                value={formData.type || 'book'}
+                onChange={(e) => {
+                  setFormData({...formData, type: e.target.value, category: ''});
+                  setBundleType(e.target.value);
+                }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '8px' 
+                }}
+                disabled={!!editingBundle}
+              >
+                <option value="book">Book Bundle</option>
+                <option value="craft">Craft Bundle</option>
+              </select>
+            </div>
+
+            {/* Bundle Name */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Bundle Name <span style={{ color: '#dc3545' }}>*</span>
@@ -621,6 +890,7 @@ function BundleManagement() {
               )}
             </div>
 
+            {/* Includes Description */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Includes Description <span style={{ color: '#dc3545' }}>*</span>
@@ -648,13 +918,14 @@ function BundleManagement() {
               )}
             </div>
 
+            {/* Category */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Category <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <select
                 className="form-control"
-                value={formData.category || 'General'}
+                value={formData.category || ''}
                 onChange={(e) => {
                   setFormData({...formData, category: e.target.value});
                   if (validationErrors.category) {
@@ -668,8 +939,8 @@ function BundleManagement() {
                   borderRadius: '8px' 
                 }}
               >
-                <option value="General">Select a category...</option>
-                {BOOK_CATEGORIES.map((cat) => (
+                <option value="">Select a category...</option>
+                {(formData.type === 'book' ? BOOK_CATEGORIES : CRAFT_CATEGORIES).map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
@@ -678,6 +949,7 @@ function BundleManagement() {
               )}
             </div>
 
+            {/* Items and Value */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
@@ -737,6 +1009,7 @@ function BundleManagement() {
               </div>
             </div>
 
+            {/* Status */}
             <div className="form-group" style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
                 Status <span style={{ color: '#dc3545' }}>*</span>
@@ -765,6 +1038,7 @@ function BundleManagement() {
               )}
             </div>
 
+            {/* Buttons */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button 
                 className="btn-secondary" 
@@ -789,20 +1063,21 @@ function BundleManagement() {
       {showBooksModal && selectedBundleForBooks && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: 800 }}>
-            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Books in {selectedBundleForBooks.name}</h2>
+            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Items in {selectedBundleForBooks.name}</h2>
             <p style={{ color: '#64748b', marginBottom: 16, fontSize: 14 }}>
-              Category: <strong>{selectedBundleForBooks.category || 'General'}</strong>
+              Category: <strong>{selectedBundleForBooks.category || 'General'}</strong> | 
+              Type: <strong>{selectedBundleForBooks.type === 'craft' ? 'Craft' : 'Book'}</strong>
             </p>
             
             {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-                    No books assigned to this bundle yet. Verified books will appear here.
+                    No items assigned to this bundle yet. Verified items will appear here.
                 </div>
             ) : (
                 <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <span style={{ fontSize: 14, color: '#64748b' }}>
-                          Total Books: {(bundleBooks[selectedBundleForBooks.id]?.books || []).length}
+                          Total Items: {(bundleBooks[selectedBundleForBooks.id]?.books || []).length}
                         </span>
                         <button
                             className="btn-small"
@@ -819,7 +1094,7 @@ function BundleManagement() {
                                     <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
                                 ) : (
                                     <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
-                                        {book.title?.[0] || 'B'}
+                                        {book.title?.[0] || 'I'}
                                     </div>
                                 )}
                                 <div style={{ padding: 12 }}>
