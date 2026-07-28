@@ -72,6 +72,13 @@ function DonationSchedule() {
     }
     fetchAllData();
     fetchConfig();
+
+    // Check if coming from verification
+    const fromVerification = sessionStorage.getItem('fromVerification');
+    if (fromVerification === 'true') {
+      sessionStorage.removeItem('fromVerification');
+      fetchAllData();
+    }
   }, []);
 
   const fetchConfig = async () => {
@@ -290,6 +297,7 @@ function DonationSchedule() {
     }
   };
 
+  // ===== FIXED: UPDATED HANDLE CONFIRM VERIFICATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
       showToast('No donation selected', 'error');
@@ -333,7 +341,7 @@ function DonationSchedule() {
           staffId: currentUser.id,
           isCollectionComplete: verifyForm.isComplete,
           bundleId: bundleIdForCategory,
-          addToMarketplace,
+          addToMarketplace: true, // Always add to marketplace
           category: selectedCategory
         })
       });
@@ -364,7 +372,8 @@ function DonationSchedule() {
       });
       setValidationErrors({});
 
-      fetchAllData();
+      // ===== REFRESH DATA FIRST =====
+      await fetchAllData();
 
       if (downloadReceiptAfterVerify) {
         setTimeout(() => {
@@ -374,13 +383,17 @@ function DonationSchedule() {
 
       showToast(`Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
 
+      // ===== FIX: Navigate to Bundle Management with session flag =====
       setTimeout(() => {
-        if (window.confirm(`Donation verified successfully! Books added to "${selectedCategory}" bundle. Would you like to go to Bundle Management to manage the books?`)) {
+        // Set flag to indicate we're coming from verification
+        sessionStorage.setItem('fromVerification', 'true');
+        
+        if (window.confirm(`✅ Donation verified successfully!\n\nBooks added to "${selectedCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the books?`)) {
           navigate('/staff/bundle-management');
         } else {
           showToast('You can also go to Bundle Management from the sidebar.', 'info');
         }
-      }, 800);
+      }, 1000);
       
     } catch (error) {
       console.error('Error verifying donation:', error);
