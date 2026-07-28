@@ -108,7 +108,6 @@ const UserDashboard = () => {
   const handleClaim = async (boxId) => {
     setClaiming(boxId);
     try {
-      await mysteryBoxAPI.claim(boxId);
       const response = await mysteryBoxAPI.claim(boxId);
       const updatedBox = response.box || response;
       const cost = getPointsCostForLevel(updatedBox?.level || 0);

@@ -12,7 +12,7 @@ const Orders = () => {
     const s = (status || '').toUpperCase();
     if (s === 'PENDING' || s === 'PLACED') return 0;
     if (s === 'PROCESSING') return 1;
-    if (s === 'DELIVERED') return 2;
+    if (s === 'DELIVERED' || s === 'COMPLETED') return 2;
     return -1;
   };
 
@@ -20,7 +20,7 @@ const Orders = () => {
     const s = (status || '').toUpperCase();
     if (s === 'PENDING' || s === 'PLACED') return 'Placed';
     if (s === 'PROCESSING') return 'Processing';
-    if (s === 'DELIVERED') return 'Delivered';
+    if (s === 'DELIVERED' || s === 'COMPLETED') return 'Completed';
     if (s === 'CANCELLED') return 'Cancelled';
     return status;
   };
@@ -29,7 +29,7 @@ const Orders = () => {
     const s = (status || '').toUpperCase();
     if (s === 'PENDING' || s === 'PLACED') return { bg: '#E0F2FE', text: '#0284C7' };
     if (s === 'PROCESSING') return { bg: '#FEF3C7', text: '#D97706' };
-    if (s === 'DELIVERED') return { bg: '#D1FAE5', text: '#059669' };
+    if (s === 'DELIVERED' || s === 'COMPLETED') return { bg: '#D1FAE5', text: '#059669' };
     if (s === 'CANCELLED') return { bg: '#FEE2E2', text: '#EF4444' };
     return { bg: '#F3F4F6', text: '#374151' };
   };

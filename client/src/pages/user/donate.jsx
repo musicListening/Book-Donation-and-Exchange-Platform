@@ -595,30 +595,7 @@ const Donate = () => {
                           Based on {pointsPerBook} pts/book {col.bookCount > 1 ? `+ ${collectionBonusPct}% collection bonus` : ''}
                         </p>
 
-                        <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Photos of the Book (Optional)</label>
-                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
-                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => {
-                                updateBookFiles(idx, Array.from(e.target.files));
-                                e.target.value = null;
-                              }}
-                              style={{ display: 'none' }}
-                            />
-                          </label>
-                          {col.files && col.files.length > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                              <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
-                                ✓ {col.files.length} photo(s) attached
-                              </p>
-                              <button type="button" onClick={() => clearBookFiles(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear photos</button>
-                            </div>
-                          )}
-                        </div>
+
                       </div>
                     ))}
 
@@ -851,14 +828,6 @@ const Donate = () => {
                       <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {donation.status === 'Pending' && (
-                        <button 
-                          onClick={() => handleCompleteDonation(donation.fullId)} 
-                          style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
-                        >
-                          Complete Drop-off
-                        </button>
-                      )}
                       <span style={{ 
                         ...styles.statusBadge, 
                         ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
