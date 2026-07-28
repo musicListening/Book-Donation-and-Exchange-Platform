@@ -77,52 +77,28 @@ const Donate = () => {
   }, [navigate]);
 
   const updateBookCategory = (index, value) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCategory = value;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCategory: value } : col));
   };
 
   const updateBookTitle = (index, value) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookTitle = value;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookTitle: value } : col));
   };
 
   const updateBookCount = (index, delta) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCount = Math.max(1, Math.min(100, newCols[index].bookCount + delta));
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, col.bookCount + delta)) } : col));
   };
 
   const setExactBookCount = (index, value) => {
     const val = parseInt(value) || 1;
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, val)) } : col));
   };
 
   const updateBookFiles = (index, files) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].files = [...(newCols[index].files || []), ...files];
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
   };
 
   const clearBookFiles = (index) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].files = [];
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
   };
 
   const addBookCollection = () => {
@@ -134,53 +110,29 @@ const Donate = () => {
   };
 
   const updateCraftCollectionFiles = (index, files) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].files = [...(newCols[index].files || []), ...files];
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
   };
 
   const clearCraftFiles = (index) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].files = [];
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
   };
 
   const updateCraftPoints = (index, value) => {
     const val = parseInt(value) || 0;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].pointsPrice = Math.max(0, val);
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, pointsPrice: Math.max(0, val) } : col));
   };
 
   const updateCraftCount = (index, delta) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftCount = Math.max(1, Math.min(100, newCols[index].craftCount + delta));
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, col.craftCount + delta)) } : col));
   };
 
   const setExactCraftCount = (index, value) => {
     const val = parseInt(value) || 1;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, val)) } : col));
   };
 
   const updateCraftType = (index, value) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftType = value;
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
   const addCraftCollection = () => {
@@ -326,7 +278,7 @@ const Donate = () => {
       document.getElementById('finalPoints').innerText = points;
     } catch (error) {
       console.error('Error creating donations:', error);
-      alert('Failed to submit donations. Please try again.');
+      alert('Failed to submit donations: ' + error.message);
     }
   };
 
