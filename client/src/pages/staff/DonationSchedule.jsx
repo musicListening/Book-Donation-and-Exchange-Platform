@@ -34,6 +34,7 @@ function DonationSchedule() {
   const [bundles, setBundles] = useState([]);
   const [selectedBundleId, setSelectedBundleId] = useState('');
   const [addToMarketplace, setAddToMarketplace] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
   const [verifyForm, setVerifyForm] = useState({
     verifiedCount: 0,
     condition: 'good',
@@ -224,8 +225,40 @@ function DonationSchedule() {
     return currentLevel;
   };
 
+  // ===== VALIDATION FUNCTION =====
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validate verified count
+    if (verifyForm.verifiedCount === undefined || verifyForm.verifiedCount === null) {
+      errors.verifiedCount = 'Please enter the number of books received';
+    } else if (verifyForm.verifiedCount < 0) {
+      errors.verifiedCount = 'Number of books cannot be negative';
+    } else if (verifyForm.verifiedCount > (selectedDonation?.requestedCount || 0)) {
+      errors.verifiedCount = `Cannot verify more than the submitted count (${selectedDonation?.requestedCount || 0})`;
+    } else if (verifyForm.verifiedCount === 0) {
+      errors.verifiedCount = 'Please enter at least 1 book received';
+    }
+
+    // Validate condition
+    if (!verifyForm.condition) {
+      errors.condition = 'Please select a book condition';
+    }
+
+    // Validate category (only for books, not crafts)
+    if (!selectedDonation?.category?.startsWith('Craft:')) {
+      if (!verifyForm.category || verifyForm.category === '') {
+        errors.category = 'Please select a category';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleVerifyDonation = async (donation) => {
     setSelectedDonation(donation);
+    setValidationErrors({});
     const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
     setVerifyForm({
       verifiedCount: donation.requestedCount || 0,
@@ -242,6 +275,7 @@ function DonationSchedule() {
     setDownloadReceiptAfterVerify(false);
     setShowVerifyModal(true);
 
+    // Fetch bundles to get the correct bundle ID for each category
     try {
       const token = localStorage.getItem('token');
       const bundleRes = await fetch(`${API_BASE}/collections`, {
@@ -262,12 +296,29 @@ function DonationSchedule() {
       return;
     }
 
+    // ===== RUN VALIDATION =====
+    if (!validateForm()) {
+      showToast('Please fix the validation errors before continuing', 'error');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         showToast('Please login again', 'error');
         return;
       }
+
+      // ===== FIND BUNDLE ID FOR THE SELECTED CATEGORY =====
+      const getBundleIdForCategory = (category) => {
+        const matchingBundle = bundles.find(b => b.category === category);
+        return matchingBundle ? matchingBundle.id : null;
+      };
+      
+      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
+      const bundleIdForCategory = getBundleIdForCategory(selectedCategory);
+
+      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}`);
 
       const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/verify`, {
         method: 'PATCH',
@@ -281,9 +332,9 @@ function DonationSchedule() {
           notes: verifyForm.notes,
           staffId: currentUser.id,
           isCollectionComplete: verifyForm.isComplete,
-          bundleId: selectedBundleId || null,
+          bundleId: bundleIdForCategory,
           addToMarketplace,
-          category: verifyForm.category || selectedDonation.category
+          category: selectedCategory
         })
       });
 
@@ -311,6 +362,7 @@ function DonationSchedule() {
         awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0,
         category: ''
       });
+      setValidationErrors({});
 
       fetchAllData();
 
@@ -320,12 +372,10 @@ function DonationSchedule() {
         }, 500);
       }
 
-      // ===== SHOW SUCCESS TOAST WITH NAVIGATION OPTION =====
-      showToast(`✅ Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
+      showToast(`Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
 
-      // ===== AFTER VERIFICATION, NAVIGATE TO BUNDLE MANAGEMENT =====
       setTimeout(() => {
-        if (window.confirm('Donation verified successfully! Would you like to go to Bundle Management to manage the books?')) {
+        if (window.confirm(`Donation verified successfully! Books added to "${selectedCategory}" bundle. Would you like to go to Bundle Management to manage the books?`)) {
           navigate('/staff/bundle-management');
         } else {
           showToast('You can also go to Bundle Management from the sidebar.', 'info');
@@ -372,6 +422,7 @@ function DonationSchedule() {
         userId: null,
         category: ''
       });
+      setValidationErrors({});
 
       showToast('Donation rejected.', 'warning');
       fetchAllData();
@@ -391,7 +442,6 @@ function DonationSchedule() {
     return 'SU';
   };
 
-  // ===== Download Receipt Function =====
   const downloadReceipt = (donation) => {
     const dateStr = new Date().toLocaleDateString();
     const timeStr = new Date().toLocaleTimeString();
@@ -496,7 +546,7 @@ function DonationSchedule() {
             <div class="receipt-number">#${donation.id?.substring(0, 8) || 'N/A'}</div>
             
             <div class="receipt-header">
-              <div class="receipt-title">📋 Donation Receipt</div>
+              <div class="receipt-title">Donation Receipt</div>
               <div class="receipt-subtitle">Thank you for your donation!</div>
             </div>
 
@@ -515,7 +565,7 @@ function DonationSchedule() {
               </div>
               <div class="detail-item">
                 <div class="detail-label">Type</div>
-                <div class="detail-value">${isCraft ? ' Craft' : ' Book'}</div>
+                <div class="detail-value">${isCraft ? 'Craft' : 'Book'}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Quantity</div>
@@ -539,13 +589,13 @@ function DonationSchedule() {
               ` : ''}
               <div class="detail-item" style="grid-column: span 2;">
                 <div class="detail-label">Status</div>
-                <div class="detail-value"><span class="status-badge">✅ VERIFIED</span></div>
+                <div class="detail-value"><span class="status-badge">VERIFIED</span></div>
               </div>
             </div>
 
             <div style="text-align: center; margin: 16px 0; padding: 12px; background: #e8f5e9; border-radius: 8px;">
               <p style="font-size: 13px; color: #2E7D32; font-weight: 500;">
-                ✓ This donation has been verified by staff.
+                This donation has been verified by staff.
               </p>
             </div>
 
@@ -556,7 +606,7 @@ function DonationSchedule() {
           </div>
 
           <div class="no-print" style="text-align: center; margin-top: 16px;">
-            <button class="print-btn" onclick="window.print()"> Print / Save as PDF</button>
+            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
             <button class="print-btn" style="background: #6C757D; margin-left: 12px;" onclick="window.close()">Close</button>
           </div>
 
@@ -601,25 +651,28 @@ function DonationSchedule() {
         </div>
       </div>
 
-      <div className="cards-grid">
-        <div className="stat-card accent-warning">
-          <h3>Pending Donations</h3>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
-          <div className="stat-trend">Awaiting review</div>
-          <div className="stat-sub">Donations waiting for staff verification</div>
-        </div>
-        <div className="stat-card">
-          <h3>Total Pending</h3>
-          <div className="stat-value">{pendingCount}</div>
-          <div className="stat-trend">To be reviewed</div>
-          <div className="stat-sub">Donations pending approval</div>
-        </div>
-      </div>
-
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, color: 'var(--teal)', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ 
+              padding: '4px 12px', 
+              borderRadius: '20px', 
+              background: '#fff3e0', 
+              color: '#e65100',
+              fontSize: '13px',
+              fontWeight: '600',
+              fontFamily: 'var(--font-family)'
+            }}>
+              {donations.filter(d => {
+                const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+                const isCraft = d.category && d.category.startsWith('Craft:');
+                let matchesType = true;
+                if (typeFilter === 'BOOKS') matchesType = !isCraft;
+                if (typeFilter === 'CRAFTS') matchesType = isCraft;
+                return matchesSearch && matchesType;
+              }).length} pending
+            </span>
             <input
               type="text"
               placeholder="Search by donor name..."
@@ -650,27 +703,9 @@ function DonationSchedule() {
               }}
             >
               <option value="ALL">All Items (Books & Crafts)</option>
-              <option value="BOOKS"> Books Only</option>
-              <option value="CRAFTS"> Crafts Only</option>
+              <option value="BOOKS">Books Only</option>
+              <option value="CRAFTS">Crafts Only</option>
             </select>
-            <span style={{ 
-              padding: '4px 12px', 
-              borderRadius: '20px', 
-              background: '#fff3e0', 
-              color: '#e65100',
-              fontSize: '13px',
-              fontWeight: '600',
-              fontFamily: 'var(--font-family)'
-            }}>
-              {donations.filter(d => {
-                const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
-                const isCraft = d.category && d.category.startsWith('Craft:');
-                let matchesType = true;
-                if (typeFilter === 'BOOKS') matchesType = !isCraft;
-                if (typeFilter === 'CRAFTS') matchesType = isCraft;
-                return matchesSearch && matchesType;
-              }).length} pending
-            </span>
           </div>
         </div>
 
@@ -742,7 +777,7 @@ function DonationSchedule() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                             Craft • {d.requestedCount || 0}
+                            Craft • {d.requestedCount || 0}
                           </span>
                         ) : (
                           <span style={{
@@ -756,7 +791,7 @@ function DonationSchedule() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                             Book • {d.requestedCount || 0}
+                            Book • {d.requestedCount || 0}
                           </span>
                         )}
                       </td>
@@ -863,9 +898,11 @@ function DonationSchedule() {
               })()}
             </div>
 
+            {/* ===== VERIFIED COUNT WITH VALIDATION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? 'Actual Crafts Received' : 'Actual Books Received'}
+                <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
               </label>
               <input
                 type="number"
@@ -879,56 +916,71 @@ function DonationSchedule() {
                     verifiedCount: count,
                     awardPoints: points.total
                   });
+                  // Clear validation error when user types
+                  if (validationErrors.verifiedCount) {
+                    setValidationErrors({ ...validationErrors, verifiedCount: '' });
+                  }
                 }}
                 min="0"
+                max={selectedDonation?.requestedCount || 0}
                 style={{ 
                   width: '100%', 
                   padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
+                  border: `1px solid ${validationErrors.verifiedCount ? '#dc3545' : 'var(--border-light)'}`,
                   borderRadius: '8px',
                   fontSize: '18px',
                   fontWeight: '600',
                   fontFamily: 'var(--font-family)'
                 }}
               />
+              {validationErrors.verifiedCount && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {validationErrors.verifiedCount}
+                </p>
+              )}
+              <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                Max allowed: {selectedDonation?.requestedCount || 0} books
+              </p>
             </div>
 
+            {/* ===== CONDITION WITH VALIDATION ===== */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Book Condition</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
+              </label>
               <select
                 className="form-control"
                 value={verifyForm.condition}
-                onChange={(e) => setVerifyForm({ ...verifyForm, condition: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
+                onChange={(e) => {
+                  setVerifyForm({ ...verifyForm, condition: e.target.value });
+                  if (validationErrors.condition) {
+                    setValidationErrors({ ...validationErrors, condition: '' });
+                  }
+                }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.condition ? '#dc3545' : 'var(--border-light)'}`,
+                  borderRadius: '8px', 
+                  fontFamily: 'var(--font-family)' 
+                }}
               >
                 <option value="excellent">Excellent</option>
                 <option value="good">Good</option>
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
+              {validationErrors.condition && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {validationErrors.condition}
+                </p>
+              )}
             </div>
 
-            {/* Bundle Assignment */}
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Assign to Bundle</label>
-              <select
-                value={selectedBundleId}
-                onChange={(e) => setSelectedBundleId(e.target.value)}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
-              >
-                <option value="">— No Bundle (Individual Listing) —</option>
-                {bundles.map((bundle) => (
-                  <option key={bundle.id} value={bundle.id}>
-                    {bundle.title} ({bundle.stock || 0} items)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category Dropdown for Staff */}
+            {/* ===== CATEGORY WITH VALIDATION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                Book Category
+                Book Category {!selectedDonation?.category?.startsWith('Craft:') && <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>}
               </label>
               {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
                 <div style={{
@@ -944,36 +996,43 @@ function DonationSchedule() {
                   {selectedDonation.category}
                 </div>
               ) : (
-                <select
-                  className="form-control"
-                  value={verifyForm.category || selectedDonation.category || ''}
-                  onChange={(e) => setVerifyForm({ ...verifyForm, category: e.target.value })}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px 14px', 
-                    border: '1px solid var(--border-light)', 
-                    borderRadius: '8px',
-                    fontSize: '15px',
-                    fontFamily: 'var(--font-family)',
-                    background: 'white'
-                  }}
-                >
-                  <option value="">Select a category...</option>
-                  {BOOK_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {!selectedDonation.category?.startsWith('Craft:') && (
-                <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
-                  {verifyForm.category ? `Selected: ${verifyForm.category}` : 'Select the correct category for this donation'}
-                </p>
+                <>
+                  <select
+                    className="form-control"
+                    value={verifyForm.category || selectedDonation.category || ''}
+                    onChange={(e) => {
+                      setVerifyForm({ ...verifyForm, category: e.target.value });
+                      if (validationErrors.category) {
+                        setValidationErrors({ ...validationErrors, category: '' });
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '10px 14px', 
+                      border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
+                      borderRadius: '8px',
+                      fontSize: '15px',
+                      fontFamily: 'var(--font-family)',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="">Select a category...</option>
+                    {BOOK_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.category && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                      {validationErrors.category}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Download Receipt Checkbox */}
+            {/* ===== DOWNLOAD RECEIPT CHECKBOX ===== */}
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
                 <input
@@ -982,13 +1041,14 @@ function DonationSchedule() {
                   onChange={(e) => setDownloadReceiptAfterVerify(e.target.checked)}
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: 14, fontWeight: 600 }}>📄 Download Receipt after verification</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Download Receipt after verification</span>
               </label>
               <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', marginLeft: '26px', fontFamily: 'var(--font-family)' }}>
                 A printable receipt will be generated for the donor after verification
               </p>
             </div>
 
+            {/* ===== COLLECTION COMPLETE ===== */}
             {selectedDonation.type === 'COLLECTION' && (
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-family)' }}>
@@ -1010,6 +1070,7 @@ function DonationSchedule() {
               </div>
             )}
 
+            {/* ===== STAFF NOTES ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Staff Notes</label>
               <textarea
@@ -1022,6 +1083,7 @@ function DonationSchedule() {
               />
             </div>
 
+            {/* ===== POINTS TO AWARD ===== */}
             <div style={{ 
               padding: '16px', 
               background: '#e8f5e9', 
@@ -1040,8 +1102,9 @@ function DonationSchedule() {
               </span>
             </div>
 
+            {/* ===== ACTION BUTTONS ===== */}
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}>Cancel</button>
+              <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); setValidationErrors({}); }}>Cancel</button>
               <button className="btn-reject" onClick={handleRejectDonation}>Reject</button>
               <button className="btn-save" onClick={handleConfirmVerification}>Verify & Award Points</button>
             </div>
