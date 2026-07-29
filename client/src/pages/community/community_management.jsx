@@ -156,15 +156,35 @@ export default function MessageModeration() {
             </section>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by message or customer name..."
-              style={{ width: '100%', maxWidth: 460, padding: '14px 18px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: '#fff', boxShadow: '0 10px 24px rgba(10,59,50,0.04)' }}
-            />
-            <div style={{ padding: '10px 16px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: space.lg }}>
+            <div style={{ position: 'relative', flex: '1 1 320px', maxWidth: 460 }}>
+              <label htmlFor="message-search" className="visually-hidden">Search messages by content or customer name</label>
+              <Icon name="search" size={19} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: colors.inkSoft, pointerEvents: 'none' }} />
+              <input
+                id="message-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by message or customer name..."
+                style={{ width: '100%', padding: '14px 44px', borderRadius: radius.pill, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: colors.surfaceContainerLowest, boxShadow: '0 10px 24px rgba(10,59,50,0.04)', fontFamily: 'inherit', color: colors.onSurface }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', padding: 7, borderRadius: '50%', border: 'none', background: colors.surfaceContainerHigh, color: colors.onSurfaceVariant }}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              )}
+            </div>
+            <div style={{ padding: '10px 16px', borderRadius: radius.pill, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
           </div>
+
+          {/* Announced to screen readers as the filter narrows the list */}
+          <p aria-live="polite" className="visually-hidden">
+            {loading ? 'Loading messages' : `${filteredMessages.length} ${filteredMessages.length === 1 ? 'message' : 'messages'} shown`}
+          </p>
 
           {error && <Alert onRetry={loadMessages}>{error}</Alert>}
 

@@ -239,6 +239,21 @@ export function CommunityAdminFonts() {
         button, [role="button"] { cursor: pointer; font-family: inherit; }
         button:disabled { cursor: not-allowed; opacity: 0.55; }
 
+        /* Available to screen readers, invisible on screen */
+        .visually-hidden {
+          position: absolute;
+          width: 1px; height: 1px;
+          padding: 0; margin: -1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        /* Inputs should show they have focus like everything else */
+        input, textarea, select { font-family: inherit; }
+        input::-webkit-search-cancel-button { display: none; }
+
         /* Skip past the sidebar straight to the page content */
         .skip-link {
           position: absolute;
