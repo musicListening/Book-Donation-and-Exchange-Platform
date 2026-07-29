@@ -340,8 +340,11 @@ export const donationAPI = {
 // ===== MYSTERY BOX API =====
 export const mysteryBoxAPI = {
     getByUser: async (userId) => {
-        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`);
-        return checkResponse(response);
+        const response = await fetch(`${API_BASE}/mystery-boxes/user/${userId}`, {
+            headers: authHeaders()
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
     },
     claim: async (boxId) => {
         const token = localStorage.getItem('token');

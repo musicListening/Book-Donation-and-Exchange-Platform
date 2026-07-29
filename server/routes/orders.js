@@ -125,6 +125,16 @@ router.post('/', async (req, res) => {
         });
       }
 
+      await tx.notification.create({
+        data: {
+          userId,
+          type: 'ORDER_UPDATE',
+          title: 'Order Placed Successfully!',
+          message: `Your order for ${items.length} item(s) has been placed successfully. Order ID: ${order.id.substring(0, 8).toUpperCase()}`,
+          relatedOrderId: order.id
+        }
+      });
+
       return order;
     });
 
