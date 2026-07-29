@@ -11,6 +11,9 @@ const MEDALS = {
   3: { color: '#CD7F32', gradient: 'linear-gradient(135deg, #CD7F32, #E3A76B)', glow: 'rgba(205,127,50,0.30)' },
 };
 
+// Visual podium order — winner centred, runner-up left, third right
+const PODIUM_ORDER = { 1: 2, 2: 1, 3: 3 };
+
 // Stable fallback colour per donor so the initial badge doesn't change between renders
 const avatarColor = (name = '') => {
   let hash = 0;
@@ -627,16 +630,16 @@ const Home = () => {
 
 
       {/* ============ LEADERBOARD ============ */}
-      <section className="leaderboard-section" style={styles.leaderboard}>
+      <section className="leaderboard-section" style={styles.leaderboard} aria-labelledby="leaderboard-heading">
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <h2 className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
+          <h2 id="leaderboard-heading" className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
           <p className="reveal" style={styles.sectionSubtitle}>
             The readers giving the most books back to the community.
           </p>
         </div>
 
         {boardLoading ? (
-          <div className="leaderboard-podium" style={styles.podium}>
+          <div className="leaderboard-podium" style={styles.podium} aria-hidden="true">
             {[2, 1, 3].map((n) => (
               <div key={n} style={{ ...styles.podiumCard, ...styles.boardSkeleton, height: n === 1 ? 300 : 268 }} />
             ))}
@@ -647,56 +650,55 @@ const Home = () => {
           </div>
         ) : (
         <>
-        {/* Podium — rendered 2nd, 1st, 3rd so the winner sits in the middle */}
-        <div className="leaderboard-podium" style={styles.podium}>
-          {[1, 0, 2]
-            .filter((i) => leaderboard[i])
-            .map((i) => {
-              const donor = leaderboard[i];
-              const isWinner = donor.rank === 1;
-              const medal = MEDALS[donor.rank];
-              return (
-                <div
-                  key={donor.id}
-                  className="card-hover-lift"
-                  style={{
-                    ...styles.podiumCard,
-                    borderTop: `4px solid ${medal.color}`,
-                    // The reveal-stagger transition owns `transform` on these
-                    // cards, so the winner is raised with padding and shadow
-                    // instead of a scale that would get animated away.
-                    ...(isWinner
-                      ? {
-                          padding: '44px 24px 40px',
-                          marginBottom: 12,
-                          boxShadow: `0 16px 45px ${medal.glow}`,
-                          border: `1px solid ${medal.color}`,
-                        }
-                      : {}),
-                  }}
-                >
-                  <div style={{ ...styles.podiumMedal, background: medal.gradient }}>
-                    {donor.rank}
-                  </div>
-                  <Avatar donor={donor} style={styles.podiumAvatar} />
-                  <h4 style={styles.donorName}>{donor.name}</h4>
-                  <span style={styles.donorTier}>
-                    <i className="fa-solid fa-award" style={{ color: medal.color, marginRight: 6 }}></i>
-                    {donor.levelName}
-                  </span>
-                  <div style={styles.donorBooks}>{formatNumber(donor.booksDonated)}</div>
-                  <div style={styles.donorBooksLabel}>Books Donated</div>
-                  <div style={styles.donorPoints}>{formatNumber(donor.points)} points earned</div>
+        {/* Podium — DOM order is 1st, 2nd, 3rd; CSS `order` moves the winner
+            to the middle visually so screen readers still get true ranking. */}
+        <ol className="leaderboard-podium" style={styles.podium}>
+          {leaderboard.slice(0, 3).map((donor) => {
+            const isWinner = donor.rank === 1;
+            const medal = MEDALS[donor.rank];
+            return (
+              <li
+                key={donor.id}
+                className="card-hover-lift"
+                style={{
+                  ...styles.podiumCard,
+                  order: PODIUM_ORDER[donor.rank],
+                  borderTop: `4px solid ${medal.color}`,
+                  // The reveal-stagger transition owns `transform` on these
+                  // cards, so the winner is raised with padding and shadow
+                  // instead of a scale that would get animated away.
+                  ...(isWinner
+                    ? {
+                        padding: '44px 24px 40px',
+                        marginBottom: 12,
+                        boxShadow: `0 16px 45px ${medal.glow}`,
+                        border: `1px solid ${medal.color}`,
+                      }
+                    : {}),
+                }}
+              >
+                <div style={{ ...styles.podiumMedal, background: medal.gradient }} aria-hidden="true">
+                  {donor.rank}
                 </div>
-              );
-            })}
-        </div>
+                <Avatar donor={donor} style={styles.podiumAvatar} />
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>
+                  <i className="fa-solid fa-award" style={{ color: medal.color, marginRight: 6 }} aria-hidden="true"></i>
+                  {donor.levelName}
+                </span>
+                <div style={styles.donorBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>Books Donated</div>
+                <div style={styles.donorPoints}>{formatNumber(donor.points)} points earned</div>
+              </li>
+            );
+          })}
+        </ol>
 
         {leaderboard.length > 3 && (
-        <div style={styles.rankList}>
+        <ol start={4} style={styles.rankList}>
           {leaderboard.slice(3).map((donor) => (
-            <div key={donor.id} className="leaderboard-row" style={styles.rankRow}>
-              <span style={styles.rankNum}>{donor.rank}</span>
+            <li key={donor.id} className="leaderboard-row" style={styles.rankRow}>
+              <span style={styles.rankNum} aria-hidden="true">{donor.rank}</span>
               <Avatar donor={donor} style={styles.rankAvatar} />
               <div>
                 <h4 style={styles.donorName}>{donor.name}</h4>
@@ -706,9 +708,9 @@ const Home = () => {
                 <div style={styles.rankBooks}>{formatNumber(donor.booksDonated)}</div>
                 <div style={styles.donorBooksLabel}>books</div>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
         )}
         </>
         )}
