@@ -42,6 +42,26 @@ function BundleManagement() {
   const [highlightedCategory, setHighlightedCategory] = useState(null);
   const hasNavigatedRef = useRef(false);
   
+  // ===== ADD TO MARKETPLACE STATES =====
+  const [showAddToMarketplaceModal, setShowAddToMarketplaceModal] = useState(false);
+  const [selectedBookToMarketplace, setSelectedBookToMarketplace] = useState(null);
+  const [marketplaceBooksList, setMarketplaceBooksList] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [marketplaceFormData, setMarketplaceFormData] = useState({
+    title: '',
+    price: '',
+    image: null,
+    imagePreview: null,
+    qty: '1',
+    maxQty: 0,
+    existingBook: null,
+    isExistingTitle: false,
+    category: 'General',
+    condition: 'Good',
+    description: '',
+    source: 'Donated Book'
+  });
+  
   // Bundle form data
   const [formData, setFormData] = useState({
     name: '',
@@ -502,51 +522,247 @@ function BundleManagement() {
     setBundleType('book');
   };
 
-  const handleAddBookToMarketplace = async (bookId) => {
-      try {
-          const token = localStorage.getItem('token');
-          const response = await fetch(`${API_BASE}/books/${bookId}/add-to-marketplace`, {
-              method: 'PUT',
-              headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-              }
-          });
-          if (!response.ok) throw new Error('Failed to add to marketplace');
-          alert('Item added to marketplace!');
-          await loadAllData();
-      } catch (error) {
-          console.error('Error adding item to marketplace:', error);
-          alert('Failed to add item to marketplace: ' + error.message);
+  // ===== ADD TO MARKETPLACE FUNCTIONS =====
+  const openMarketplaceForm = async (book) => {
+    console.log('📖 Opening marketplace form for book:', book);
+    setSelectedBookToMarketplace(book);
+    setIsSearching(true);
+    
+    const collectionBooks = bundleBooks[book.collectionId]?.books || [];
+    const unavailableCount = collectionBooks.filter(b => !b.isAvailable).length;
+
+    const bookTitle = book.title || '';
+    
+    setMarketplaceFormData({
+      title: bookTitle,
+      price: book.cashPrice || book.value || '0',
+      image: null,
+      imagePreview: book.imageUrl || null,
+      qty: '1',
+      maxQty: unavailableCount,
+      existingBook: null,
+      isExistingTitle: false,
+      category: book.category || 'General',
+      condition: book.condition || 'Good',
+      description: book.description || '',
+      source: 'Donated Book'
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      console.log('🔍 Fetching marketplace books...');
+      const response = await fetch(`${API_BASE}/books/marketplace`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📚 Marketplace books loaded:', data);
+        setMarketplaceBooksList(data);
+        
+        // Case-insensitive search for existing title
+        const matched = data.find(
+          b => (b.title || '').toLowerCase().trim() === bookTitle.toLowerCase().trim()
+        );
+        
+        console.log('🔍 Searching for:', bookTitle);
+        console.log('📖 Found match:', matched);
+        
+        if (matched) {
+          console.log('✅ Title exists in marketplace!');
+          setMarketplaceFormData(prev => ({
+            ...prev,
+            existingBook: matched,
+            isExistingTitle: true,
+            price: matched.pointsPrice || matched.price || '',
+            imagePreview: matched.imageUrl || null
+          }));
+        } else {
+          console.log('❌ Title does not exist in marketplace. Will create new entry.');
+        }
+      } else {
+        console.error('Failed to fetch marketplace books');
       }
+    } catch (err) {
+      console.error('Failed to load marketplace books:', err);
+    } finally {
+      setIsSearching(false);
+    }
+
+    setShowAddToMarketplaceModal(true);
+  };
+
+  const searchMarketplaceTitle = (typedTitle) => {
+    console.log('🔍 Searching for title:', typedTitle);
+    
+    if (!typedTitle || typedTitle.trim() === '') {
+      setMarketplaceFormData(prev => ({
+        ...prev,
+        title: typedTitle,
+        existingBook: null,
+        isExistingTitle: false
+      }));
+      return;
+    }
+
+    const matched = marketplaceBooksList.find(
+      b => (b.title || '').toLowerCase().trim() === typedTitle.toLowerCase().trim()
+    );
+    
+    console.log('📖 Match found:', matched);
+    
+    if (matched) {
+      setMarketplaceFormData(prev => ({
+        ...prev,
+        title: typedTitle,
+        existingBook: matched,
+        isExistingTitle: true,
+        price: matched.pointsPrice || matched.price || '',
+        imagePreview: matched.imageUrl || null
+      }));
+    } else {
+      setMarketplaceFormData(prev => ({
+        ...prev,
+        title: typedTitle,
+        existingBook: null,
+        isExistingTitle: false
+      }));
+    }
+  };
+
+  const submitToMarketplace = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      
+      // CASE 1: Title already exists - Update quantity only
+      if (marketplaceFormData.existingBook) {
+        console.log('📝 Updating existing marketplace entry...');
+        const existingId = marketplaceFormData.existingBook.id;
+        const newQuantity = (marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty);
+        
+        const response = await fetch(`${API_BASE}/books/marketplace/${existingId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            quantity: newQuantity
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update marketplace quantity');
+        }
+        
+        alert(`✅ Quantity updated! Added ${marketplaceFormData.qty} more to "${marketplaceFormData.existingBook.title}" (Total: ${newQuantity})`);
+        setShowAddToMarketplaceModal(false);
+        await loadAllData();
+        return;
+      }
+      
+      // CASE 2: Title doesn't exist - Create new marketplace entry
+      console.log('🆕 Creating new marketplace entry...');
+      const formData = new FormData();
+      
+      // Use the book's actual title
+      const bookTitle = selectedBookToMarketplace.title || marketplaceFormData.title;
+      
+      // Required fields
+      formData.append('title', bookTitle);
+      formData.append('pointsPrice', marketplaceFormData.price);
+      formData.append('qty', marketplaceFormData.qty);
+      
+      // Book details
+      formData.append('category', selectedBookToMarketplace.category || 'General');
+      formData.append('condition', selectedBookToMarketplace.condition || 'Good');
+      formData.append('description', selectedBookToMarketplace.description || '');
+      formData.append('source', 'Donated Book');
+      formData.append('bookId', selectedBookToMarketplace.id);
+      formData.append('displayTitle', bookTitle);
+      
+      // Image handling
+      if (marketplaceFormData.image) {
+        formData.append('image', marketplaceFormData.image);
+      } else if (selectedBookToMarketplace.imageUrl) {
+        try {
+          const imageResponse = await fetch(selectedBookToMarketplace.imageUrl);
+          if (imageResponse.ok) {
+            const blob = await imageResponse.blob();
+            const file = new File([blob], 'book-image.jpg', { type: blob.type || 'image/jpeg' });
+            formData.append('image', file);
+          }
+        } catch (imgError) {
+          console.warn('Could not fetch existing image:', imgError);
+        }
+      }
+      
+      console.log('📤 Sending to marketplace:', {
+        title: bookTitle,
+        pointsPrice: marketplaceFormData.price,
+        qty: marketplaceFormData.qty,
+        category: selectedBookToMarketplace.category,
+        condition: selectedBookToMarketplace.condition,
+        source: 'Donated Book',
+        bookId: selectedBookToMarketplace.id,
+        hasImage: !!marketplaceFormData.image || !!selectedBookToMarketplace.imageUrl
+      });
+      
+      const response = await fetch(`${API_BASE}/books/${selectedBookToMarketplace.id}/add-to-marketplace`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add to marketplace');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Marketplace response:', result);
+      
+      alert(`✅ "${bookTitle}" added to marketplace successfully!`);
+      setShowAddToMarketplaceModal(false);
+      await loadAllData();
+      
+    } catch (error) {
+      console.error('Error adding book to marketplace:', error);
+      alert('❌ Failed to add book to marketplace: ' + error.message);
+    }
   };
 
   const handleAddAllBooksToMarketplace = async (bundleId) => {
-      const books = bundleBooks[bundleId]?.books || [];
-      const inventoryBooks = books.filter(b => !b.isAvailable);
-      if (inventoryBooks.length === 0) {
-          alert('All items are already on the marketplace!');
-          return;
-      }
-      if (!window.confirm(`Add ${inventoryBooks.length} item(s) to marketplace?`)) return;
-      
-      try {
-          const token = localStorage.getItem('token');
-          for (const book of inventoryBooks) {
-              await fetch(`${API_BASE}/books/${book.id}/add-to-marketplace`, {
-                  method: 'PUT',
-                  headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                  }
-              });
+    const books = bundleBooks[bundleId]?.books || [];
+    const inventoryBooks = books.filter(b => !b.isAvailable);
+    if (inventoryBooks.length === 0) {
+      alert('All items are already on the marketplace!');
+      return;
+    }
+    if (!window.confirm(`Add ${inventoryBooks.length} item(s) to marketplace?`)) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      for (const book of inventoryBooks) {
+        await fetch(`${API_BASE}/books/${book.id}/add-to-marketplace`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
-          alert(`${inventoryBooks.length} item(s) added to marketplace!`);
-          await loadAllData();
-      } catch (error) {
-          console.error('Error adding items to marketplace:', error);
-          alert('Failed to add some items: ' + error.message);
+        });
       }
+      alert(`${inventoryBooks.length} item(s) added to marketplace!`);
+      await loadAllData();
+    } catch (error) {
+      console.error('Error adding items to marketplace:', error);
+      alert('Failed to add some items: ' + error.message);
+    }
   };
 
   // Group bundles by type and category
@@ -1096,7 +1312,7 @@ function BundleManagement() {
         </div>
       )}
 
-      {/* Books in Bundle Modal */}
+      {/* ===== BOOKS IN BUNDLE MODAL ===== */}
       {showBooksModal && selectedBundleForBooks && (
         <div className="modal-overlay">
           <div className="modal-content books-modal">
@@ -1140,7 +1356,7 @@ function BundleManagement() {
                         ) : (
                           <button
                             className="btn-add-marketplace"
-                            onClick={() => handleAddBookToMarketplace(book.id)}
+                            onClick={() => openMarketplaceForm(book)}
                           >
                             Add to Marketplace
                           </button>
@@ -1160,6 +1376,202 @@ function BundleManagement() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ADD TO MARKETPLACE MODAL ===== */}
+      {showAddToMarketplaceModal && selectedBookToMarketplace && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: 500 }}>
+            <div className="bundle-modal-header">
+              <h2>Add to Marketplace</h2>
+              <button
+                className="bundle-modal-close"
+                onClick={() => {
+                  setShowAddToMarketplaceModal(false);
+                  setSelectedBookToMarketplace(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            {isSearching ? (
+              <p style={{ 
+                color: '#6B7280', 
+                marginBottom: 20, 
+                fontSize: 14,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: '#f3f4f6'
+              }}>
+                🔍 Searching marketplace...
+              </p>
+            ) : marketplaceFormData.existingBook ? (
+              <p style={{ 
+                color: '#065f46', 
+                marginBottom: 20, 
+                fontSize: 14,
+                background: '#d1fae5',
+                padding: '10px 16px',
+                borderRadius: 8,
+                fontWeight: 500
+              }}>
+                📚 "{marketplaceFormData.existingBook.title}" already exists in marketplace.
+                <br />
+                <span style={{ fontSize: 13, fontWeight: 400 }}>
+                  Current Qty: {marketplaceFormData.existingBook.quantity || 1} | 
+                  Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price}
+                </span>
+                <br />
+                <span style={{ fontSize: 13, fontWeight: 400, color: '#1A6B68' }}>
+                  Adding {marketplaceFormData.qty} more will make total: {(marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty || 0)}
+                </span>
+              </p>
+            ) : (
+              <p style={{ color: '#5C6A6A', marginBottom: 20, fontSize: 14 }}>
+                Adding new book: <strong>{selectedBookToMarketplace.title}</strong>
+              </p>
+            )}
+            
+            <form onSubmit={submitToMarketplace}>
+              <div className="form-group">
+                <label>Title <span className="required">*</span></label>
+                <input 
+                  type="text" 
+                  required
+                  className="form-control"
+                  value={marketplaceFormData.title}
+                  onChange={(e) => {
+                    const typedTitle = e.target.value;
+                    searchMarketplaceTitle(typedTitle);
+                  }}
+                  placeholder="Enter book title"
+                  style={{
+                    background: marketplaceFormData.existingBook ? '#f0fdf4' : 'white'
+                  }}
+                />
+                {marketplaceFormData.existingBook && (
+                  <p style={{ 
+                    color: '#065f46', 
+                    fontSize: '13px', 
+                    marginTop: '4px', 
+                    fontWeight: '600',
+                    background: '#d1fae5',
+                    padding: '8px 12px',
+                    borderRadius: 6
+                  }}>
+                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price})
+                  </p>
+                )}
+                {!marketplaceFormData.existingBook && marketplaceFormData.title && marketplaceFormData.title.trim() !== '' && !isSearching && (
+                  <p style={{ 
+                    color: '#6B7280', 
+                    fontSize: '13px', 
+                    marginTop: '4px',
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    background: '#f3f4f6'
+                  }}>
+                    ✏️ New title - will create new marketplace entry
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>Quantity to Add <span className="required">*</span></label>
+                <input 
+                  type="number" 
+                  required
+                  min="1"
+                  className="form-control"
+                  value={marketplaceFormData.qty}
+                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, qty: e.target.value})}
+                />
+                <p className="helper-text">
+                  {marketplaceFormData.existingBook 
+                    ? `Current quantity: ${marketplaceFormData.existingBook.quantity || 1}. New total will be ${(marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty || 0)}`
+                    : 'Enter quantity for the new marketplace entry'
+                  }
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label>Price (Points) <span className="required">*</span></label>
+                <input 
+                  type="number" 
+                  required
+                  disabled={!!marketplaceFormData.existingBook}
+                  min="0"
+                  className="form-control"
+                  value={marketplaceFormData.price}
+                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, price: e.target.value})}
+                  style={{ 
+                    background: marketplaceFormData.existingBook ? '#f1f5f9' : 'white'
+                  }}
+                />
+                {marketplaceFormData.existingBook && (
+                  <p className="helper-text">Price is locked for existing titles. Use the same price.</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>Image {!marketplaceFormData.existingBook && <span className="required">*</span>}</label>
+                {marketplaceFormData.imagePreview && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <img src={marketplaceFormData.imagePreview} alt="Preview" style={{ height: '100px', borderRadius: '8px', objectFit: 'cover' }} />
+                  </div>
+                )}
+                {!marketplaceFormData.existingBook ? (
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    className="form-control"
+                    required={!marketplaceFormData.existingBook && !marketplaceFormData.imagePreview}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setMarketplaceFormData({
+                          ...marketplaceFormData,
+                          image: file,
+                          imagePreview: URL.createObjectURL(file)
+                        });
+                      }
+                    }}
+                    style={{ padding: '8px' }}
+                  />
+                ) : (
+                  <p className="helper-text" style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 6 }}>
+                    Using existing image from marketplace
+                  </p>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  type="button"
+                  className="btn-cancel" 
+                  onClick={() => {
+                    setShowAddToMarketplaceModal(false);
+                    setSelectedBookToMarketplace(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    background: marketplaceFormData.existingBook ? '#10b981' : '#1A6B68'
+                  }}
+                >
+                  {marketplaceFormData.existingBook 
+                    ? `✅ Update Quantity (+${marketplaceFormData.qty})` 
+                    : '➕ Add to Marketplace'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
