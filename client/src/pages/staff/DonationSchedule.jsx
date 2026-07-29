@@ -1,6 +1,4 @@
 // pages/staff/DonationSchedule.jsx
-// Complete file with fixes - I'll send the whole thing
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StaffLayout from '../../components/StaffLayout';
@@ -60,6 +58,11 @@ function DonationSchedule() {
   });
 
   // Download state
+    category: '',
+    isCraft: false,
+    requestedPoints: 0
+  });
+
   const [generatingReport, setGeneratingReport] = useState(false);
   const [downloadReceiptAfterVerify, setDownloadReceiptAfterVerify] = useState(false);
 
@@ -84,6 +87,7 @@ function DonationSchedule() {
     fetchAllData();
     fetchConfig();
 
+    // Check if coming from verification
     const fromVerification = sessionStorage.getItem('fromVerification');
     if (fromVerification === 'true') {
       sessionStorage.removeItem('fromVerification');
@@ -175,7 +179,8 @@ function DonationSchedule() {
           awardedMysteryBox: donation.awardedMysteryBox || false,
           condition: donation.condition || null,
           donationImages: donation.donationImages || [],
-          booksDonated: user?.booksDonated || donation.user?.booksDonated || 0
+          booksDonated: user?.booksDonated || donation.user?.booksDonated || 0,
+          requestedPoints: donation.requestedPoints || 0
         };
       });
       
@@ -216,7 +221,17 @@ function DonationSchedule() {
     };
   };
 
-  const calculatePoints = (actualCount, isCollectionComplete) => {
+  const calculatePoints = (actualCount, isCollectionComplete, isCraft, userPoints) => {
+    if (isCraft) {
+      return {
+        basePoints: userPoints || 0,
+        bonus: 0,
+        total: userPoints || 0,
+        baseRate: 0,
+        bonusPct: 0
+      };
+    }
+    
     const baseRate = parseInt(systemConfig.BASE_POINTS_PER_BOOK) || 10;
     const bonusPct = parseInt(systemConfig.COLLECTION_BONUS_PERCENTAGE) || 10;
     const basePoints = actualCount * baseRate;
@@ -243,10 +258,31 @@ function DonationSchedule() {
   };
 
   // ===== VALIDATION FUNCTION =====
+  // ===== FIXED VALIDATION FUNCTION =====
   const validateForm = () => {
     const errors = {};
     
+    // Validate verified count
     if (verifyForm.verifiedCount === undefined || verifyForm.verifiedCount === null) {
+      errors.verifiedCount = 'Please enter the number of books received';
+    } else if (verifyForm.verifiedCount < 0) {
+      errors.verifiedCount = 'Number of books cannot be negative';
+    } else if (verifyForm.verifiedCount > (selectedDonation?.requestedCount || 0)) {
+      errors.verifiedCount = `Cannot verify more than the submitted count (${selectedDonation?.requestedCount || 0})`;
+    } else if (verifyForm.verifiedCount === 0) {
+      errors.verifiedCount = 'Please enter at least 1 book received';
+    }
+
+    // Validate condition
+    if (!verifyForm.condition) {
+      errors.condition = 'Please select a book condition';
+    }
+
+    // Validate category (only for books, not crafts)
+    if (!selectedDonation?.category?.startsWith('Craft:')) {
+      if (!verifyForm.category || verifyForm.category === '') {
+        errors.category = 'Please select a category';
+      }
       errors.verifiedCount = 'Please enter the number of items received';
     } else if (verifyForm.verifiedCount < 0) {
       errors.verifiedCount = 'Number of items cannot be negative';
@@ -256,12 +292,30 @@ function DonationSchedule() {
       errors.verifiedCount = 'Please enter at least 1 item received';
     }
 
-    if (!verifyForm.condition) {
+    // Validate condition
+    if (!verifyForm.condition || verifyForm.condition === '') {
       errors.condition = 'Please select a condition';
     }
 
-    if (!verifyForm.category || verifyForm.category === '') {
-      errors.category = 'Please select a category';
+    // ===== FIXED CATEGORY VALIDATION =====
+    const categoryValue = verifyForm.category || '';
+    const trimmedCategory = categoryValue.trim();
+    
+    // Check if category is empty or just the placeholder
+    const isValidCategory = trimmedCategory !== '' && 
+                           trimmedCategory !== 'Select a craft category...' &&
+                           trimmedCategory !== 'Select a book category...' &&
+                           trimmedCategory !== 'General' &&
+                           trimmedCategory !== 'Select a category...';
+    
+    // Also check if it's a valid category from the lists
+    const allCategories = [...BOOK_CATEGORIES, ...CRAFT_CATEGORIES];
+    const isInCategoryList = allCategories.some(cat => 
+      cat.toLowerCase() === trimmedCategory.toLowerCase()
+    );
+    
+    if (!isValidCategory || !isInCategoryList) {
+      errors.category = 'Please select a valid category from the list';
     }
 
     setValidationErrors(errors);
@@ -272,6 +326,23 @@ function DonationSchedule() {
     setSelectedDonation(donation);
     setValidationErrors({});
     const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
+    
+    const isCraft = donation.category && donation.category.startsWith('Craft:');
+    
+    let points;
+    if (isCraft) {
+      const userRequestedPoints = donation.requestedPoints || donation.estimatedPoints || 0;
+      points = {
+        total: userRequestedPoints,
+        basePoints: userRequestedPoints,
+        bonus: 0,
+        baseRate: 0,
+        bonusPct: 0
+      };
+    } else {
+      points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION', false, 0);
+    }
+    
     setVerifyForm({
       verifiedCount: donation.requestedCount || 0,
       condition: donation.condition || 'good',
@@ -283,38 +354,51 @@ function DonationSchedule() {
       userId: donation.userId || null,
       booksDonated: donation.booksDonated || 0,
       category: donation.category || ''
+      category: donation.category || '',
+      isCraft: isCraft,
+      requestedPoints: isCraft ? (donation.requestedPoints || donation.estimatedPoints || 0) : 0
     });
     setDownloadReceiptAfterVerify(false);
     setShowVerifyModal(true);
 
-    // ===== FETCH BUNDLES =====
+    // Fetch bundles to get the correct bundle ID for each category
     try {
       const token = localStorage.getItem('token');
-      console.log('🔍 Fetching bundles...');
+      console.log('Fetching bundles...');
       const bundleRes = await fetch(`${API_BASE}/collections`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (bundleRes.ok) {
         const bundleData = await bundleRes.json();
         setBundles(bundleData);
-        console.log('✅ Bundles fetched:', bundleData.map(b => ({ id: b.id, category: b.category, type: b.type })));
+        console.log('Bundles fetched:', bundleData.map(b => ({ id: b.id, category: b.category, type: b.type })));
       } else {
-        console.error('❌ Failed to fetch bundles:', bundleRes.status);
+        console.error('Failed to fetch bundles:', bundleRes.status);
       }
     } catch (err) {
       console.warn('Could not fetch bundles:', err);
     }
   };
 
-  // ===== HANDLE CONFIRM VERIFICATION =====
+  // ===== FIXED: UPDATED HANDLE CONFIRM VERIFICATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
       showToast('No donation selected', 'error');
       return;
     }
 
+    // ===== RUN VALIDATION =====
     if (!validateForm()) {
       showToast('Please fix the validation errors before continuing', 'error');
+    // ===== VALIDATE FORM BEFORE SUBMITTING =====
+    if (!validateForm()) {
+      // Show specific error messages
+      const errorMessages = Object.values(validationErrors);
+      if (errorMessages.length > 0) {
+        showToast(errorMessages[0], 'error');
+      } else {
+        showToast('Please fix all validation errors before continuing', 'error');
+      }
       return;
     }
 
@@ -325,26 +409,44 @@ function DonationSchedule() {
         return;
       }
 
-      const isCraft = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
-      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
-      
-      console.log(`🔍 Selected Category from form: "${selectedCategory}"`);
-      console.log(`🔍 Is Craft: ${isCraft}`);
-      console.log(`🔍 Available bundles:`, bundles.map(b => ({ id: b.id, category: b.category, type: b.type })));
-
       // ===== FIND BUNDLE ID FOR THE SELECTED CATEGORY =====
-      let bundleIdForCategory = null;
-      
       const getBundleIdForCategory = (category) => {
         const matchingBundle = bundles.find(b => b.category === category);
         return matchingBundle ? matchingBundle.id : null;
       };
       
+      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
+      const bundleIdForCategory = getBundleIdForCategory(selectedCategory);
+
+      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}`);
+      const isCraft = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
+      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
+      
+      console.log(`Selected Category from form: "${selectedCategory}"`);
+      console.log(`Is Craft: ${isCraft}`);
+
+      let bundleIdForCategory = null;
+      
+      const getBundleIdForCategory = (category) => {
+        let match = bundles.find(b => b.category === category);
+        if (!match) {
+          match = bundles.find(b => b.category?.toLowerCase() === category.toLowerCase());
+        }
+        return match ? match.id : null;
+      };
+      
       bundleIdForCategory = getBundleIdForCategory(selectedCategory);
-      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}, isCraft: ${isCraft}`);
+      console.log(`Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}, isCraft: ${isCraft}`);
 
       if (!bundleIdForCategory) {
-        console.log(`⚠️ No bundle found for category: ${selectedCategory}, backend will create one`);
+        console.log(`No bundle found for category: ${selectedCategory}, backend will create one`);
+      }
+
+      let pointsToAward = verifyForm.awardPoints;
+      
+      if (isCraft) {
+        pointsToAward = selectedDonation.requestedPoints || selectedDonation.estimatedPoints || verifyForm.awardPoints || 0;
+        console.log(`Craft points from user: ${pointsToAward}`);
       }
 
       const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/verify`, {
@@ -360,9 +462,12 @@ function DonationSchedule() {
           staffId: currentUser.id,
           isCollectionComplete: verifyForm.isComplete,
           bundleId: bundleIdForCategory,
+          addToMarketplace: true, // Always add to marketplace
+          category: selectedCategory
           addToMarketplace: false,
           category: selectedCategory,
-          isCraft: isCraft
+          isCraft: isCraft,
+          pointsToAward: pointsToAward
         })
       });
 
@@ -377,7 +482,7 @@ function DonationSchedule() {
       }
 
       const result = await response.json();
-      const { points, leveledUp, newLevel, newBooksDonated } = result;
+      const { points, leveledUp, newLevel, newBooksDonated, bundleId: returnedBundleId } = result;
 
       setLeveledUpResult(leveledUp ? { newLevel, newBooksDonated } : null);
       setDonations(prevDonations => prevDonations.filter(d => d.id !== selectedDonation.id));
@@ -392,6 +497,11 @@ function DonationSchedule() {
       });
       setValidationErrors({});
 
+      // ===== REFRESH DATA FIRST =====
+        category: '', isCraft: false, requestedPoints: 0
+      });
+      setValidationErrors({});
+
       await fetchAllData();
 
       if (downloadReceiptAfterVerify) {
@@ -400,15 +510,44 @@ function DonationSchedule() {
         }, 500);
       }
 
+      showToast(`Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
+
+      // ===== FIX: Navigate to Bundle Management with session flag =====
+      setTimeout(() => {
+        // Set flag to indicate we're coming from verification
+        sessionStorage.setItem('fromVerification', 'true');
+        
+        if (window.confirm(`✅ Donation verified successfully!\n\nBooks added to "${selectedCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the books?`)) {
+          navigate('/staff/bundle-management');
+
       const itemType = isCraft ? 'Craft' : 'Books';
       const displayCategory = isCraft ? selectedCategory.replace('Craft: ', '') : selectedCategory;
-      showToast(`✅ Donation verified! ${points} points awarded. ${itemType} added to "${displayCategory}" bundle.${levelUpMsg}`, 'success');
+      const pointsAwarded = isCraft ? pointsToAward : (points?.total || 0);
+      showToast(`Donation verified! ${pointsAwarded} points awarded. ${itemType} added to "${displayCategory}" bundle.${levelUpMsg}`, 'success');
+
+      const finalBundleId = returnedBundleId || bundleIdForCategory;
+      const navigationState = {
+        bundleId: finalBundleId,
+        category: selectedCategory,
+        type: isCraft ? 'craft' : 'book',
+        displayName: displayCategory,
+        timestamp: Date.now()
+      };
+      
+      console.log('Storing navigation state:', navigationState);
+      sessionStorage.setItem('bundleNavigationState', JSON.stringify(navigationState));
 
       setTimeout(() => {
         sessionStorage.setItem('fromVerification', 'true');
         
-        if (window.confirm(`✅ Donation verified successfully!\n\n${itemType} added to "${displayCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the items?`)) {
-          navigate('/staff/bundle-management');
+        if (window.confirm(`Donation verified successfully!\n\n${itemType} added to "${displayCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the items?`)) {
+          navigate('/staff/bundle-management', { 
+            state: {
+              bundleId: finalBundleId,
+              category: selectedCategory,
+              type: isCraft ? 'craft' : 'book'
+            }
+          });
         } else {
           showToast('You can also go to Bundle Management from the sidebar.', 'info');
         }
@@ -453,6 +592,10 @@ function DonationSchedule() {
         currentPoints: 0,
         userId: null,
         category: ''
+        booksDonated: 0,
+        category: '',
+        isCraft: false,
+        requestedPoints: 0
       });
       setValidationErrors({});
 
@@ -606,6 +749,7 @@ function DonationSchedule() {
               <div class="detail-item">
                 <div class="detail-label">Points Awarded</div>
                 <div class="detail-value"><strong>${donation.estimatedPoints || 0} pts</strong></div>
+                <div class="detail-value"><strong>${isCraft ? (donation.requestedPoints || donation.estimatedPoints || 0) : (donation.estimatedPoints || 0)} pts</strong></div>
               </div>
               ${donation.collectionName ? `
                 <div class="detail-item" style="grid-column: span 2;">
@@ -681,11 +825,12 @@ function DonationSchedule() {
           <h1>Donation Management</h1>
           <p className="page-subtitle">Review and award points for pending donation submissions</p>
         </div>
+        {/* user-info div REMOVED - profile is already in StaffLayout top bar */}
       </div>
 
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, color: 'var(--teal)', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
+          <h3 style={{ margin: 0, color: '#1E4D4B', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ 
               padding: '4px 12px', 
@@ -767,6 +912,7 @@ function DonationSchedule() {
                   <th>Donor Name</th>
                   <th>Category</th>
                   <th>Type & Qty</th>
+                  <th>Points</th>
                   <th>Status</th>
                   <th>Submitted</th>
                   <th>Actions</th>
@@ -785,6 +931,7 @@ function DonationSchedule() {
                   .map((d) => {
                   const levelInfo = getLevelBadge(d.userLevel || 0);
                   const isCraft = d.category && d.category.startsWith('Craft:');
+                  const displayPoints = isCraft ? (d.requestedPoints || d.estimatedPoints || 0) : (d.estimatedPoints || 0);
                   return (
                     <tr key={d.id}>
                       <td>
@@ -827,6 +974,9 @@ function DonationSchedule() {
                           </span>
                         )}
                       </td>
+                      <td style={{ fontFamily: 'var(--font-family)', fontWeight: '600' }}>
+                        {displayPoints} pts
+                      </td>
                       <td>
                         <span className="status-badge draft">Pending</span>
                       </td>
@@ -865,25 +1015,27 @@ function DonationSchedule() {
       {showVerifyModal && selectedDonation && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '550px' }}>
-            <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Verify Donation</h2>
+            <h2 style={{ color: '#1E4D4B', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Verify Donation</h2>
             <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
               Review donation from <strong>{selectedDonation.donor}</strong>
             </p>
 
             <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '8px' }}>
-              <h4 style={{ color: 'var(--teal)', marginBottom: '12px', fontFamily: 'var(--font-family)' }}>Donation Summary</h4>
+              <h4 style={{ color: '#1E4D4B', marginBottom: '12px', fontFamily: 'var(--font-family)' }}>Donation Summary</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px', fontFamily: 'var(--font-family)' }}>
                 <p><strong>Type:</strong> {selectedDonation.type || 'SINGLE_BOOK'}</p>
                 <p><strong>Category:</strong> {selectedDonation.category}</p>
                 <p><strong>Items Submitted:</strong> {selectedDonation.requestedCount}</p>
                 <p><strong>Est. Points:</strong> {selectedDonation.estimatedPoints}</p>
+                {selectedDonation.category && selectedDonation.category.startsWith('Craft:') && (
+                  <p><strong>User Requested Points:</strong> {selectedDonation.requestedPoints || selectedDonation.estimatedPoints || 0}</p>
+                )}
                 <p><strong>Current Level:</strong> {getLevelBadge(selectedDonation.userLevel || 0).label}</p>
                 <p><strong>Current Points:</strong> {selectedDonation.userPoints || 0}</p>
                 {selectedDonation.collectionName && <p><strong>Collection:</strong> {selectedDonation.collectionName}</p>}
                 {selectedDonation.notes && <p><strong>Notes:</strong> {selectedDonation.notes}</p>}
               </div>
 
-            {/* Donor Uploaded Images */}
             {selectedDonation.donationImages && selectedDonation.donationImages.length > 0 && (
               <div style={{ marginTop: 16, marginBottom: 16 }}>
                 <h4 style={{ marginBottom: 8, fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-family)' }}>
@@ -931,6 +1083,7 @@ function DonationSchedule() {
             </div>
 
             {/* ===== VERIFIED COUNT WITH VALIDATION ===== */}
+            {/* ===== VERIFIED COUNT ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? 'Actual Crafts Received' : 'Actual Books Received'}
@@ -942,12 +1095,23 @@ function DonationSchedule() {
                 value={verifyForm.verifiedCount}
                 onChange={(e) => {
                   const count = parseInt(e.target.value) || 0;
-                  const points = calculatePoints(count, verifyForm.isComplete && selectedDonation.type === 'COLLECTION');
+                  const isCraft = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
+                  
+                  let points;
+                  if (isCraft) {
+                    const userPoints = selectedDonation.requestedPoints || selectedDonation.estimatedPoints || 0;
+                    points = userPoints;
+                  } else {
+                    const calcPoints = calculatePoints(count, verifyForm.isComplete && selectedDonation.type === 'COLLECTION', false, 0);
+                    points = calcPoints.total;
+                  }
+                  
                   setVerifyForm({ 
                     ...verifyForm, 
                     verifiedCount: count,
-                    awardPoints: points.total
+                    awardPoints: points
                   });
+                  // Clear validation error when user types
                   if (validationErrors.verifiedCount) {
                     setValidationErrors({ ...validationErrors, verifiedCount: '' });
                   }
@@ -970,11 +1134,19 @@ function DonationSchedule() {
                 </p>
               )}
               <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
-                Max allowed: {selectedDonation?.requestedCount || 0} items
+                Max allowed: {selectedDonation?.requestedCount || 0} books
               </p>
             </div>
 
             {/* ===== CONDITION WITH VALIDATION ===== */}
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
+                Max allowed: {selectedDonation?.requestedCount || 0} items
+              </p>
+            </div>
+
+            {/* ===== CONDITION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
@@ -1008,7 +1180,63 @@ function DonationSchedule() {
               )}
             </div>
 
-            {/* ===== CATEGORY WITH VALIDATION - FIXED ===== */}
+            {/* ===== CATEGORY WITH VALIDATION ===== */}
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Category {!selectedDonation?.category?.startsWith('Craft:') && <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>}
+              </label>
+              {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
+                <div style={{
+                  padding: '10px 14px',
+                  background: '#f0f7f6',
+                  borderRadius: '8px',
+                  border: '1px solid #b2dfdb',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  color: '#1E4D4B',
+                  fontFamily: 'var(--font-family)'
+                }}>
+                  {selectedDonation.category}
+                </div>
+              ) : (
+                <>
+                  <select
+                    className="form-control"
+                    value={verifyForm.category || selectedDonation.category || ''}
+                    onChange={(e) => {
+                      setVerifyForm({ ...verifyForm, category: e.target.value });
+                      if (validationErrors.category) {
+                        setValidationErrors({ ...validationErrors, category: '' });
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '10px 14px', 
+                      border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
+                      borderRadius: '8px',
+                      fontSize: '15px',
+                      fontFamily: 'var(--font-family)',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="">Select a category...</option>
+                    {BOOK_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.category && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                      {validationErrors.category}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ===== DOWNLOAD RECEIPT CHECKBOX ===== */}
+            {/* ===== CATEGORY WITH FIXED VALIDATION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 Category <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
@@ -1017,10 +1245,12 @@ function DonationSchedule() {
               {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
                 <select
                   className="form-control"
-                  value={verifyForm.category || selectedDonation.category || ''}
+                  value={verifyForm.category || ''}
                   onChange={(e) => {
-                    setVerifyForm({ ...verifyForm, category: e.target.value });
-                    if (validationErrors.category) {
+                    const value = e.target.value;
+                    setVerifyForm({ ...verifyForm, category: value });
+                    // Clear validation error when user selects a value
+                    if (validationErrors.category && value && value !== '') {
                       setValidationErrors({ ...validationErrors, category: '' });
                     }
                   }}
@@ -1037,17 +1267,19 @@ function DonationSchedule() {
                   <option value="">Select a craft category...</option>
                   {CRAFT_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
-                      {cat.replace('Craft: ', '')}
+                      {cat}
                     </option>
                   ))}
                 </select>
               ) : (
                 <select
                   className="form-control"
-                  value={verifyForm.category || selectedDonation.category || ''}
+                  value={verifyForm.category || ''}
                   onChange={(e) => {
-                    setVerifyForm({ ...verifyForm, category: e.target.value });
-                    if (validationErrors.category) {
+                    const value = e.target.value;
+                    setVerifyForm({ ...verifyForm, category: value });
+                    // Clear validation error when user selects a value
+                    if (validationErrors.category && value && value !== '') {
                       setValidationErrors({ ...validationErrors, category: '' });
                     }
                   }}
@@ -1076,7 +1308,7 @@ function DonationSchedule() {
               )}
             </div>
 
-            {/* ===== DOWNLOAD RECEIPT CHECKBOX ===== */}
+            {/* ===== DOWNLOAD RECEIPT ===== */}
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
                 <input
@@ -1101,11 +1333,18 @@ function DonationSchedule() {
                     checked={verifyForm.isComplete}
                     onChange={(e) => {
                       const isComplete = e.target.checked;
-                      const points = calculatePoints(verifyForm.verifiedCount, isComplete);
+                      const isCraft = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
+                      let points;
+                      if (isCraft) {
+                        points = selectedDonation.requestedPoints || selectedDonation.estimatedPoints || 0;
+                      } else {
+                        const calcPoints = calculatePoints(verifyForm.verifiedCount, isComplete, false, 0);
+                        points = calcPoints.total;
+                      }
                       setVerifyForm({ 
                         ...verifyForm, 
                         isComplete,
-                        awardPoints: points.total
+                        awardPoints: points
                       });
                     }}
                   />
@@ -1141,7 +1380,7 @@ function DonationSchedule() {
               fontFamily: 'var(--font-family)'
             }}>
               <span style={{ fontWeight: '500' }}>Points to Award:</span>
-              <span style={{ fontSize: '24px', fontWeight: '700', color: 'var(--teal)' }}>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: '#1E4D4B' }}>
                 {verifyForm.awardPoints}
               </span>
             </div>
