@@ -151,24 +151,21 @@ export default function CommunityAdminDashboard() {
         }
       `}</style>
 
+      <a className="skip-link" href="#dashboard-content">Skip to content</a>
       <CommunitySidebar active="dashboard" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
 
       <main style={{ marginLeft: isMd ? 280 : 0, minHeight: '100vh', background: colors.surface, display: 'flex', flexDirection: 'column' }}>
         <CommunityHeader title="Dashboard" subtitle="Overview and recent activity" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+        <div id="dashboard-content" tabIndex={-1} className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
           <div className="dashboard-hero">
             <section className="soft-card" style={{ padding: 30 }}>
               <p className="eyebrow">Overview</p>
               <h3 className="page-title">Welcome back{user?.name ? `, ${user.name}` : ''}</h3>
               <p className="page-subtitle">Check your numbers and manage events or messages from here.</p>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 26 }}>
-                <Link to="/community-admin/events" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.primary, color: colors.onPrimary, fontWeight: 700 }}>
-                  <Icon name="add_circle" size={18} /> New event
-                </Link>
-                <Link to="/community-admin/messages" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}`, fontWeight: 700 }}>
-                  <Icon name="forum" size={18} /> Review messages
-                </Link>
+                <Button as={Link} to="/community-admin/events" icon="add_circle">New event</Button>
+                <Button as={Link} to="/community-admin/messages" variant="accent" icon="forum">Review messages</Button>
               </div>
             </section>
             <section className="soft-card" style={{ padding: 30 }}>
@@ -204,9 +201,9 @@ export default function CommunityAdminDashboard() {
               <p className="eyebrow">Publishing feed</p>
               <h3 style={{ fontSize: 24, fontWeight: 700, color: colors.onSurface, fontFamily: "'Playfair Display', serif" }}>Latest events</h3>
             </div>
-            <Link to="/community-admin/events" style={{ color: colors.primary, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}` }}>
+            <Button as={Link} to="/community-admin/events" variant="accent" size="sm">
               Manage events <Icon name="arrow_forward" size={16} />
-            </Link>
+            </Button>
           </div>
 
           {loading && (
