@@ -28,6 +28,7 @@ const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 export default function AdminLayout({ children, title, hideHeaderLabel = false, hideNotifications = false }) {
   const navigate = useNavigate();
+  // State declarations
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [now, setNow] = useState(new Date());
@@ -37,6 +38,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
     return () => clearInterval(timer);
   }, []);
 
+  // getUser helper
   const getUser = () => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
   };
@@ -52,6 +54,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
   };
 
   const user = getUser();
+  // initials derivation
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';
@@ -128,7 +131,7 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
         </div>
       </aside>
 
-      {/* Main content flow */}
+      {/* Main content area */}
       <main className="main-content-flow">
         {/* TopBar */}
         <header className="top-header-bar">
@@ -143,13 +146,11 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
           <h2 className="topbar-title">{title || "Admin Console"}</h2>
 
           <div className="topbar-actions">
-            {/* Date badge */}
             <div className="topbar-date-badge">
               <span className="date-pulse-dot" />
               {dateStr} · {timeStr}
             </div>
 
-            {/* Notifications */}
             {!hideNotifications && (
               <button
                 className="topbar-notification-btn"
@@ -160,7 +161,6 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
               </button>
             )}
 
-            {/* User dropdown */}
             <div className="topbar-user-menu-wrapper">
               <button
                 className={cn("topbar-user-menu-trigger", userMenuOpen && "menu-active")}
