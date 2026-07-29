@@ -1,7 +1,9 @@
 // pages/staff/BundleManagement.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import StaffLayout from '../../components/StaffLayout';
 import { collectionAPI, bookAPI, API_BASE } from '../../services/api';
+import '../../styles/BundleManagement.css';
 
 // ===== BOOK CATEGORIES CONSTANT =====
 const BOOK_CATEGORIES = [
@@ -13,7 +15,7 @@ const BOOK_CATEGORIES = [
   'Mixed'
 ];
 
-// ===== CRAFT CATEGORIES CONSTANT - UPDATED =====
+// ===== CRAFT CATEGORIES CONSTANT =====
 const CRAFT_CATEGORIES = [
   'Craft: Paper Crafts (Origami, Quilling)',
   'Craft: Woodwork (Carvings, Small Furniture)',
@@ -23,6 +25,7 @@ const CRAFT_CATEGORIES = [
 ];
 
 function BundleManagement() {
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +39,8 @@ function BundleManagement() {
   const [bundleType, setBundleType] = useState('book');
   const [showBookBundles, setShowBookBundles] = useState(true);
   const [showCraftBundles, setShowCraftBundles] = useState(true);
+  const [highlightedCategory, setHighlightedCategory] = useState(null);
+  const hasNavigatedRef = useRef(false);
   
   // Bundle form data
   const [formData, setFormData] = useState({
@@ -91,7 +96,6 @@ function BundleManagement() {
       const existingBundles = await collectionAPI.getAll();
       const existingCategories = existingBundles.map(b => b.category);
       
-      // Create book bundles for each category that doesn't exist
       for (const category of BOOK_CATEGORIES) {
         if (!existingCategories.includes(category)) {
           await collectionAPI.create({
@@ -105,11 +109,10 @@ function BundleManagement() {
             isRare: false,
             userId: currentUser.id
           });
-          console.log(`✅ Created default book bundle for ${category}`);
+          console.log(`Created default book bundle for ${category}`);
         }
       }
       
-      // Create craft bundles for each category that doesn't exist
       for (const category of CRAFT_CATEGORIES) {
         if (!existingCategories.includes(category)) {
           await collectionAPI.create({
@@ -123,7 +126,7 @@ function BundleManagement() {
             isRare: false,
             userId: currentUser.id
           });
-          console.log(`✅ Created default craft bundle for ${category}`);
+          console.log(`Created default craft bundle for ${category}`);
         }
       }
     } catch (error) {
@@ -135,11 +138,9 @@ function BundleManagement() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Load bundles
       let bundlesData = await collectionAPI.getAll();
-      console.log('✅ Bundles loaded:', bundlesData);
+      console.log('Bundles loaded:', bundlesData);
       
-      // If no bundles exist, create default ones
       if (bundlesData.length === 0) {
         await createDefaultBundles();
         bundlesData = await collectionAPI.getAll();
@@ -147,7 +148,7 @@ function BundleManagement() {
       
       const mappedBundles = bundlesData.map(item => ({
         id: item.id,
-        bundleId: item.slug || `#BND-${String(item.id).slice(0, 4).toUpperCase()}`,
+        bundleId: item.slug || `BND-${String(item.id).slice(0, 4).toUpperCase()}`,
         name: item.title,
         includes: item.description || 'No description',
         items: item.stock || 0,
@@ -162,11 +163,11 @@ function BundleManagement() {
         cashPrice: item.cashPrice || 0,
         stock: item.stock || 0,
         category: item.category || 'General',
-        type: item.type || 'book'
+        type: (item.type || '').toLowerCase() === 'craft' || 
+              (item.category && item.category.startsWith('Craft:')) ? 'craft' : 'book'
       }));
       setBundles(mappedBundles);
       
-      // Fetch book counts for each collection
       const bookCounts = {};
       let totalBooks = 0;
       let totalCrafts = 0;
@@ -180,7 +181,9 @@ function BundleManagement() {
               count: booksData.length,
               books: booksData,
             };
-            if (col.type === 'craft') {
+            const isCraft = col.category?.startsWith('Craft:') || 
+                          (col.type || '').toLowerCase() === 'craft';
+            if (isCraft) {
               totalCrafts += booksData.length;
             } else {
               totalBooks += booksData.length;
@@ -192,7 +195,6 @@ function BundleManagement() {
       }
       setBundleBooks(bookCounts);
       
-      // Calculate stats
       const totalBundles = mappedBundles.length;
       const draftBundles = mappedBundles.filter(b => b.status === 'DRAFT').length;
       const publishedBundles = mappedBundles.filter(b => b.status === 'PUBLISHED').length;
@@ -205,17 +207,130 @@ function BundleManagement() {
         totalCrafts
       });
       
+      processNavigation(mappedBundles);
+      
     } catch (error) {
-      console.error('❌ Error loading data:', error);
+      console.error('Error loading data:', error);
       alert('Failed to load data: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // ===== PROCESS NAVIGATION =====
+  const processNavigation = (bundlesList) => {
+    if (hasNavigatedRef.current) return;
+    if (!bundlesList || bundlesList.length === 0) return;
+    
+    let targetCategory = null;
+    
+    if (location.state) {
+      const { bundleId, category, type } = location.state;
+      console.log('Location state received:', { bundleId, category, type });
+      
+      if (bundleId) {
+        const bundle = bundlesList.find(b => b.id === bundleId);
+        if (bundle) {
+          targetCategory = bundle.category;
+          console.log('Found bundle by ID:', { bundleId, category: targetCategory });
+        }
+      } else if (category) {
+        const bundle = bundlesList.find(b => 
+          b.category?.toLowerCase() === category.toLowerCase()
+        );
+        if (bundle) {
+          targetCategory = bundle.category;
+        } else {
+          targetCategory = category;
+        }
+      }
+    }
+    
+    if (!targetCategory) {
+      const storedState = sessionStorage.getItem('bundleNavigationState');
+      if (storedState) {
+        try {
+          const state = JSON.parse(storedState);
+          if (Date.now() - state.timestamp < 60000) {
+            console.log('SessionStorage state:', state);
+            if (state.bundleId) {
+              const bundle = bundlesList.find(b => b.id === state.bundleId);
+              if (bundle) {
+                targetCategory = bundle.category;
+              }
+            } else if (state.category) {
+              const bundle = bundlesList.find(b => 
+                b.category?.toLowerCase() === state.category.toLowerCase()
+              );
+              targetCategory = bundle ? bundle.category : state.category;
+            }
+          }
+          sessionStorage.removeItem('bundleNavigationState');
+        } catch (e) {
+          console.warn('Could not parse stored navigation state');
+        }
+      }
+    }
+    
+    if (targetCategory) {
+      console.log('Navigating to category:', targetCategory);
+      setHighlightedCategory(targetCategory);
+      hasNavigatedRef.current = true;
+      
+      if (targetCategory.startsWith('Craft:')) {
+        setShowCraftBundles(true);
+      } else {
+        setShowBookBundles(true);
+      }
+      
+      setTimeout(() => {
+        scrollToCategory(targetCategory);
+      }, 800);
+    }
+    
+    if (location.state) {
+      window.history.replaceState({}, document.title);
+    }
+  };
+
+  // ===== SCROLL TO CATEGORY =====
+  const scrollToCategory = (categoryName) => {
+    if (!categoryName) return;
+    
+    const elementId = `category-section-${categoryName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    let element = document.getElementById(elementId);
+    
+    if (!element) {
+      const displayName = categoryName.replace('Craft: ', '');
+      const altElementId = `category-section-${displayName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      element = document.getElementById(altElementId);
+    }
+    
+    if (element) {
+      console.log('Scrolling to element:', elementId);
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      element.classList.add('highlighted');
+      setTimeout(() => {
+        element.classList.remove('highlighted');
+      }, 5000);
+    } else {
+      console.warn('Category element not found:', categoryName);
+    }
+  };
+
   useEffect(() => {
     loadAllData();
+    return () => {
+      hasNavigatedRef.current = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!loading && bundles.length > 0 && !hasNavigatedRef.current) {
+      processNavigation(bundles);
+    }
+  }, [loading, bundles]);
 
   const getUserInitials = () => {
     if (currentUser.name) {
@@ -302,14 +417,14 @@ function BundleManagement() {
         isRare: formData.status === 'PUBLISHED',
         userId: currentUser.id
       });
-      console.log('✅ Bundle created:', newBundle);
+      console.log('Bundle created:', newBundle);
       
       await loadAllData();
       setShowModal(false);
       resetForm();
       alert('Bundle created successfully!');
     } catch (error) {
-      console.error('❌ Error creating bundle:', error);
+      console.error('Error creating bundle:', error);
       alert('Failed to create bundle: ' + error.message);
     }
   };
@@ -347,7 +462,7 @@ function BundleManagement() {
         cashPrice: parseFloat(formData.value),
         isRare: formData.status === 'PUBLISHED'
       });
-      console.log('✅ Bundle updated:', updated);
+      console.log('Bundle updated:', updated);
       
       await loadAllData();
       setShowModal(false);
@@ -355,7 +470,7 @@ function BundleManagement() {
       resetForm();
       alert('Bundle updated successfully!');
     } catch (error) {
-      console.error('❌ Error updating bundle:', error);
+      console.error('Error updating bundle:', error);
       alert('Failed to update bundle: ' + error.message);
     }
   };
@@ -364,11 +479,11 @@ function BundleManagement() {
     if (!window.confirm('Are you sure you want to delete this bundle?')) return;
     try {
       await collectionAPI.delete(id);
-      console.log('✅ Bundle deleted');
+      console.log('Bundle deleted');
       await loadAllData();
       alert('Bundle deleted successfully!');
     } catch (error) {
-      console.error('❌ Error deleting bundle:', error);
+      console.error('Error deleting bundle:', error);
       alert('Failed to delete bundle: ' + error.message);
     }
   };
@@ -440,26 +555,36 @@ function BundleManagement() {
     const craftBundles = {};
     const filtered = getFilteredBundles();
     
-    // Initialize book categories
     BOOK_CATEGORIES.forEach(cat => {
       bookBundles[cat] = [];
     });
     
-    // Initialize craft categories
     CRAFT_CATEGORIES.forEach(cat => {
       craftBundles[cat] = [];
     });
     
-    // Add bundles to their respective type and category
     filtered.forEach(bundle => {
       const category = bundle.category || 'General';
-      if (bundle.type === 'craft') {
-        if (CRAFT_CATEGORIES.includes(category)) {
-          craftBundles[category].push(bundle);
+      const isCraft = (bundle.type || '').toLowerCase() === 'craft' || 
+                      (category && category.startsWith('Craft:'));
+      
+      if (isCraft) {
+        const matchingCat = CRAFT_CATEGORIES.find(cat => 
+          cat.toLowerCase() === category.toLowerCase()
+        );
+        if (matchingCat) {
+          craftBundles[matchingCat].push(bundle);
+        } else {
+          craftBundles['Craft: Mixed Media / Other'].push(bundle);
         }
       } else {
-        if (BOOK_CATEGORIES.includes(category)) {
-          bookBundles[category].push(bundle);
+        const matchingCat = BOOK_CATEGORIES.find(cat => 
+          cat.toLowerCase() === category.toLowerCase()
+        );
+        if (matchingCat) {
+          bookBundles[matchingCat].push(bundle);
+        } else {
+          bookBundles['Mixed'].push(bundle);
         }
       }
     });
@@ -471,47 +596,53 @@ function BundleManagement() {
   const bookCategoryNames = BOOK_CATEGORIES;
   const craftCategoryNames = CRAFT_CATEGORIES;
 
+  const getCategoryElementId = (categoryName) => {
+    return `category-section-${categoryName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+  };
+
   return (
     <StaffLayout>
       <div className="content-header">
         <div>
           <h1>Bundle Management</h1>
           <p className="page-subtitle">Curate, monitor, and publish book collections for the marketplace.</p>
-        </div>
-        <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
-          <div className="user-avatar">{getUserInitials()}</div>
+          {highlightedCategory && (
+            <div className="navigated-banner">
+              <span>
+                Navigated to: <strong>{highlightedCategory.replace('Craft: ', '')}</strong>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div className="bundle-stats">
         <div className="stat-card">
           <h3>TOTAL BUNDLES</h3>
           <div className="stat-value">{stats.totalBundles}</div>
           <div className="stat-trend">All collections</div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card accent-warning">
           <h3>DRAFT</h3>
-          <div className="stat-value" style={{ color: '#ffc107' }}>{stats.draftBundles}</div>
+          <div className="stat-value">{stats.draftBundles}</div>
           <div className="stat-trend">Awaiting approval</div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card accent-success">
           <h3>PUBLISHED</h3>
-          <div className="stat-value" style={{ color: '#28a745' }}>{stats.publishedBundles}</div>
+          <div className="stat-value">{stats.publishedBundles}</div>
           <div className="stat-trend">Available in marketplace</div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card accent-teal">
           <h3>BOOKS</h3>
           <div className="stat-value">{stats.totalBooks}</div>
           <div className="stat-trend">In book bundles</div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card accent-teal">
           <h3>CRAFTS</h3>
           <div className="stat-value">{stats.totalCrafts}</div>
           <div className="stat-trend">In craft bundles</div>
@@ -524,130 +655,80 @@ function BundleManagement() {
           <h3>Bundle Inventory</h3>
           <div className="table-controls">
             <select 
-              className="filter-btn" 
+              className="filter-select" 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ 
-                padding: '8px 16px', 
-                border: '1px solid #e5e5e5', 
-                borderRadius: '8px', 
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
             >
-              <option value="All Statuses">All Statuses ▼</option>
+              <option value="All Statuses">All Statuses</option>
               <option value="DRAFT">Draft</option>
               <option value="PUBLISHED">Published</option>
             </select>
 
-            <button className="new-donation-btn" onClick={() => { resetForm(); setEditingBundle(null); setShowModal(true); }}>
+            <button className="btn-primary" onClick={() => { resetForm(); setEditingBundle(null); setShowModal(true); }}>
               + New Bundle
             </button>
           </div>
         </div>
 
         {/* ===== FILTER TOGGLES ===== */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          marginBottom: '20px',
-          padding: '12px 16px',
-          background: '#f8fafc',
-          borderRadius: '8px',
-          border: '1px solid #e5e5e5'
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+        <div className="filter-toggles">
+          <label className="filter-toggle-label">
             <input
               type="checkbox"
               checked={showBookBundles}
               onChange={(e) => setShowBookBundles(e.target.checked)}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
             />
-            <span style={{ fontWeight: '500' }}>📚 Show Book Bundles</span>
+            <span>Show Book Bundles</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+          <label className="filter-toggle-label">
             <input
               type="checkbox"
               checked={showCraftBundles}
               onChange={(e) => setShowCraftBundles(e.target.checked)}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
             />
-            <span style={{ fontWeight: '500' }}>🎨 Show Craft Bundles</span>
+            <span>Show Craft Bundles</span>
           </label>
         </div>
 
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading bundles...</div>
+          <div className="loading-container">Loading bundles...</div>
         ) : (
           <>
             {/* ===== BOOK BUNDLES SECTION ===== */}
             {showBookBundles && (
-              <div style={{ marginBottom: '40px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px',
-                  marginBottom: '16px',
-                  padding: '12px 20px',
-                  background: '#1E4D4B',
-                  borderRadius: '8px',
-                  color: 'white'
-                }}>
-                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>📚 Book Bundles</h3>
-                  <span style={{
-                    fontSize: '13px',
-                    background: 'rgba(255,255,255,0.2)',
-                    padding: '2px 12px',
-                    borderRadius: '12px'
-                  }}>
+              <div className="bundle-section">
+                <div className="bundle-section-header book-header">
+                  <h3>Book Bundles</h3>
+                  <span className="bundle-section-count">
                     {Object.values(bookBundles).reduce((sum, arr) => sum + arr.length, 0)} bundle(s)
                   </span>
                 </div>
 
                 {bookCategoryNames.map(category => {
                   const bundlesInCategory = bookBundles[category] || [];
+                  const isHighlighted = highlightedCategory === category;
+                  const elementId = getCategoryElementId(category);
+                  
                   return (
-                    <div key={category} style={{ marginBottom: '24px' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '12px',
-                        marginBottom: '12px',
-                        padding: '8px 16px',
-                        background: '#f0f7f6',
-                        borderRadius: '8px',
-                        borderLeft: '4px solid #1E4D4B'
-                      }}>
-                        <h4 style={{ 
-                          margin: 0, 
-                          color: '#1E4D4B',
-                          fontSize: '16px',
-                          fontWeight: '600'
-                        }}>
+                    <div 
+                      key={category} 
+                      id={elementId}
+                      className={`bundle-category ${isHighlighted ? 'highlighted' : ''}`}
+                    >
+                      <div className="bundle-category-header">
+                        <h4>
                           {category}
+                          {isHighlighted && (
+                            <span className="navigated-badge">Navigated</span>
+                          )}
                         </h4>
-                        <span style={{
-                          fontSize: '12px',
-                          color: '#64748b',
-                          background: 'white',
-                          padding: '2px 12px',
-                          borderRadius: '12px',
-                          fontWeight: '500'
-                        }}>
+                        <span className="bundle-count">
                           {bundlesInCategory.length} bundle(s)
                         </span>
                       </div>
 
                       {bundlesInCategory.length === 0 ? (
-                        <div style={{ 
-                          padding: '16px', 
-                          textAlign: 'center', 
-                          color: '#94a3b8',
-                          background: '#f8fafc',
-                          borderRadius: '8px',
-                          border: '1px dashed #e5e5e5'
-                        }}>
+                        <div className="empty-bundle-state">
                           No {category} book bundles yet. Books verified with {category} category will appear here.
                         </div>
                       ) : (
@@ -682,11 +763,11 @@ function BundleManagement() {
                                   <td>{bundle.date}</td>
                                   <td>
                                     <div className="action-group">
-                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)}>
                                         View Items ({bundleBooks[bundle.id]?.count || 0})
                                       </button>
-                                      <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
-                                      <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
+                                      <button className="btn-edit" onClick={() => handleEdit(bundle)}>Edit</button>
+                                      <button className="btn-delete" onClick={() => handleDelete(bundle.id)}>Delete</button>
                                     </div>
                                   </td>
                                 </tr>
@@ -703,73 +784,40 @@ function BundleManagement() {
 
             {/* ===== CRAFT BUNDLES SECTION ===== */}
             {showCraftBundles && (
-              <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px',
-                  marginBottom: '16px',
-                  padding: '12px 20px',
-                  background: '#6B4F3C',
-                  borderRadius: '8px',
-                  color: 'white'
-                }}>
-                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>🎨 Craft Bundles</h3>
-                  <span style={{
-                    fontSize: '13px',
-                    background: 'rgba(255,255,255,0.2)',
-                    padding: '2px 12px',
-                    borderRadius: '12px'
-                  }}>
+              <div className="bundle-section">
+                <div className="bundle-section-header craft-header">
+                  <h3>Craft Bundles</h3>
+                  <span className="bundle-section-count">
                     {Object.values(craftBundles).reduce((sum, arr) => sum + arr.length, 0)} bundle(s)
                   </span>
                 </div>
 
                 {craftCategoryNames.map(category => {
                   const bundlesInCategory = craftBundles[category] || [];
-                  // Extract display name without "Craft: " prefix
+                  const isHighlighted = highlightedCategory === category;
+                  const elementId = getCategoryElementId(category);
                   const displayName = category.replace('Craft: ', '');
+                  
                   return (
-                    <div key={category} style={{ marginBottom: '24px' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '12px',
-                        marginBottom: '12px',
-                        padding: '8px 16px',
-                        background: '#f5f0eb',
-                        borderRadius: '8px',
-                        borderLeft: '4px solid #6B4F3C'
-                      }}>
-                        <h4 style={{ 
-                          margin: 0, 
-                          color: '#6B4F3C',
-                          fontSize: '16px',
-                          fontWeight: '600'
-                        }}>
+                    <div 
+                      key={category} 
+                      id={elementId}
+                      className={`bundle-category craft ${isHighlighted ? 'highlighted' : ''}`}
+                    >
+                      <div className="bundle-category-header">
+                        <h4>
                           {displayName}
+                          {isHighlighted && (
+                            <span className="navigated-badge">Navigated</span>
+                          )}
                         </h4>
-                        <span style={{
-                          fontSize: '12px',
-                          color: '#64748b',
-                          background: 'white',
-                          padding: '2px 12px',
-                          borderRadius: '12px',
-                          fontWeight: '500'
-                        }}>
+                        <span className="bundle-count">
                           {bundlesInCategory.length} bundle(s)
                         </span>
                       </div>
 
                       {bundlesInCategory.length === 0 ? (
-                        <div style={{ 
-                          padding: '16px', 
-                          textAlign: 'center', 
-                          color: '#94a3b8',
-                          background: '#faf8f6',
-                          borderRadius: '8px',
-                          border: '1px dashed #e5e5e5'
-                        }}>
+                        <div className="empty-bundle-state craft-empty">
                           No {displayName} craft bundles yet. Crafts verified with {category} category will appear here.
                         </div>
                       ) : (
@@ -804,11 +852,11 @@ function BundleManagement() {
                                   <td>{bundle.date}</td>
                                   <td>
                                     <div className="action-group">
-                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)} style={{ marginRight: 4 }}>
+                                      <button className="btn-small" onClick={() => openBundleBooks(bundle)}>
                                         View Items ({bundleBooks[bundle.id]?.count || 0})
                                       </button>
-                                      <button className="btn-small" onClick={() => handleEdit(bundle)}>Edit</button>
-                                      <button className="btn-small-danger" onClick={() => handleDelete(bundle.id)}>Delete</button>
+                                      <button className="btn-edit" onClick={() => handleEdit(bundle)}>Edit</button>
+                                      <button className="btn-delete" onClick={() => handleDelete(bundle.id)}>Delete</button>
                                     </div>
                                   </td>
                                 </tr>
@@ -823,53 +871,71 @@ function BundleManagement() {
               </div>
             )}
 
-            {/* Summary */}
-            <div className="table-footer" style={{ marginTop: '20px' }}>
+            <div className="table-footer">
               <span>Showing {filteredBundles.length} of {bundles.length} bundles across book and craft categories</span>
             </div>
           </>
         )}
       </div>
 
-      {/* ===== MODAL WITH VALIDATIONS ===== */}
+      {/* ===== BUNDLE MODAL ===== */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 style={{ color: '#1E4D4B', marginBottom: '20px' }}>{editingBundle ? 'Edit Bundle' : 'Create New Bundle'}</h2>
-            
-            {/* Bundle Type */}
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                Bundle Type <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <select
-                className="form-control"
-                value={formData.type || 'book'}
-                onChange={(e) => {
-                  setFormData({...formData, type: e.target.value, category: ''});
-                  setBundleType(e.target.value);
-                }}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '8px' 
-                }}
-                disabled={!!editingBundle}
+          <div className="modal-content bundle-modal">
+            <div className="bundle-modal-header">
+              <h2>{editingBundle ? 'Edit Bundle' : 'Create New Bundle'}</h2>
+              <button
+                className="bundle-modal-close"
+                onClick={() => { setShowModal(false); setEditingBundle(null); resetForm(); }}
               >
-                <option value="book">Book Bundle</option>
-                <option value="craft">Craft Bundle</option>
-              </select>
+                ×
+              </button>
+            </div>
+
+            {/* Bundle Type Selection */}
+            <div className="bundle-type-selector">
+              <label>Bundle Type <span className="required">*</span></label>
+              <div className="bundle-type-buttons">
+                <button
+                  type="button"
+                  className={`bundle-type-btn ${formData.type === 'book' ? 'active-book' : ''}`}
+                  onClick={() => {
+                    setFormData({...formData, type: 'book', category: ''});
+                    setBundleType('book');
+                    if (validationErrors.category) {
+                      setValidationErrors({...validationErrors, category: ''});
+                    }
+                  }}
+                  disabled={!!editingBundle}
+                >
+                  📚 Book Bundle
+                </button>
+                <button
+                  type="button"
+                  className={`bundle-type-btn ${formData.type === 'craft' ? 'active-craft' : ''}`}
+                  onClick={() => {
+                    setFormData({...formData, type: 'craft', category: ''});
+                    setBundleType('craft');
+                    if (validationErrors.category) {
+                      setValidationErrors({...validationErrors, category: ''});
+                    }
+                  }}
+                  disabled={!!editingBundle}
+                >
+                  🎨 Craft Bundle
+                </button>
+              </div>
+              {editingBundle && (
+                <p className="bundle-type-note">Bundle type cannot be changed while editing</p>
+              )}
             </div>
 
             {/* Bundle Name */}
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                Bundle Name <span style={{ color: '#dc3545' }}>*</span>
-              </label>
+            <div className="form-group">
+              <label>Bundle Name <span className="required">*</span></label>
               <input 
                 type="text" 
-                className="form-control"
+                className={`form-control ${validationErrors.name ? 'error' : ''}`}
                 value={formData.name}
                 onChange={(e) => {
                   setFormData({...formData, name: e.target.value});
@@ -877,27 +943,20 @@ function BundleManagement() {
                     setValidationErrors({...validationErrors, name: ''});
                   }
                 }}
-                placeholder="Enter bundle name"
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: `1px solid ${validationErrors.name ? '#dc3545' : '#e5e5e5'}`,
-                  borderRadius: '8px' 
-                }}
+                placeholder="Enter a descriptive name for the bundle"
               />
               {validationErrors.name && (
-                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.name}</p>
+                <p className="error-text">{validationErrors.name}</p>
               )}
+              <p className="helper-text">Choose a name that clearly describes what's in this bundle</p>
             </div>
 
-            {/* Includes Description */}
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                Includes Description <span style={{ color: '#dc3545' }}>*</span>
-              </label>
+            {/* Description */}
+            <div className="form-group">
+              <label>Description <span className="required">*</span></label>
               <input 
                 type="text" 
-                className="form-control"
+                className={`form-control ${validationErrors.includes ? 'error' : ''}`}
                 value={formData.includes}
                 onChange={(e) => {
                   setFormData({...formData, includes: e.target.value});
@@ -905,38 +964,25 @@ function BundleManagement() {
                     setValidationErrors({...validationErrors, includes: ''});
                   }
                 }}
-                placeholder="e.g., Includes: Author 1, Author 2"
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: `1px solid ${validationErrors.includes ? '#dc3545' : '#e5e5e5'}`,
-                  borderRadius: '8px' 
-                }}
+                placeholder="e.g., Includes works by Jane Austen, Charles Dickens"
               />
               {validationErrors.includes && (
-                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.includes}</p>
+                <p className="error-text">{validationErrors.includes}</p>
               )}
+              <p className="helper-text">Briefly describe what's included in this bundle</p>
             </div>
 
             {/* Category */}
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                Category <span style={{ color: '#dc3545' }}>*</span>
-              </label>
+            <div className="form-group">
+              <label>Category <span className="required">*</span></label>
               <select
-                className="form-control"
+                className={`form-control ${validationErrors.category ? 'error' : ''}`}
                 value={formData.category || ''}
                 onChange={(e) => {
                   setFormData({...formData, category: e.target.value});
                   if (validationErrors.category) {
                     setValidationErrors({...validationErrors, category: ''});
                   }
-                }}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: `1px solid ${validationErrors.category ? '#dc3545' : '#e5e5e5'}`,
-                  borderRadius: '8px' 
                 }}
               >
                 <option value="">Select a category...</option>
@@ -945,19 +991,18 @@ function BundleManagement() {
                 ))}
               </select>
               {validationErrors.category && (
-                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.category}</p>
+                <p className="error-text">{validationErrors.category}</p>
               )}
+              <p className="helper-text">Select the category that best fits this bundle</p>
             </div>
 
-            {/* Items and Value */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                  Number of Items <span style={{ color: '#dc3545' }}>*</span>
-                </label>
+            {/* Items and Value - Two columns */}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Number of Items <span className="required">*</span></label>
                 <input 
                   type="number" 
-                  className="form-control"
+                  className={`form-control ${validationErrors.items ? 'error' : ''}`}
                   value={formData.items}
                   onChange={(e) => {
                     setFormData({...formData, items: e.target.value});
@@ -967,25 +1012,18 @@ function BundleManagement() {
                   }}
                   placeholder="0"
                   min="1"
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px 14px', 
-                    border: `1px solid ${validationErrors.items ? '#dc3545' : '#e5e5e5'}`,
-                    borderRadius: '8px' 
-                  }}
                 />
                 {validationErrors.items && (
-                  <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.items}</p>
+                  <p className="error-text">{validationErrors.items}</p>
                 )}
+                <p className="helper-text">Total items in this bundle</p>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                  Value (Rs.) <span style={{ color: '#dc3545' }}>*</span>
-                </label>
+              <div className="form-group">
+                <label>Value (Rs.) <span className="required">*</span></label>
                 <input 
                   type="number" 
-                  className="form-control"
+                  className={`form-control ${validationErrors.value ? 'error' : ''}`}
                   value={formData.value}
                   onChange={(e) => {
                     setFormData({...formData, value: e.target.value});
@@ -996,61 +1034,60 @@ function BundleManagement() {
                   placeholder="0.00"
                   min="0"
                   step="0.01"
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px 14px', 
-                    border: `1px solid ${validationErrors.value ? '#dc3545' : '#e5e5e5'}`,
-                    borderRadius: '8px' 
-                  }}
                 />
                 {validationErrors.value && (
-                  <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.value}</p>
+                  <p className="error-text">{validationErrors.value}</p>
                 )}
+                <p className="helper-text">Total value in Rupees</p>
               </div>
             </div>
 
             {/* Status */}
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                Status <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <select 
-                className="form-control"
-                value={formData.status}
-                onChange={(e) => {
-                  setFormData({...formData, status: e.target.value});
-                  if (validationErrors.status) {
-                    setValidationErrors({...validationErrors, status: ''});
-                  }
-                }}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: `1px solid ${validationErrors.status ? '#dc3545' : '#e5e5e5'}`,
-                  borderRadius: '8px' 
-                }}
-              >
-                <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
-              </select>
+            <div className="form-group">
+              <label>Status <span className="required">*</span></label>
+              <div className="status-toggle-group">
+                <button
+                  type="button"
+                  className={`status-toggle-btn ${formData.status === 'DRAFT' ? 'active-draft' : ''}`}
+                  onClick={() => {
+                    setFormData({...formData, status: 'DRAFT'});
+                    if (validationErrors.status) {
+                      setValidationErrors({...validationErrors, status: ''});
+                    }
+                  }}
+                >
+                  Draft
+                </button>
+                <button
+                  type="button"
+                  className={`status-toggle-btn ${formData.status === 'PUBLISHED' ? 'active-published' : ''}`}
+                  onClick={() => {
+                    setFormData({...formData, status: 'PUBLISHED'});
+                    if (validationErrors.status) {
+                      setValidationErrors({...validationErrors, status: ''});
+                    }
+                  }}
+                >
+                  Published
+                </button>
+              </div>
               {validationErrors.status && (
-                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{validationErrors.status}</p>
+                <p className="error-text">{validationErrors.status}</p>
               )}
+              <p className="status-helper">Draft bundles are hidden from users. Published bundles appear in the marketplace.</p>
             </div>
 
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            {/* Action Buttons */}
+            <div className="modal-actions">
               <button 
-                className="btn-secondary" 
+                className="btn-cancel" 
                 onClick={() => { setShowModal(false); setEditingBundle(null); resetForm(); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button 
                 className="btn-primary"
                 onClick={editingBundle ? handleUpdate : handleCreate}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#1E4D4B', color: 'white' }}
               >
                 {editingBundle ? 'Update Bundle' : 'Create Bundle'}
               </button>
@@ -1062,77 +1099,63 @@ function BundleManagement() {
       {/* Books in Bundle Modal */}
       {showBooksModal && selectedBundleForBooks && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 800 }}>
-            <h2 style={{ color: '#1E4D4B', marginBottom: 20 }}>Items in {selectedBundleForBooks.name}</h2>
-            <p style={{ color: '#64748b', marginBottom: 16, fontSize: 14 }}>
+          <div className="modal-content books-modal">
+            <h2>Items in {selectedBundleForBooks.name}</h2>
+            <p className="books-modal-meta">
               Category: <strong>{selectedBundleForBooks.category || 'General'}</strong> | 
               Type: <strong>{selectedBundleForBooks.type === 'craft' ? 'Craft' : 'Book'}</strong>
             </p>
             
             {(bundleBooks[selectedBundleForBooks.id]?.books || []).length === 0 ? (
-                <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-                    No items assigned to this bundle yet. Verified items will appear here.
-                </div>
+              <div className="empty-books-state">
+                No items assigned to this bundle yet. Verified items will appear here.
+              </div>
             ) : (
-                <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <span style={{ fontSize: 14, color: '#64748b' }}>
-                          Total Items: {(bundleBooks[selectedBundleForBooks.id]?.books || []).length}
-                        </span>
-                        <button
-                            className="btn-small"
-                            onClick={() => handleAddAllBooksToMarketplace(selectedBundleForBooks.id)}
-                            style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-                        >
-                            Add All to Marketplace ({(bundleBooks[selectedBundleForBooks.id]?.books || []).filter(b => !b.isAvailable).length})
-                        </button>
+              <>
+                <div className="books-modal-header">
+                  <span>Total Items: {(bundleBooks[selectedBundleForBooks.id]?.books || []).length}</span>
+                  <button
+                    className="btn-add-all"
+                    onClick={() => handleAddAllBooksToMarketplace(selectedBundleForBooks.id)}
+                  >
+                    Add All to Marketplace ({(bundleBooks[selectedBundleForBooks.id]?.books || []).filter(b => !b.isAvailable).length})
+                  </button>
+                </div>
+                <div className="books-grid">
+                  {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
+                    <div key={book.id} className="book-card">
+                      {book.imageUrl ? (
+                        <img src={book.imageUrl} alt={book.title} className="book-card-image" />
+                      ) : (
+                        <div className="book-card-placeholder">
+                          {book.title?.[0] || 'I'}
+                        </div>
+                      )}
+                      <div className="book-card-details">
+                        <p className="book-card-title">{book.title}</p>
+                        <p className="book-card-condition">{book.condition || 'No condition'}</p>
+                        <p className="book-card-category">Category: {book.category || 'General'}</p>
+                        {book.isAvailable ? (
+                          <span className="book-card-badge">On Marketplace</span>
+                        ) : (
+                          <button
+                            className="btn-add-marketplace"
+                            onClick={() => handleAddBookToMarketplace(book.id)}
+                          >
+                            Add to Marketplace
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-                        {(bundleBooks[selectedBundleForBooks.id]?.books || []).map((book) => (
-                            <div key={book.id} style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e5e5' }}>
-                                {book.imageUrl ? (
-                                    <img src={book.imageUrl} alt={book.title} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-                                ) : (
-                                    <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #E8F0EF, #D5E8D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#1E4D4B' }}>
-                                        {book.title?.[0] || 'I'}
-                                    </div>
-                                )}
-                                <div style={{ padding: 12 }}>
-                                    <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</p>
-                                    <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 6px' }}>{book.condition || 'No condition'}</p>
-                                    <p style={{ fontSize: 11, color: '#6C757D', margin: '0 0 6px' }}>Category: {book.category || 'General'}</p>
-                                    {book.isAvailable ? (
-                                        <span style={{
-                                            fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                                            background: '#E8F5E9', color: '#2E7D32',
-                                            display: 'inline-block'
-                                        }}>
-                                            On Marketplace
-                                        </span>
-                                    ) : (
-                                        <button
-                                            onClick={() => handleAddBookToMarketplace(book.id)}
-                                            style={{
-                                                width: '100%', padding: '6px 10px', fontSize: 12, fontWeight: 600,
-                                                background: '#1E4D4B', color: 'white', border: 'none',
-                                                borderRadius: 6, cursor: 'pointer', marginTop: 4
-                                            }}
-                                        >
-                                            Add to Marketplace
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
+                  ))}
+                </div>
+              </>
             )}
             
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+            <div className="modal-actions">
               <button 
                 className="btn-secondary" 
                 onClick={() => { setShowBooksModal(false); setSelectedBundleForBooks(null); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
               >
                 Close
               </button>

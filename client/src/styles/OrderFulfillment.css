@@ -1,0 +1,438 @@
+/* client/src/styles/OrderFulfillment.css */
+/* Order Fulfillment specific styles */
+
+/* ===== STATS CARDS - Same as Bundle Management ===== */
+.order-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.order-stats .stat-card {
+  background: #ffffff;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.order-stats .stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1A6B68, #0F4F4D);
+}
+
+.order-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.order-stats .stat-card h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5C6A6A;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0 0 6px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.order-stats .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1A6B68;
+  margin-bottom: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.order-stats .stat-trend {
+  font-size: 13px;
+  color: #1A6B68;
+  font-weight: 500;
+  margin-bottom: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.order-stats .stat-sub {
+  font-size: 12px;
+  color: #5C6A6A;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ===== TABLE - Action column ===== */
+.data-table {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table thead {
+  background: #f9fafb;
+}
+
+.data-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #5C6A6A;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e5e5e5;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #333333;
+  vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  min-width: 200px;
+  width: 240px;
+}
+
+.data-table td .action-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.data-table td .action-group button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+/* ===== ACTION BUTTONS - Matching BundleManagement styles ===== */
+
+/* Process button - Orange (Warning) */
+.btn-process {
+  background: #f59e0b;
+  color: white;
+}
+.btn-process:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Assign button - Teal (Primary) */
+.btn-assign {
+  background: #1A6B68;
+  color: white;
+}
+.btn-assign:hover {
+  background: #0F4F4D;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(26, 107, 104, 0.25);
+}
+
+/* Reassign button - Gold */
+.btn-reassign {
+  background: #E9C46A;
+  color: #1A3C34;
+}
+.btn-reassign:hover {
+  background: #d4b05c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(233, 196, 106, 0.3);
+}
+
+/* Delivered button - Green (Success) */
+.btn-deliver {
+  background: #10b981;
+  color: white;
+}
+.btn-deliver:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Cancel button - Red (Danger) */
+.btn-cancel-order {
+  background: #dc3545;
+  color: white;
+}
+.btn-cancel-order:hover {
+  background: #c62828;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Update button - Muted (Gray) */
+.btn-update {
+  background: #6C757D;
+  color: white;
+}
+.btn-update:hover {
+  background: #5A6268;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* View button - Teal */
+.btn-view {
+  background: #1A6B68;
+  color: white;
+}
+.btn-view:hover {
+  background: #0F4F4D;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(26, 107, 104, 0.25);
+}
+
+/* ===== ORDER PROGRESS ===== */
+.order-progress {
+  width: 100%;
+  height: 3px;
+  background: #e5e5e5;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+.order-progress-bar {
+  height: 100%;
+  background: #1A6B68;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* ===== ORDER DETAILS SUMMARY ===== */
+.order-details-summary {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.order-details-summary h4 {
+  color: #1A6B68;
+  margin-bottom: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.order-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+.order-details-grid p {
+  margin: 0;
+}
+
+/* ===== MISC ===== */
+.meta-text {
+  font-size: 10px;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.driver-name {
+  color: #1A6B68;
+  font-family: 'Inter', sans-serif;
+}
+
+.not-assigned {
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+}
+
+.completed-text {
+  font-size: 12px;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+}
+
+.no-drivers {
+  padding: 20px;
+  text-align: center;
+  color: #f59e0b;
+  background: #fff3e0;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+}
+
+.empty-state h3 {
+  color: #333333;
+  margin-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+}
+
+.loading-container {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s;
+}
+
+.filter-btn:focus {
+  border-color: #1A6B68;
+  outline: none;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+  .order-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  
+  .data-table th:last-child,
+  .data-table td:last-child {
+    min-width: 160px;
+    width: 180px;
+  }
+  
+  .data-table td .action-group button {
+    min-width: 65px;
+    font-size: 10px;
+    padding: 0 8px;
+    height: 26px;
+  }
+}
+
+@media (max-width: 992px) {
+  .data-table th:last-child,
+  .data-table td:last-child {
+    min-width: 140px;
+    width: 160px;
+  }
+  
+  .data-table td .action-group button {
+    min-width: 55px;
+    font-size: 10px;
+    padding: 0 6px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .order-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .order-stats .stat-card {
+    padding: 14px 16px;
+  }
+  
+  .order-stats .stat-value {
+    font-size: 24px;
+  }
+  
+  .order-details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .data-table th:last-child,
+  .data-table td:last-child {
+    min-width: 110px;
+    width: 130px;
+  }
+  
+  .data-table td .action-group {
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+  }
+  
+  .data-table td .action-group button {
+    width: 100%;
+    min-width: unset;
+    font-size: 10px;
+    padding: 4px 6px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .order-stats .stat-card {
+    padding: 12px 14px;
+  }
+  
+  .order-stats .stat-value {
+    font-size: 20px;
+  }
+  
+  .data-table th:last-child,
+  .data-table td:last-child {
+    min-width: 90px;
+    width: 100px;
+  }
+  
+  .data-table td .action-group button {
+    font-size: 9px;
+    padding: 3px 5px;
+    height: 22px;
+  }
+}

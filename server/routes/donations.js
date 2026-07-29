@@ -293,7 +293,7 @@ router.patch('/:id/verify', async (req, res) => {
                             pointsRequired: 0,
                             cashPrice: 0,
                             isRare: false,
-                            type: isCraft ? 'CRAFT' : 'STANDARD',
+                            type: 'STANDARD',  // FIXED: Use STANDARD for all bundles
                             minLevelRequired: 1
                         }
                     });
