@@ -414,6 +414,7 @@ const Home = () => {
     donorTier: { fontSize: 13, color: '#6C757D', marginTop: 4, display: 'inline-block' },
     donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
     rankBooks: { fontSize: 18, fontWeight: 800, color: '#1E4D4B', whiteSpace: 'nowrap' },
+    emptyBoard: { textAlign: 'center', padding: '48px 0', color: '#6C757D' },
 
     levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
     levelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48 },
@@ -629,6 +630,12 @@ const Home = () => {
           </p>
         </div>
 
+        {leaderboard.length === 0 ? (
+          <div style={styles.emptyBoard}>
+            No donations yet — be the first to get on the board!
+          </div>
+        ) : (
+        <>
         {/* Podium — rendered 2nd, 1st, 3rd so the winner sits in the middle */}
         <div className="reveal-stagger" style={styles.podium}>
           {[1, 0, 2]
@@ -666,6 +673,7 @@ const Home = () => {
             })}
         </div>
 
+        {leaderboard.length > 3 && (
         <div className="reveal" style={styles.rankList}>
           {leaderboard.slice(3).map((donor) => (
             <div key={donor.id} style={styles.rankRow}>
@@ -682,6 +690,9 @@ const Home = () => {
             </div>
           ))}
         </div>
+        )}
+        </>
+        )}
       </section>
 
       {/* ============ LEVELS ============ */}
