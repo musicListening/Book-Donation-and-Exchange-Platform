@@ -4,6 +4,22 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
+// Stable fallback colour per donor so the initial badge doesn't change between renders
+const avatarColor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360}, 62%, 46%)`;
+};
+
+const Avatar = ({ donor, style }) =>
+  donor.profileImage ? (
+    <img src={donor.profileImage} alt={donor.name} style={style} />
+  ) : (
+    <div style={{ ...style, background: avatarColor(donor.name) }}>
+      {donor.name?.charAt(0)?.toUpperCase() || 'U'}
+    </div>
+  );
+
 const Home = () => {
   const pageRef = useRef(null);
   const navigate = useNavigate();
@@ -378,8 +394,9 @@ const Home = () => {
     
     leaderboard: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
-    rankRow: { display: 'grid', gridTemplateColumns: '56px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 28px', borderTop: '1px solid #F1F3F5' },
+    rankRow: { display: 'grid', gridTemplateColumns: '56px 56px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 28px', borderTop: '1px solid #F1F3F5' },
     rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
+    rankAvatar: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
     donorName: { margin: 0, fontSize: 17, color: '#343A40', fontWeight: 700 },
     donorTier: { fontSize: 13, color: '#6C757D', marginTop: 4, display: 'inline-block' },
     donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
@@ -603,6 +620,7 @@ const Home = () => {
           {leaderboard.map((donor) => (
             <div key={donor.id} style={styles.rankRow}>
               <span style={styles.rankNum}>{donor.rank}</span>
+              <Avatar donor={donor} style={styles.rankAvatar} />
               <div>
                 <h4 style={styles.donorName}>{donor.name}</h4>
                 <span style={styles.donorTier}>{donor.levelName}</span>
