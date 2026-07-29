@@ -145,6 +145,62 @@ export function Chip({ children, tone = 'accent', style = {} }) {
   );
 }
 
+// Confirmation dialog styled with the community tokens. The shared
+// ConfirmDialog relies on modal CSS these pages do not import, and
+// window.confirm() blocks the tab and cannot be styled at all.
+export function CommunityConfirm({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', destructive = false, busy = false, onConfirm, onCancel }) {
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // Focus the safe option first so Enter never destroys anything by accident
+    cancelRef.current?.focus();
+    const onKeyDown = (e) => { if (e.key === 'Escape' && !busy) onCancel?.(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, busy, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      onClick={() => !busy && onCancel?.()}
+      style={{ position: 'fixed', inset: 0, zIndex: layer.menu + 10, background: 'rgba(10, 59, 50, 0.55)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space.lg, animation: `communityFadeIn ${motion.fast} both` }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="community-confirm-title"
+        aria-describedby="community-confirm-message"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 430, background: colors.surfaceContainerLowest, borderRadius: radius.xl, padding: space.xl, boxShadow: elevation.float, animation: `communityMenuIn ${motion.base} both` }}
+      >
+        <div style={{ width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: destructive ? colors.errorContainer : colors.tertiaryFixed, color: destructive ? colors.onErrorContainer : colors.tertiary }}>
+          <Icon name={destructive ? 'delete' : 'help'} size={24} />
+        </div>
+        <h3 id="community-confirm-title" style={{ marginTop: space.md, fontFamily: "'Playfair Display', serif", fontSize: 21, color: colors.onSurface }}>{title}</h3>
+        <p id="community-confirm-message" style={{ marginTop: space.xs, fontSize: 14, lineHeight: 1.7, color: colors.inkSoft }}>{message}</p>
+        <div style={{ display: 'flex', gap: space.sm, justifyContent: 'flex-end', marginTop: space.xl }}>
+          <Button ref={cancelRef} variant="quiet" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
+          <Button
+            variant={destructive ? 'primary' : 'primary'}
+            onClick={onConfirm}
+            loading={busy}
+            style={destructive ? { background: colors.error, borderColor: colors.error } : undefined}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Inline error/notice banner. role="alert" so a failure is announced rather
 // than silently appearing above the fold.
 export function Alert({ children, tone = 'error', onRetry, style = {} }) {

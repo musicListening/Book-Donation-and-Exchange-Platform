@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, space, radius, Icon, Button, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius, Icon, Button, Alert, SkeletonCard, EmptyState, CommunityConfirm, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function currentUser() {
   try {
@@ -54,14 +54,17 @@ function MessageCard({ message, onDelete, deleting, canDelete }) {
       </div>
 
       {canDelete && (
-        <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 8, borderTop: `1px solid ${colors.outlineVariant}` }}>
-          <button
+        <div style={{ display: 'flex', gap: 12, marginTop: space.md, paddingTop: space.sm, borderTop: `1px solid ${colors.outlineVariant}` }}>
+          <Button
+            variant="danger"
+            size="sm"
+            icon="delete"
             onClick={() => onDelete(message)}
-            disabled={deleting}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'transparent', border: `1px solid ${colors.outlineVariant}`, borderRadius: 40, fontSize: 12, fontWeight: 500, cursor: deleting ? 'not-allowed' : 'pointer', color: colors.error }}
+            loading={deleting}
+            aria-label={`Remove message from ${message.user.name}`}
           >
-            <Icon name="delete" size={16} /> {deleting ? 'Removing...' : 'Remove message'}
-          </button>
+            {deleting ? 'Removing...' : 'Remove message'}
+          </Button>
         </div>
       )}
     </article>
@@ -76,6 +79,7 @@ export default function MessageModeration() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removingId, setRemovingId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [search, setSearch] = useState('');
   const user = currentUser();
 
@@ -94,15 +98,18 @@ export default function MessageModeration() {
 
   useEffect(() => { loadMessages(); }, []);
 
-  const handleDelete = async (message) => {
-    if (!window.confirm(`Remove this message from ${message.user.name}?`)) return;
+  const handleDelete = async () => {
+    const message = pendingDelete;
+    if (!message) return;
     setRemovingId(message.id);
     setError('');
     try {
       await communityAPI.deleteMessage(message.id);
       setMessages((current) => current.filter((item) => item.id !== message.id));
+      setPendingDelete(null);
     } catch (requestError) {
       setError(requestError.message || 'Unable to remove the message.');
+      setPendingDelete(null);
     } finally {
       setRemovingId(null);
     }
@@ -215,7 +222,7 @@ export default function MessageModeration() {
                 <MessageCard
                   key={message.id}
                   message={message}
-                  onDelete={handleDelete}
+                  onDelete={setPendingDelete}
                   deleting={removingId === message.id}
                   canDelete={user?.role === 'COMMUNITY_ADMIN'}
                 />
@@ -228,6 +235,17 @@ export default function MessageModeration() {
           <p style={{ fontSize: 13, color: `${colors.onSurfaceVariant}CC` }}>© 2026 Community Admin Ecosystem — Growing together, sustainably.</p>
         </footer>
       </main>
+
+      <CommunityConfirm
+        open={Boolean(pendingDelete)}
+        destructive
+        busy={Boolean(removingId)}
+        title="Remove this message?"
+        message={pendingDelete ? `${pendingDelete.user.name}'s message will no longer be visible to the community. This cannot be undone.` : ''}
+        confirmLabel="Remove message"
+        onConfirm={handleDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }
