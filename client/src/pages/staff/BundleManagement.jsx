@@ -62,7 +62,7 @@ function BundleManagement() {
     source: 'Donated Book'
   });
   
-  // Bundle form data
+  // Bundle form data - FIXED: Properly formatted
   const [formData, setFormData] = useState({
     name: '',
     includes: '',
