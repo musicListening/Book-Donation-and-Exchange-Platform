@@ -73,8 +73,8 @@ const { authenticate, requireRole } = require('./middleware/auth');
 
 // 4. Register routes
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', apiLimiter, authenticate, userRoutes);
-app.get('/api/admin/config', apiLimiter, authenticate, async (req, res) => {
+app.use('/api/users', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), userRoutes);
+app.get('/api/admin/config', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     const { withRetry } = require('./db');
     const { prisma } = require('./db');

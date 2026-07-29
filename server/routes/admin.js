@@ -6,18 +6,12 @@ function safeJson(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
 
-// GET /api/admin/dashboard — aggregate stats for the admin dashboard
 router.get('/dashboard', async (req, res) => {
   try {
-    // Helper to run a query with retry, return null on failure
     const q = (fn) => withRetry(fn, 2).catch(() => null);
 
-    // Warm up connection for Neon cold starts
     await withRetry(() => prisma.$queryRaw`SELECT 1`, 3);
-    // Small delay to let Neon fully wake
     await new Promise(r => setTimeout(r, 500));
-
-    // Run queries sequentially (not in parallel) to avoid overwhelming Neon free tier
     const totalUsers = await q(() => prisma.user.count({ where: { isActive: true } }));
     const totalDonations = await q(() => prisma.donationRequest.count());
     const verifiedDonations = await q(() => prisma.donationRequest.count({ where: { verifiedCount: { gt: 0 } } }));
@@ -86,7 +80,21 @@ router.get('/dashboard', async (req, res) => {
       take: 5,
     }));
     const craftCount = await q(() => prisma.craftListing.count());
+    const craftListed = await q(() => prisma.craftListing.count({ where: { status: 'LISTED' } }));
+    const craftDraft = await q(() => prisma.craftListing.count({ where: { status: 'DRAFT' } }));
     const craftSold = await q(() => prisma.craftListing.count({ where: { status: 'SOLD' } }));
+
+    const pendingDonations = await q(() => prisma.donationRequest.count({
+      where: { verifiedCount: 0, status: 'PENDING' }
+    }));
+    const rejectedDonations = await q(() => prisma.donationRequest.count({
+      where: { status: 'REJECTED' } 
+    }));
+
+    const collections = await q(() => prisma.bookCollection.findMany({
+      include: { _count: { select: { books: true } } },
+      orderBy: { stock: 'desc' },
+    }));
 
     const totalPointsIssuedVal = totalPointsIssued?._sum?.amount || 0;
     const totalPointsSpentVal = totalPointsSpent?._sum?.amount || 0;
@@ -96,14 +104,12 @@ router.get('/dashboard', async (req, res) => {
     const totalEarnedLKRVal = Math.round((rawCash + (rawPointsInOrders * 0.1)) * 100) / 100;
     const totalEarnedRupeesVal = Math.round(totalEarnedLKRVal * 0.27 * 100) / 100;
 
-    // Map top donors with user info
     const topDonorIds = (topDonors || []).map(d => d.userId);
     const donorUsers = topDonorIds.length > 0
       ? await q(() => prisma.user.findMany({ where: { id: { in: topDonorIds } }, select: { id: true, name: true } })) || []
       : [];
     const donorMap = Object.fromEntries(donorUsers.map(u => [u.id, u.name]));
 
-    // Build daily chart (last 30 days)
     const dailyChart = [];
     const now = new Date();
     const dailyData = dailyDonations || [];
@@ -119,7 +125,6 @@ router.get('/dashboard', async (req, res) => {
       });
     }
 
-    // Build monthly chart (last 6 months)
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyChart = [];
     const monthlyData = monthlyDonations || [];
@@ -135,7 +140,6 @@ router.get('/dashboard', async (req, res) => {
       });
     }
 
-    // Build yearly chart (last 5 years)
     const yearlyChart = [];
     const yearlyData = yearlyDonations || [];
     for (let i = 4; i >= 0; i--) {
@@ -158,10 +162,14 @@ router.get('/dashboard', async (req, res) => {
         completedOrders: completedOrders || 0,
         totalDonations: totalDonations || 0,
         verifiedDonations: verifiedDonations || 0,
+        pendingDonations: pendingDonations || 0,
+        rejectedDonations: rejectedDonations || 0,
         verificationRate: totalDonations > 0
           ? Math.round(((verifiedDonations || 0) / totalDonations) * 100 * 10) / 10
           : 0,
-        craftListings: craftCount || 0,
+        craftTotal: craftCount || 0,
+        craftListed: craftListed || 0,
+        craftDraft: craftDraft || 0,
         craftSold: craftSold || 0,
         totalEarnedLKR: totalEarnedLKRVal,
         totalEarnedRupees: totalEarnedRupeesVal,
@@ -169,6 +177,15 @@ router.get('/dashboard', async (req, res) => {
       genreDistribution: (genreDistribution || []).map(g => ({
         name: g.genre || 'Uncategorized',
         count: g._count.id,
+      })),
+      collections: (collections || []).map(c => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        stock: c.stock,
+        bookCount: c._count?.books || 0,
+        pointsRequired: c.pointsRequired,
+        cashPrice: c.cashPrice,
       })),
       dailyPerformance: dailyChart,
       monthlyPerformance: monthlyChart,
@@ -178,7 +195,7 @@ router.get('/dashboard', async (req, res) => {
         donor: d.user?.name || 'Unknown',
         email: d.user?.email || '',
         quantity: `${d.verifiedCount} / ${d.requestedCount} books`,
-        status: d.verifiedCount >= d.requestedCount ? 'Verified' : 'Pending',
+        status: d.verifiedCount >= d.requestedCount ? 'Verified' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
         points: `+${d.pointsAwarded} pts`,
         date: d.createdAt.toISOString().split('T')[0],
       })),
@@ -195,7 +212,6 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-// GET /api/admin/report — generate reports with real data from database
 router.get('/report', async (req, res) => {
   try {
     const { type, startDate, endDate } = req.query;
@@ -396,31 +412,8 @@ router.get('/report', async (req, res) => {
         },
         include: { User: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { createdAt: 'desc' },
+        take: 200,
       });
-
-      // Group by user to show summary per staff member
-      const userMap = {};
-      for (const log of loginLogs) {
-        const uid = log.userId;
-        if (!userMap[uid]) {
-          userMap[uid] = {
-            name: log.User.name,
-            email: log.User.email,
-            role: log.User.role,
-            totalLogins: 0,
-            totalLogouts: 0,
-            lastLogin: null,
-            lastLogout: null,
-          };
-        }
-        if (log.action === 'LOGIN') {
-          userMap[uid].totalLogins++;
-          if (!userMap[uid].lastLogin) userMap[uid].lastLogin = log.createdAt;
-        } else if (log.action === 'LOGOUT') {
-          userMap[uid].totalLogouts++;
-          if (!userMap[uid].lastLogout) userMap[uid].lastLogout = log.createdAt;
-        }
-      }
 
       const roleLabels = {
         OPERATIONS_STAFF: 'Operations Staff',
@@ -429,34 +422,29 @@ router.get('/report', async (req, res) => {
         PLATFORM_ADMIN: 'Platform Admin',
       };
 
-      const rows = Object.values(userMap).map(u => ({
-        col1: u.name,
-        col2: u.email,
-        col3: roleLabels[u.role] || u.role,
-        col4: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
-        col5: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+      const rows = loginLogs.map(log => ({
+        col1: new Date(log.createdAt).toLocaleString(),
+        col2: log.User.name,
+        col3: log.User.email,
+        col4: roleLabels[log.User.role] || log.User.role,
+        col5: log.action === 'LOGIN' ? 'Login' : 'Logout',
+        col6: log.ip || 'N/A',
+        col7: log.userAgent ? log.userAgent.substring(0, 50) + (log.userAgent.length > 50 ? '...' : '') : 'N/A',
       }));
 
-      // Chart data: logins per role
-      const roleCounts = {};
-      for (const u of Object.values(userMap)) {
-        const r = roleLabels[u.role] || u.role;
-        roleCounts[r] = (roleCounts[r] || 0) + u.totalLogins;
-      }
-      const maxLogins = Math.max(...Object.values(roleCounts), 1);
-      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#2A9D8F'];
-      const chartData = Object.entries(roleCounts).map(([role, count], i) => ({
-        label: role,
-        val: Math.round(count / maxLogins * 100),
-        color: colors[i % colors.length],
-      }));
+      const loginCount = rows.filter(r => r.col5 === 'Login').length;
+      const logoutCount = rows.filter(r => r.col5 === 'Logout').length;
+      const maxCount = Math.max(loginCount, logoutCount, 1);
 
       return res.json({
         title: 'System Activity Logs',
-        subtitle: 'Login and logout activity for all staff roles',
-        headers: ['Staff Member', 'Email', 'Role', 'Last Login', 'Last Logout'],
+        subtitle: 'Individual login and logout records for all staff and admin roles',
+        headers: ['Timestamp', 'Staff Name', 'Email', 'Role', 'Action', 'IP Address', 'User Agent'],
         rows,
-        chartData,
+        chartData: [
+          { label: 'Logins', val: Math.round(loginCount / maxCount * 100), color: '#1E4D4B' },
+          { label: 'Logouts', val: Math.round(logoutCount / maxCount * 100), color: '#E9C46A' },
+        ],
       });
     }
 

@@ -3,7 +3,6 @@ import AdminLayout from '../../components/AdminLayout';
 import { API_BASE } from '../../services/api';
 
 export default function AdminProfile() {
-  // State declarations
   const [user, setUser] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -13,7 +12,6 @@ export default function AdminProfile() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // useEffect: Load user data
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('user'));
@@ -30,7 +28,6 @@ export default function AdminProfile() {
     }
   }, []);
 
-  // handleFileChange handler
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -50,7 +47,6 @@ export default function AdminProfile() {
     setPreviewUrl(URL.createObjectURL(file));
   };
 
-  // handleSave handler
   const handleSave = async () => {
     if (!name.trim()) {
       setMessage({ type: 'error', text: 'Name is required.' });
@@ -105,6 +101,7 @@ export default function AdminProfile() {
   return (
     <AdminLayout title="Profile" hideHeaderLabel={true} hideNotifications={true}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
+        {/* ============ TOAST MESSAGES ============ */}
         {message && (
           <div style={{
             padding: '12px 20px',
@@ -125,14 +122,14 @@ export default function AdminProfile() {
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           overflow: 'hidden',
         }}>
-          {/* Header banner */}
+          {/* ============ PROFILE HEADER BANNER ============ */}
           <div style={{
             height: 120,
             background: 'linear-gradient(135deg, #1A6B68 0%, #0F4F4D 100%)',
           }} />
 
           <div style={{ padding: '0 40px 40px', marginTop: -48 }}>
-            {/* Avatar section */}
+            {/* ============ AVATAR + NAME SECTION ============ */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginBottom: 32 }}>
               <div style={{
                 width: 120,
@@ -179,7 +176,7 @@ export default function AdminProfile() {
               </div>
             </div>
 
-            {/* Profile form */}
+            {/* ============ PROFILE FORM ============ */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
                 <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14, color: '#343A40' }}>
@@ -247,7 +244,7 @@ export default function AdminProfile() {
               </div>
             </div>
 
-            {/* Action buttons */}
+            {/* ============ ACTION BUTTONS ============ */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32, borderTop: '1px solid #F1F3F5', paddingTop: 24 }}>
               <button
                 onClick={() => {

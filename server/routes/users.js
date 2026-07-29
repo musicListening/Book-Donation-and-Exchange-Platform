@@ -33,7 +33,6 @@ async function updateDriverStatus(driverId) {
   return updated;
 }
 
-// 1. GET ALL USERS
 router.get('/', async (req, res) => {
   try {
     const users = await prisma.user.findMany({

@@ -5,29 +5,23 @@ import "../../styles/systemconfig.css";
 import { showToast } from "../../utils/toast";
 
 export default function SystemConfig() {
-  // State: UI
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // State: Point & Economics
   const [basePointRate, setBasePointRate] = useState("10");
   const [collectionBonus, setCollectionBonus] = useState("10");
   const [conversionRate, setConversionRate] = useState("100:10");
 
-  // State: Levels
   const [levels, setLevels] = useState([]);
 
-  // State: Mystery Box
   const [mysteryBoxBooks, setMysteryBoxBooks] = useState("5");
   const [mysteryBoxPointsCost, setMysteryBoxPointsCost] = useState("200");
   const [rareCollectionMinLevel, setRareCollectionMinLevel] = useState("2");
   const [mysteryBoxLocks, setMysteryBoxLocks] = useState([]);
 
-  // State: Mystery Box Configs
   const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
 
-  // useEffect: Fetch configuration data
   useEffect(() => {
     loadConfig();
   }, []);
@@ -191,7 +185,7 @@ export default function SystemConfig() {
   return (
     <AdminLayout title="System Configuration" hideHeaderLabel={true} hideNotifications={true}>
       <div className="sc-wrapper">
-        {/* Hero header */}
+        {/* ============ HERO HEADER ============ */}
         <div className="sc-hero-panel">
           <div className="sc-hero-grid">
             <div>
@@ -231,7 +225,7 @@ export default function SystemConfig() {
             </div>
           )}
 
-          {/* Point & Economics section card */}
+          {/* ============ POINT & ECONOMICS ============ */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-teal">
@@ -267,7 +261,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* Gamification & Levels section card */}
+          {/* ============ GAMIFICATION & LEVELS ============ */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-gold">
@@ -317,7 +311,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* Mystery Box Per-Level Config section card */}
+          {/* ============ MYSTERY BOX PER-LEVEL CONFIG ============ */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-orange">
@@ -395,7 +389,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* General Mystery Box section card */}
+          {/* ============ GENERAL MYSTERY BOX & RARE COLLECTIONS ============ */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-purple">
@@ -457,7 +451,7 @@ export default function SystemConfig() {
           </section>
         </div>
 
-        {/* Sticky footer with save/cancel buttons */}
+        {/* ============ STICKY FOOTER ============ */}
         <footer className="sc-footer">
           <button className="sc-btn-cancel" onClick={loadConfig}>Cancel Changes</button>
           <button className="sc-btn-save" onClick={handleSave} disabled={saving}>
