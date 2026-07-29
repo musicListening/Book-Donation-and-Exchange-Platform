@@ -11,7 +11,7 @@ const Home = () => {
   // ── Stats state ──
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
-  const [topReviews, setTopReviews] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -47,9 +47,9 @@ const Home = () => {
       .then(data => setStats(data))
       .catch(() => {});
       
-    fetch(`${API_URL}/reviews/top`)
+    fetch(`${API_URL}/stats/leaderboard?limit=10`)
       .then(res => res.json())
-      .then(data => setTopReviews(data))
+      .then(data => setLeaderboard(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -376,16 +376,15 @@ const Home = () => {
     craftDetails: { padding: '20px 20px 16px' },
     wishlistBtn: { background: 'none', border: 'none', color: '#DEE2E6', fontSize: 20, cursor: 'pointer' },
     
-    testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
-    testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
-    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
-    testimonialAvatar: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', margin: '0 auto 16px', fontWeight: 'bold', objectFit: 'cover' },
-    testimonialAuthor: { marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' },
-    authorName: { margin: 0, fontSize: 16, color: '#343A40', fontWeight: 700 },
-    authorRole: { fontSize: 13, color: '#6C757D', marginTop: 4 },
-    testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
-    stars: { color: '#E9C46A', marginBottom: 16 },
-    
+    leaderboard: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
+    rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
+    rankRow: { display: 'grid', gridTemplateColumns: '56px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 28px', borderTop: '1px solid #F1F3F5' },
+    rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
+    donorName: { margin: 0, fontSize: 17, color: '#343A40', fontWeight: 700 },
+    donorTier: { fontSize: 13, color: '#6C757D', marginTop: 4, display: 'inline-block' },
+    donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
+    rankBooks: { fontSize: 18, fontWeight: 800, color: '#1E4D4B', whiteSpace: 'nowrap' },
+
     levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
     levelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48 },
     levelCard: { background: 'white', borderRadius: 24, padding: '36px 28px', border: '2px solid rgba(0,0,0,0.05)', position: 'relative', boxShadow: '0 6px 28px rgba(0,0,0,0.07)', transition: 'all 0.35s ease' },
@@ -591,44 +590,29 @@ const Home = () => {
       </section>
 
 
-      {/* ============ TESTIMONIALS ============ */}
-      <section style={styles.testimonials}>
+      {/* ============ LEADERBOARD ============ */}
+      <section style={styles.leaderboard}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <h2 className="reveal" style={styles.sectionTitle}>What Our Readers Say</h2>
-          <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
+          <h2 className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
+          <p className="reveal" style={styles.sectionSubtitle}>
+            The readers giving the most books back to the community.
+          </p>
         </div>
-        <div className="reveal-stagger" style={styles.testimonialGrid}>
-          {topReviews.length > 0 ? topReviews.map((review, idx) => (
-            <div key={review.id || idx} className="card-hover-lift" style={styles.testimonialCard}>
-              <div style={styles.testimonialStars}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <i key={i} className={`fa-star ${i < review.rating ? 'fa-solid' : 'fa-regular'}`} style={{ color: '#E9C46A' }}></i>
-                ))}
+
+        <div className="reveal" style={styles.rankList}>
+          {leaderboard.map((donor) => (
+            <div key={donor.id} style={styles.rankRow}>
+              <span style={styles.rankNum}>{donor.rank}</span>
+              <div>
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>{donor.levelName}</span>
               </div>
-              <p style={styles.testimonialText}>"{review.comment || 'Great experience!'}"</p>
-              <div style={styles.testimonialAuthor}>
-                {review.user?.profileImage ? (
-                  <img 
-                    src={review.user.profileImage} 
-                    alt="Profile" 
-                    style={styles.testimonialAvatar} 
-                  />
-                ) : (
-                  <div style={{...styles.testimonialAvatar, background: `hsl(${idx * 40}, 70%, 50%)`}}>
-                    {review.user?.name?.charAt(0) || 'U'}
-                  </div>
-                )}
-                <div>
-                  <h4 style={styles.authorName}>{review.user?.name || 'Anonymous User'}</h4>
-                  <span style={styles.authorRole}>ShareShelf Member</span>
-                </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={styles.rankBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>books</div>
               </div>
             </div>
-          )) : (
-            <div style={{ textAlign: 'center', width: '100%', color: '#6C757D' }}>
-              No reviews yet. Be the first to leave one!
-            </div>
-          )}
+          ))}
         </div>
       </section>
 
