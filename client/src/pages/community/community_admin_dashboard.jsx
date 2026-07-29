@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius, elevation, motion, Icon, Button, Chip, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
   const [hovered, setHovered] = useState(false);
@@ -217,16 +217,18 @@ export default function CommunityAdminDashboard() {
           </div>
 
           {loading && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <p style={{ color: colors.onSurfaceVariant }}>Loading events...</p>
+            <div className="event-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => <SkeletonCard key={n} media />)}
             </div>
           )}
 
           {!loading && latestEvents.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <Icon name="event_busy" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
-              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>No events published yet.</p>
-            </div>
+            <EmptyState
+              icon="event_busy"
+              title="No events published yet"
+              message="Publish your first event and it will show up here and on the community page."
+              action={<Button as={Link} to="/community-admin/events" icon="add_circle">Create an event</Button>}
+            />
           )}
 
           {!loading && latestEvents.length > 0 && (
