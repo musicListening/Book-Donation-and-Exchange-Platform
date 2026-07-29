@@ -648,7 +648,7 @@ const Home = () => {
         ) : (
         <>
         {/* Podium — rendered 2nd, 1st, 3rd so the winner sits in the middle */}
-        <div className="reveal-stagger leaderboard-podium" style={styles.podium}>
+        <div className="leaderboard-podium" style={styles.podium}>
           {[1, 0, 2]
             .filter((i) => leaderboard[i])
             .map((i) => {
@@ -693,7 +693,7 @@ const Home = () => {
         </div>
 
         {leaderboard.length > 3 && (
-        <div className="reveal" style={styles.rankList}>
+        <div style={styles.rankList}>
           {leaderboard.slice(3).map((donor) => (
             <div key={donor.id} className="leaderboard-row" style={styles.rankRow}>
               <span style={styles.rankNum}>{donor.rank}</span>
