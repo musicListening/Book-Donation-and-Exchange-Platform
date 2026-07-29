@@ -239,6 +239,15 @@ router.post('/auto-assign', async (req, res) => {
         }
       });
 
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          type: 'MYSTERY_BOX_REWARD',
+          title: 'Mystery Box Awarded!',
+          message: `Congratulations! You've received a ${unlockName} with ${selectedBooks.length} books inside.`,
+        }
+      });
+
       for (const book of selectedBooks) {
         await prisma.bookItem.update({
           where: { id: book.id },
@@ -298,6 +307,15 @@ router.post('/:id/claim', async (req, res) => {
     await prisma.mysteryBox.update({
       where: { id },
       data: { status: 'CLAIMED', claimedAt: new Date() }
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: 'MYSTERY_BOX_REWARD',
+        title: 'Mystery Box Claimed!',
+        message: `You have successfully claimed the ${boxTitle}. Check your new items in your profile tab!`,
+      }
     });
 
     // Deduct points if needed

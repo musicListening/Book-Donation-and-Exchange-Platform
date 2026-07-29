@@ -5,6 +5,17 @@ import { showToast } from "../../utils/toast";
 
 const API_URL = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
+function authFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 const roles = ["All Roles", "End User", "Operations Staff", "Platform Admin", "Delivery Personnel", "Community Admin"];
 const statuses = ["All Statuses", "Active", "Deactivated"];
 
@@ -41,7 +52,7 @@ export default function UserManagement() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch(`${API_URL}/users`);
+      const response = await authFetch(`${API_URL}/users`);
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
       setUsers(data);
@@ -57,7 +68,7 @@ export default function UserManagement() {
 
   const handleToggleStatus = async (id, currentStatus) => {
     try {
-      const response = await fetch(`${API_URL}/users/${id}/status`, {
+      const response = await authFetch(`${API_URL}/users/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !currentStatus })
@@ -74,7 +85,7 @@ export default function UserManagement() {
   const handleDeleteUser = async (id, name) => {
     if (!window.confirm(`Delete "${name}"? They will be moved to deleted users.`)) return;
     try {
-      const response = await fetch(`${API_URL}/users/${id}`, { method: "DELETE" });
+      const response = await authFetch(`${API_URL}/users/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
       showToast("User deleted successfully.", "success");
       fetchUsers();
@@ -112,7 +123,7 @@ export default function UserManagement() {
     setEditError("");
     setIsEditing(true);
     try {
-      const response = await fetch(`${API_URL}/users/${editUser.id}`, {
+      const response = await authFetch(`${API_URL}/users/${editUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
@@ -137,7 +148,7 @@ export default function UserManagement() {
     setFormError("");
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_URL}/users`, {
+      const response = await authFetch(`${API_URL}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),

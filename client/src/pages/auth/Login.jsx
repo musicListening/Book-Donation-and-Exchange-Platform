@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -178,14 +179,24 @@ const Login = () => {
           
           <div style={styles.formGroup}>
             <label style={styles.label}>Password</label>
-            <input 
-              type="password" 
-              style={styles.formControl} 
-              placeholder="••••••••" 
-              required 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-            />
+            <div style={{ display: 'flex', alignItems: 'stretch', border: '2px solid #DEE2E6', borderRadius: 12, overflow: 'hidden', backgroundColor: '#EBF1FD' }}>
+              <input 
+                type={showPassword ? "text" : "password"} 
+                style={{ flex: 1, padding: '12px 16px', fontFamily: 'Inter, sans-serif', fontSize: 15, border: 'none', borderRadius: 0, background: 'transparent', outline: 'none', boxSizing: 'border-box' }} 
+                placeholder="••••••••" 
+                required 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ background: '#DDE2E8', border: 'none', borderLeft: '2px solid #DEE2E6', cursor: 'pointer', padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#343A40' }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{showPassword ? 'visibility_off' : 'visibility'}</span>
+              </button>
+            </div>
           </div>
           
           <button 

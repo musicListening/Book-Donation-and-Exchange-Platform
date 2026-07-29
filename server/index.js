@@ -32,7 +32,7 @@ const authLimiter = rateLimit({
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  'https://shareshelfbookdonation.netlify.app/',
+  'https://shareshelfbookdonation.netlify.app',
   'https://book-donation-and-exchange-platform.onrender.com',
 ];
 app.use(cors({
@@ -66,23 +66,43 @@ const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
 const craftRoutes = require('./routes/crafts');
+const notificationRoutes = require('./routes/notifications');
+
+// 3b. Auth middleware
+const { authenticate, requireRole } = require('./middleware/auth');
+
 // 4. Register routes
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', apiLimiter, userRoutes);
-app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/users', apiLimiter, authenticate, userRoutes);
+app.get('/api/admin/config', apiLimiter, authenticate, async (req, res) => {
+  try {
+    const { withRetry } = require('./db');
+    const { prisma } = require('./db');
+    await withRetry(() => prisma.$queryRaw`SELECT 1`, 2);
+    const configs = await prisma.systemConfig.findMany();
+    const map = {};
+    for (const c of configs) {
+      map[c.key] = c.value;
+    }
+    res.json(map);
+  } catch (error) {
+    console.error('Config fetch error:', error);
+    res.status(500).json({ error: 'Failed to load configuration' });
+  }
+});
+app.use('/api/admin', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), adminRoutes);
 app.use('/api/reviews', apiLimiter, reviewRoutes);
-
-// CRUD Routes
-app.use('/api/tasks', apiLimiter, taskRoutes);
-app.use('/api/shipments', apiLimiter, shipmentRoutes);
+app.use('/api/tasks', apiLimiter, authenticate, taskRoutes);
+app.use('/api/shipments', apiLimiter, authenticate, shipmentRoutes);
 app.use('/api/collections', apiLimiter, collectionRoutes);
 app.use('/api/books', apiLimiter, bookRoutes);
-app.use('/api/donations', apiLimiter, donationRoutes);
-app.use('/api/orders', apiLimiter, orderRoutes);
+app.use('/api/donations', apiLimiter, authenticate, donationRoutes);
+app.use('/api/orders', apiLimiter, authenticate, orderRoutes);
 app.use('/api/stats', apiLimiter, statsRoutes);
 app.use('/api/community', apiLimiter, communityRoutes);
-app.use('/api/mystery-boxes', apiLimiter, mysteryBoxRoutes);
+app.use('/api/mystery-boxes', apiLimiter, authenticate, mysteryBoxRoutes);
 app.use('/api/crafts', apiLimiter, craftRoutes);
+app.use('/api/notifications', apiLimiter, authenticate, notificationRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {

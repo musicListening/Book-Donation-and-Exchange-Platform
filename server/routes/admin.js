@@ -391,10 +391,10 @@ router.get('/report', async (req, res) => {
 
       const loginLogs = await prisma.loginLog.findMany({
         where: {
-          user: { role: { in: staffRoles } },
+          User: { role: { in: staffRoles } },
           ...(hasDateFilter ? { createdAt: dateFilter } : {}),
         },
-        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        include: { User: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -404,9 +404,9 @@ router.get('/report', async (req, res) => {
         const uid = log.userId;
         if (!userMap[uid]) {
           userMap[uid] = {
-            name: log.user.name,
-            email: log.user.email,
-            role: log.user.role,
+            name: log.User.name,
+            email: log.User.email,
+            role: log.User.role,
             totalLogins: 0,
             totalLogouts: 0,
             lastLogin: null,
@@ -431,9 +431,10 @@ router.get('/report', async (req, res) => {
 
       const rows = Object.values(userMap).map(u => ({
         col1: u.name,
-        col2: roleLabels[u.role] || u.role,
-        col3: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
-        col4: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+        col2: u.email,
+        col3: roleLabels[u.role] || u.role,
+        col4: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
+        col5: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
       }));
 
       // Chart data: logins per role
@@ -453,7 +454,7 @@ router.get('/report', async (req, res) => {
       return res.json({
         title: 'System Activity Logs',
         subtitle: 'Login and logout activity for all staff roles',
-        headers: ['Staff Member', 'Role', 'Last Login', 'Last Logout'],
+        headers: ['Staff Member', 'Email', 'Role', 'Last Login', 'Last Logout'],
         rows,
         chartData,
       });
@@ -465,8 +466,6 @@ router.get('/report', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate report' });
   }
 });
-
-// ===== SYSTEM CONFIGURATION =====
 
 // GET /api/admin/config — fetch all system config as key-value pairs
 router.get('/config', async (req, res) => {

@@ -55,7 +55,8 @@ const Marketplace = () => {
   };
 
   const addToCart = (item, type) => {
-    const newCart = [...cart, { ...item, type }];
+    const itemPrice = item.pointsPrice || item.price || 0;
+    const newCart = [...cart, { ...item, type, price: itemPrice }];
     setCart(newCart);
     localStorage.setItem('ss_cart', JSON.stringify(newCart));
     setToast({ show: true, message: 'Added to cart!' });
@@ -121,15 +122,15 @@ const Marketplace = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cart.length} />
 
-      <main style={styles.mainContent}>
+      <main className="marketplace-main" style={styles.mainContent}>
         <div style={styles.pageHeader}><h1 style={styles.pageHeaderH1}>Marketplace</h1><p>Purchase curated book bundles and handmade crafts.</p></div>
 
         <div style={styles.tabs}>
           <button style={{ ...styles.tabBtn, ...(currentTab === 'bundles' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('bundles')}>📚 Books</button>
-          <button style={{ ...styles.tabBtn, ...(currentTab === 'crafts' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('crafts')}>🎨 Paper Crafts</button>
+          <button style={{ ...styles.tabBtn, ...(currentTab === 'crafts' ? styles.tabBtnActive : {}) }} onClick={() => setCurrentTab('crafts')}>🎨 Crafts</button>
         </div>
 
-        <div style={styles.filterBar}>
+        <div className="marketplace-filter-bar" style={styles.filterBar}>
           <div style={styles.searchBox}><i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#6C757D' }}></i><input type="text" style={styles.searchInput} placeholder="Search for books or crafts..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           <div style={styles.filterGroup}>
             <select style={styles.filterSelect} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
@@ -210,10 +211,17 @@ const Marketplace = () => {
 
 
 
-                  <div style={styles.productPriceRow}>
-                    <span style={styles.productPrice}>
-                      {currentTab === 'crafts' ? `${item.pointsPrice || item.price || 0} pts` : `Rs. ${item.pointsPrice || item.price || 0}`}
-                    </span>
+                  <div style={{ ...styles.productPriceRow, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={styles.productPrice}>
+                        {currentTab === 'crafts' ? `${item.pointsPrice || item.price || 0} pts` : `LKR ${item.pointsPrice || item.price || 0}`}
+                      </span>
+                      {currentTab !== 'crafts' && (
+                        <span style={{ fontSize: 11, color: '#2A9D8F', fontWeight: 700, marginTop: 4 }}>
+                          <i className="fa-solid fa-coins"></i> Up to 25% off with points
+                        </span>
+                      )}
+                    </div>
                     <button style={styles.btnAdd} onClick={() => addToCart(item, currentTab)}>Add</button>
                   </div>
                 </div>

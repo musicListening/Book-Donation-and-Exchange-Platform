@@ -1,10 +1,11 @@
 // server/routes/collections.js
 const express = require('express');
 const { prisma } = require('../db');
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 // ===== CREATE Collection =====
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const { title, description, category, stock, pointsRequired, isRare, imageUrl, cashPrice, userId } = req.body;
 
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
 });
 
 // ===== UPDATE Collection =====
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const { title, description, category, stock, pointsRequired, isRare, imageUrl, cashPrice } = req.body;
@@ -75,7 +76,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // ===== DELETE Collection =====
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.bookCollection.delete({ where: { id } });
