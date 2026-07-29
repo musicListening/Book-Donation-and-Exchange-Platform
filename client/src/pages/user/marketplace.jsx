@@ -181,7 +181,7 @@ const Marketplace = () => {
                       <span>{item.genre?.[0] || item.title?.[0] || (currentTab === 'bundles' ? 'B' : 'C')}</span>
                     </div>
                   )}
-                  <span style={styles.productBadge}>{currentTab === 'bundles' ? (item.collection?.category || item.genre || 'Book') : 'Handmade'}</span>
+                  <span style={styles.productBadge}>{currentTab === 'bundles' ? (item.category || item.collection?.category || item.genre || 'Book') : 'Handmade'}</span>
                   <span style={{
                     position: 'absolute', top: 12, right: 12,
                     background: '#1E4D4B', color: 'white',
