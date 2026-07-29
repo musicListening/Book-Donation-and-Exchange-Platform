@@ -145,6 +145,43 @@ export function Chip({ children, tone = 'accent', style = {} }) {
   );
 }
 
+// Placeholder block used while data loads. Mirrors the shape of the real
+// content so the layout does not jump when it arrives.
+export function Skeleton({ height = 16, width = '100%', radius: r = radius.sm, style = {} }) {
+  return <div className="community-skeleton" aria-hidden="true" style={{ height, width, borderRadius: r, ...style }} />;
+}
+
+// Card-shaped skeleton matching the event/message cards.
+export function SkeletonCard({ media = false }) {
+  return (
+    <div style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: radius.md, overflow: 'hidden' }}>
+      {media && <Skeleton height={128} radius={0} />}
+      <div style={{ padding: space.lg, display: 'grid', gap: space.sm }}>
+        <Skeleton height={11} width="38%" />
+        <Skeleton height={18} width="72%" />
+        <Skeleton height={12} />
+        <Skeleton height={12} width="85%" />
+        <Skeleton height={14} width="45%" style={{ marginTop: space.xs }} />
+      </div>
+    </div>
+  );
+}
+
+// One empty state used by every list, so "nothing here" always reads the
+// same and can offer the next action instead of dead-ending.
+export function EmptyState({ icon = 'inbox', title, message, action }) {
+  return (
+    <div style={{ textAlign: 'center', padding: `${space.xxl + 16}px ${space.lg}px`, background: colors.surfaceContainerLowest, borderRadius: radius.md, border: `1px dashed ${colors.outlineVariant}` }}>
+      <div style={{ width: 64, height: 64, margin: '0 auto', borderRadius: '50%', background: colors.tertiaryFixed, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.tertiary }}>
+        <Icon name={icon} size={30} />
+      </div>
+      <h4 style={{ marginTop: space.md, fontFamily: "'Playfair Display', serif", fontSize: 19, color: colors.onSurface }}>{title}</h4>
+      {message && <p style={{ marginTop: space.xs, fontSize: 14, lineHeight: 1.7, color: colors.inkSoft, maxWidth: 380, marginLeft: 'auto', marginRight: 'auto' }}>{message}</p>}
+      {action && <div style={{ marginTop: space.lg }}>{action}</div>}
+    </div>
+  );
+}
+
 // Fonts + global resets shared by every Community Admin page.
 export function CommunityAdminFonts() {
   return (
@@ -246,6 +283,15 @@ export function CommunityAdminFonts() {
           font-size: 28px;
           color: ${colors.primaryDeep};
           font-family: 'Playfair Display', serif;
+        }
+        .community-skeleton {
+          background: linear-gradient(100deg, ${colors.surfaceContainerHigh} 28%, ${colors.surfaceContainerLow} 48%, ${colors.surfaceContainerHigh} 68%);
+          background-size: 220% 100%;
+          animation: communityShimmer 1.3s ease-in-out infinite;
+        }
+        @keyframes communityShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
         .community-btn:hover:not(:disabled) {
           transform: translateY(-1px);
