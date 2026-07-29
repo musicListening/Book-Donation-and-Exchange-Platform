@@ -637,28 +637,30 @@ function BundleManagement() {
     try {
       const token = localStorage.getItem('token');
       
-      // CASE 1: Title already exists - Update quantity only
+      // CASE 1: Title already exists - Update quantity by adding to it
       if (marketplaceFormData.existingBook) {
-        console.log('📝 Updating existing marketplace entry...');
-        const existingId = marketplaceFormData.existingBook.id;
-        const newQuantity = (marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty);
+        console.log('📝 Updating existing marketplace entry by adding quantity...');
+        const formData = new FormData();
+        formData.append('title', marketplaceFormData.title);
+        formData.append('pointsPrice', marketplaceFormData.price);
+        formData.append('qty', marketplaceFormData.qty);
+        formData.append('existingImageUrl', marketplaceFormData.existingBook.imageUrl || '');
         
-        const response = await fetch(`${API_BASE}/books/marketplace/${existingId}`, {
+        const response = await fetch(`${API_BASE}/books/${selectedBookToMarketplace.id}/add-to-marketplace`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            quantity: newQuantity
-          })
+          body: formData
         });
         
         if (!response.ok) {
-          throw new Error('Failed to update marketplace quantity');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to update marketplace quantity');
         }
         
-        alert(`✅ Quantity updated! Added ${marketplaceFormData.qty} more to "${marketplaceFormData.existingBook.title}" (Total: ${newQuantity})`);
+        const newQuantity = (marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty);
+        alert(`✅ Quantity updated! Added ${marketplaceFormData.qty} more to "${marketplaceFormData.title}" (Total: ${newQuantity})`);
         setShowAddToMarketplaceModal(false);
         await loadAllData();
         return;
@@ -1462,7 +1464,7 @@ function BundleManagement() {
                     padding: '8px 12px',
                     borderRadius: 6
                   }}>
-                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price})
+                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price}, Previous Qty: {marketplaceFormData.existingBook.quantity || 0}, New Qty: {(marketplaceFormData.existingBook.quantity || 0) + (parseInt(marketplaceFormData.qty) || 0)})
                   </p>
                 )}
                 {!marketplaceFormData.existingBook && marketplaceFormData.title && marketplaceFormData.title.trim() !== '' && !isSearching && (
