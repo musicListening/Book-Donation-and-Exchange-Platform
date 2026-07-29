@@ -35,6 +35,7 @@ const Home = () => {
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [boardLoading, setBoardLoading] = useState(true);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -73,7 +74,8 @@ const Home = () => {
     fetch(`${API_URL}/stats/leaderboard?limit=10`)
       .then(res => res.json())
       .then(data => setLeaderboard(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBoardLoading(false));
   }, []);
 
   // ── IntersectionObserver to trigger counter animation ──
@@ -415,6 +417,7 @@ const Home = () => {
     donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
     rankBooks: { fontSize: 18, fontWeight: 800, color: '#1E4D4B', whiteSpace: 'nowrap' },
     emptyBoard: { textAlign: 'center', padding: '48px 0', color: '#6C757D' },
+    boardSkeleton: { background: 'linear-gradient(100deg, #F1F3F5 30%, #F8F9FA 50%, #F1F3F5 70%)', backgroundSize: '200% 100%', animation: 'boardShimmer 1.4s ease-in-out infinite', boxShadow: 'none' },
 
     levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
     levelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48 },
@@ -630,7 +633,13 @@ const Home = () => {
           </p>
         </div>
 
-        {leaderboard.length === 0 ? (
+        {boardLoading ? (
+          <div style={styles.podium}>
+            {[2, 1, 3].map((n) => (
+              <div key={n} style={{ ...styles.podiumCard, ...styles.boardSkeleton, height: n === 1 ? 300 : 268 }} />
+            ))}
+          </div>
+        ) : leaderboard.length === 0 ? (
           <div style={styles.emptyBoard}>
             No donations yet — be the first to get on the board!
           </div>
