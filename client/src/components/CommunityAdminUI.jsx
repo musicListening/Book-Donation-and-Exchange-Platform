@@ -186,6 +186,8 @@ export function CommunityAdminFonts() {
           color: ${colors.primaryDeep};
           font-family: 'Playfair Display', serif;
         }
+        @keyframes communityFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
         ::-webkit-scrollbar-thumb { background: ${colors.primaryContainer}; border-radius: 10px; }
@@ -198,6 +200,20 @@ export function CommunityAdminFonts() {
 
 // One Sidebar component reused by every Community Admin page.
 export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
+  // Mobile drawer behaviour: Escape closes it, and the page behind it stops
+  // scrolling while it is open.
+  useEffect(() => {
+    if (isMd || !open) return;
+    const onKeyDown = (e) => { if (e.key === "Escape" && onClose) onClose(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMd, open, onClose]);
+
   const handleLogout = () => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
@@ -249,12 +265,29 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
   if (!isMd) {
     return (
       <>
-        {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />}
-        <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: 50, transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)", transform: open ? "translateX(0)" : "translateX(-100%)" }}>{content}</div>
+        {open && (
+          <div
+            onClick={onClose}
+            aria-hidden="true"
+            style={{ position: "fixed", inset: 0, background: "rgba(10, 59, 50, 0.55)", backdropFilter: "blur(2px)", zIndex: layer.drawerScrim, animation: `communityFadeIn ${motion.base} both` }}
+          />
+        )}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Community admin menu"
+          // Hidden from assistive tech and the tab order when closed, so the
+          // off-screen menu cannot be tabbed into.
+          aria-hidden={open ? undefined : "true"}
+          inert={open ? undefined : ""}
+          style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: layer.drawer, transition: `transform ${motion.slow}`, transform: open ? "translateX(0)" : "translateX(-100%)", boxShadow: open ? elevation.float : "none" }}
+        >
+          {content}
+        </div>
       </>
     );
   }
-  return <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: 50 }}>{content}</div>;
+  return <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: layer.drawer }}>{content}</div>;
 }
 
 // One sticky header reused by every Community Admin page.
