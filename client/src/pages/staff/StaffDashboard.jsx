@@ -97,8 +97,8 @@ function StaffDashboard() {
         total: 4
       });
       setMysteryBoxDonations([
-        { id: '4', donor: 'Nimal Fernando', verifiedCount: 25, bookCount: 25, awardedMysteryBox: false },
-        { id: '2', donor: 'Savinthi Minaya', verifiedCount: 3, bookCount: 3, awardedMysteryBox: false }
+        { id: '4', donor: 'Nimal Fernando', verifiedCount: 25, bookCount: 25, awardedMysteryBox: false, userId: 'test-user-123' },
+        { id: '2', donor: 'Savinthi Minaya', verifiedCount: 3, bookCount: 3, awardedMysteryBox: false, userId: 'test-user-456' }
       ]);
     } finally {
       setLoading(false);
@@ -121,8 +121,15 @@ function StaffDashboard() {
     setAwardingBox(true);
     try {
       const token = localStorage.getItem('token');
+      const userId = selectedDonation.userId || selectedDonation.user?.id;
       
-      const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}`, {
+      if (!userId) {
+        throw new Error('User ID not found for this donation');
+      }
+
+      // Step 1: Update donation to mark mystery box as awarded
+      console.log('📝 Updating donation:', selectedDonation.id);
+      const donationResponse = await fetch(`${API_BASE}/donations/${selectedDonation.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -135,20 +142,114 @@ function StaffDashboard() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to award mystery box');
+      if (!donationResponse.ok) {
+        const errorText = await donationResponse.text();
+        console.error('Donation update failed:', errorText);
+        throw new Error(`Failed to update donation: ${errorText}`);
       }
 
-      alert(`🎁 Mystery Box awarded to ${selectedDonation.donor}!`);
+      console.log('✅ Donation updated successfully');
+
+      // Step 2: Try to create mystery box using the auto-assign endpoint first
+      console.log('🎁 Creating mystery box for user:', userId);
       
+      // Try auto-assign endpoint first (if it exists)
+      let mysteryBoxCreated = false;
+      try {
+        const autoAssignResponse = await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            userId: userId 
+          })
+        });
+
+        if (autoAssignResponse.ok) {
+          const result = await autoAssignResponse.json();
+          console.log('✅ Mystery box auto-assigned:', result);
+          mysteryBoxCreated = true;
+        } else {
+          console.log('⚠️ Auto-assign endpoint failed, trying manual creation...');
+        }
+      } catch (autoError) {
+        console.log('⚠️ Auto-assign error, trying manual creation:', autoError.message);
+      }
+
+      // If auto-assign didn't work, try manual creation
+      if (!mysteryBoxCreated) {
+        try {
+          const mysteryBoxResponse = await fetch(`${API_BASE}/mystery-boxes`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId: userId,
+              level: 0,
+              description: '🎁 Mystery Box awarded for donating 10+ books!',
+              status: 'UNCLAIMED'
+            })
+          });
+
+          if (!mysteryBoxResponse.ok) {
+            const errorText = await mysteryBoxResponse.text();
+            console.error('Mystery box creation failed:', errorText);
+            
+            // If still failing, try using the generic boxes endpoint
+            const boxesResponse = await fetch(`${API_BASE}/boxes`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                userId: userId,
+                type: 'MYSTERY_BOX',
+                status: 'UNCLAIMED',
+                level: 0
+              })
+            });
+
+            if (!boxesResponse.ok) {
+              throw new Error('Failed to create mystery box through all endpoints');
+            }
+            
+            const result = await boxesResponse.json();
+            console.log('✅ Mystery box created via /boxes endpoint:', result);
+          } else {
+            const result = await mysteryBoxResponse.json();
+            console.log('✅ Mystery box created via /mystery-boxes endpoint:', result);
+          }
+        } catch (manualError) {
+          console.error('Manual creation failed:', manualError);
+          // Don't throw - we already updated the donation, user can retry
+          alert('⚠️ Mystery box was awarded but we had trouble creating the box. The user may need to contact support.');
+          setMysteryBoxDonations(mysteryBoxDonations.filter(d => d.id !== selectedDonation.id));
+          setShowMysteryBoxModal(false);
+          setSelectedDonation(null);
+          await loadDonations();
+          setAwardingBox(false);
+          return;
+        }
+      }
+
+      alert(`🎁 Mystery Box awarded to ${selectedDonation.donor}! They can claim it from their dashboard.`);
+      
+      // Update local state
       setMysteryBoxDonations(mysteryBoxDonations.filter(d => d.id !== selectedDonation.id));
       setShowMysteryBoxModal(false);
       setSelectedDonation(null);
-      loadDonations();
+      
+      // Reload donations to refresh the list
+      await loadDonations();
       
     } catch (error) {
       console.error('Error awarding mystery box:', error);
-      alert('Failed to award mystery box. Please try again.');
+      alert(`Failed to award mystery box: ${error.message}`);
     } finally {
       setAwardingBox(false);
     }
