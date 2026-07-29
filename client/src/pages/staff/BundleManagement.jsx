@@ -602,7 +602,9 @@ function BundleManagement() {
         ...prev,
         title: typedTitle,
         existingBook: null,
-        isExistingTitle: false
+        isExistingTitle: false,
+        imagePreview: null,
+        image: null
       }));
       return;
     }
@@ -627,7 +629,9 @@ function BundleManagement() {
         ...prev,
         title: typedTitle,
         existingBook: null,
-        isExistingTitle: false
+        isExistingTitle: false,
+        imagePreview: null,
+        image: null
       }));
     }
   };
@@ -637,28 +641,35 @@ function BundleManagement() {
     try {
       const token = localStorage.getItem('token');
       
-      // CASE 1: Title already exists - Update quantity only
+      // CASE 1: Title already exists - Update quantity by adding to it
       if (marketplaceFormData.existingBook) {
-        console.log('📝 Updating existing marketplace entry...');
-        const existingId = marketplaceFormData.existingBook.id;
-        const newQuantity = (marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty);
+        console.log('📝 Updating existing marketplace entry by adding quantity...');
+        const formData = new FormData();
+        formData.append('title', marketplaceFormData.title);
+        formData.append('pointsPrice', marketplaceFormData.price);
+        formData.append('qty', marketplaceFormData.qty);
+        formData.append('existingImageUrl', marketplaceFormData.existingBook.imageUrl || '');
         
-        const response = await fetch(`${API_BASE}/books/marketplace/${existingId}`, {
+        // Append new cover image if uploaded for updating the book cover
+        if (marketplaceFormData.image) {
+          formData.append('image', marketplaceFormData.image);
+        }
+        
+        const response = await fetch(`${API_BASE}/books/${selectedBookToMarketplace.id}/add-to-marketplace`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            quantity: newQuantity
-          })
+          body: formData
         });
         
         if (!response.ok) {
-          throw new Error('Failed to update marketplace quantity');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to update marketplace quantity');
         }
         
-        alert(`✅ Quantity updated! Added ${marketplaceFormData.qty} more to "${marketplaceFormData.existingBook.title}" (Total: ${newQuantity})`);
+        const newQuantity = (marketplaceFormData.existingBook.quantity || 0) + parseInt(marketplaceFormData.qty);
+        alert(`✅ Quantity updated! Added ${marketplaceFormData.qty} more to "${marketplaceFormData.title}" (Total: ${newQuantity})`);
         setShowAddToMarketplaceModal(false);
         await loadAllData();
         return;
@@ -669,7 +680,7 @@ function BundleManagement() {
       const formData = new FormData();
       
       // Use the book's actual title
-      const bookTitle = selectedBookToMarketplace.title || marketplaceFormData.title;
+      const bookTitle = marketplaceFormData.title || selectedBookToMarketplace.title;
       
       // Required fields
       formData.append('title', bookTitle);
@@ -1391,6 +1402,20 @@ function BundleManagement() {
                 onClick={() => {
                   setShowAddToMarketplaceModal(false);
                   setSelectedBookToMarketplace(null);
+                  setMarketplaceFormData({
+                    title: '',
+                    price: '',
+                    image: null,
+                    imagePreview: null,
+                    qty: '1',
+                    maxQty: 1,
+                    existingBook: null,
+                    isExistingTitle: false,
+                    category: '',
+                    condition: '',
+                    description: '',
+                    source: ''
+                  });
                 }}
               >
                 ×
@@ -1462,7 +1487,7 @@ function BundleManagement() {
                     padding: '8px 12px',
                     borderRadius: 6
                   }}>
-                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price})
+                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice || marketplaceFormData.existingBook.price}, Previous Qty: {marketplaceFormData.existingBook.quantity || 0}, New Qty: {(marketplaceFormData.existingBook.quantity || 0) + (parseInt(marketplaceFormData.qty) || 0)})
                   </p>
                 )}
                 {!marketplaceFormData.existingBook && marketplaceFormData.title && marketplaceFormData.title.trim() !== '' && !isSearching && (
@@ -1523,27 +1548,30 @@ function BundleManagement() {
                     <img src={marketplaceFormData.imagePreview} alt="Preview" style={{ height: '100px', borderRadius: '8px', objectFit: 'cover' }} />
                   </div>
                 )}
-                {!marketplaceFormData.existingBook ? (
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    className="form-control"
-                    required={!marketplaceFormData.existingBook && !marketplaceFormData.imagePreview}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setMarketplaceFormData({
-                          ...marketplaceFormData,
-                          image: file,
-                          imagePreview: URL.createObjectURL(file)
-                        });
-                      }
-                    }}
-                    style={{ padding: '8px' }}
-                  />
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  className="form-control"
+                  required={!marketplaceFormData.existingBook && !marketplaceFormData.imagePreview}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setMarketplaceFormData({
+                        ...marketplaceFormData,
+                        image: file,
+                        imagePreview: URL.createObjectURL(file)
+                      });
+                    }
+                  }}
+                  style={{ padding: '8px' }}
+                />
+                {marketplaceFormData.existingBook ? (
+                  <p className="helper-text" style={{ marginTop: '6px' }}>
+                    Optional: Upload a new image to update the cover, or leave blank to keep using the existing cover.
+                  </p>
                 ) : (
-                  <p className="helper-text" style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 6 }}>
-                    Using existing image from marketplace
+                  <p className="helper-text" style={{ marginTop: '6px' }}>
+                    Upload a cover image for the new marketplace entry.
                   </p>
                 )}
               </div>
@@ -1555,6 +1583,20 @@ function BundleManagement() {
                   onClick={() => {
                     setShowAddToMarketplaceModal(false);
                     setSelectedBookToMarketplace(null);
+                    setMarketplaceFormData({
+                      title: '',
+                      price: '',
+                      image: null,
+                      imagePreview: null,
+                      qty: '1',
+                      maxQty: 1,
+                      existingBook: null,
+                      isExistingTitle: false,
+                      category: '',
+                      condition: '',
+                      description: '',
+                      source: ''
+                    });
                   }}
                 >
                   Cancel
