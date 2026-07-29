@@ -4,6 +4,11 @@ import { communityAPI } from '../../services/api';
 import { colors } from '../../components/communityTokens';
 import { Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
+// Shared field styling so every input in the event form matches
+const fieldLabel = { display: 'block', fontSize: 13.5, fontWeight: 600, marginBottom: 7, color: colors.onSurface };
+const requiredMark = { color: colors.error, marginLeft: 2 };
+const fieldHint = { marginTop: 6, fontSize: 12, lineHeight: 1.5, color: colors.inkSoft };
+
 const localDateTime = (value) => { if (!value) return ''; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date - offset).toISOString().slice(0, 16); };
 const eventLabel = (event) => new Date(event.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -41,26 +46,28 @@ function EventForm({ event, onClose, onSave }) {
           <img src={form.imageUrl} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }} />
         )}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Event Title *</label>
-          <input type="text" required value={form.title} onChange={(input) => update('title', input.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, fontFamily: "'Inter', sans-serif" }} />
+          <label htmlFor="event-title" style={fieldLabel}>Event title <span style={requiredMark} aria-hidden="true">*</span></label>
+          <input id="event-title" className="event-field" type="text" required autoFocus value={form.title} onChange={(input) => update('title', input.target.value)} />
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Description *</label>
-          <textarea required value={form.description} onChange={(input) => update('description', input.target.value)} style={{ width: '100%', minHeight: 100, padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, fontFamily: "'Inter', sans-serif", resize: 'vertical' }} />
+          <label htmlFor="event-description" style={fieldLabel}>Description <span style={requiredMark} aria-hidden="true">*</span></label>
+          <textarea id="event-description" className="event-field" required value={form.description} onChange={(input) => update('description', input.target.value)} style={{ minHeight: 104, resize: 'vertical' }} />
+          <p style={fieldHint}>Shown on the community page under the event title.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="event-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Date &amp; Time *</label>
-            <input type="datetime-local" required value={form.eventDate} onChange={(input) => update('eventDate', input.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
+            <label htmlFor="event-date" style={fieldLabel}>Date &amp; time <span style={requiredMark} aria-hidden="true">*</span></label>
+            <input id="event-date" className="event-field" type="datetime-local" required value={form.eventDate} onChange={(input) => update('eventDate', input.target.value)} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Venue</label>
-            <input type="text" value={form.venue} onChange={(input) => update('venue', input.target.value)} placeholder="Optional" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
+            <label htmlFor="event-venue" style={fieldLabel}>Venue</label>
+            <input id="event-venue" className="event-field" type="text" value={form.venue} onChange={(input) => update('venue', input.target.value)} placeholder="Optional" />
           </div>
         </div>
         <div style={{ marginBottom: 24 }}>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Image URL (optional)</label>
-          <input type="url" value={form.imageUrl} onChange={(input) => update('imageUrl', input.target.value)} placeholder="https://example.com/image.jpg" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
+          <label htmlFor="event-image" style={fieldLabel}>Image URL</label>
+          <input id="event-image" className="event-field" type="url" value={form.imageUrl} onChange={(input) => update('imageUrl', input.target.value)} placeholder="https://example.com/image.jpg" />
+          <p style={fieldHint}>Leave empty to use the default event picture.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, background: 'transparent', cursor: 'pointer', fontSize: 14, color: colors.onSurfaceVariant }}>Cancel</button>
@@ -221,6 +228,35 @@ export default function EventManagement() {
         .event-search { flex: 1; min-width: 220px; padding: 10px 14px 10px 40px; border-radius: 40px; border: 1px solid ${colors.outlineVariant}; font-size: 14px; background-position: 12px center; background-repeat: no-repeat; }
         .event-hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; margin-bottom: 28px; }
         @media (max-width: 1024px) { .event-hero { grid-template-columns: 1fr; } }
+
+        /* One field style for the whole event form */
+        .event-field {
+          width: 100%;
+          padding: 11px 14px;
+          border-radius: 10px;
+          border: 1px solid ${colors.outlineVariant};
+          background: ${colors.surfaceContainerLowest};
+          color: ${colors.onSurface};
+          font-size: 14px;
+          font-family: 'Inter', sans-serif;
+          transition: border-color 140ms ease, box-shadow 140ms ease;
+        }
+        .event-field::placeholder { color: ${colors.inkSoft}; opacity: 0.75; }
+        .event-field:hover { border-color: ${colors.primaryContainer}; }
+        .event-field:focus {
+          outline: none;
+          border-color: ${colors.primary};
+          box-shadow: 0 0 0 3px ${colors.primaryFixed};
+        }
+        /* Only flag a required field once the browser has judged it */
+        .event-field:user-invalid {
+          border-color: ${colors.error};
+          box-shadow: 0 0 0 3px ${colors.errorContainer};
+        }
+        /* The stacked date/venue row is too tight on small screens */
+        @media (max-width: 520px) {
+          .event-form-row { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <CommunitySidebar active="events" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
