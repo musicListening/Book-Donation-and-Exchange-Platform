@@ -208,17 +208,19 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
   };
 
   const content = (
-    <aside style={{ height: "100%", width: 280, background: "linear-gradient(180deg, #0A3B32 0%, #0E4B3F 48%, #113A33 100%)", borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "32px 20px", boxShadow: "18px 0 40px rgba(10, 59, 50, 0.1)" }}>
+    <aside className="on-dark" style={{ height: "100%", width: 280, background: "linear-gradient(180deg, #0A3B32 0%, #0E4B3F 48%, #113A33 100%)", borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "32px 20px", boxShadow: "18px 0 40px rgba(10, 59, 50, 0.1)" }}>
       <div style={{ marginBottom: 38, paddingLeft: 12 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: sidebarColors.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Community Admin</h1>
         <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.7 }}>Simple tools for events and messages.</p>
       </div>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }} aria-label="Community admin sections">
         {NAV_LINKS.map((link) => {
           const isActive = link.key === active;
           return (
             <a
               key={link.key}
+              href={link.path}
+              aria-current={isActive ? "page" : undefined}
               onClick={(e) => { e.preventDefault(); if (navigate) navigate(link.path); if (onClose) onClose(); }}
               style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", textDecoration: "none", borderRadius: 14, fontWeight: isActive ? 600 : 400, color: isActive ? sidebarColors.text : "rgba(255, 255, 255, 0.7)", background: isActive ? "linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07))" : "transparent", borderLeft: isActive ? `3px solid ${colors.primaryFixed}` : "3px solid transparent", fontSize: 14, lineHeight: "20px", transition: "all 0.2s ease", cursor: "pointer", boxShadow: isActive ? "0 10px 25px rgba(0,0,0,0.12)" : "none" }}
               onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = sidebarColors.hoverBackground; e.currentTarget.style.color = sidebarColors.textHover; } }}
