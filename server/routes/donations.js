@@ -248,7 +248,7 @@ router.patch('/:id/update-points', async (req, res) => {
     }
 });
 
-// ===== VERIFY Donation (Changes status to VERIFIED) =====
+// ===== VERIFY Donation (Changes status to VERIFIED) - UPDATED FOR CRAFTS =====
 router.patch('/:id/verify', async (req, res) => {
     try {
         const { id } = req.params;
@@ -310,7 +310,7 @@ router.patch('/:id/verify', async (req, res) => {
                 userId: user.id,
                 type: 'EARNED_DONATION',
                 amount: points.total,
-                description: `Verified ${verifiedCount} book(s) - ${points.baseRate} pts/book`,
+                description: `Verified ${verifiedCount} item(s) - ${points.baseRate} pts/item`,
                 relatedDonationId: id,
                 staffId: staffId || null
             }
@@ -489,7 +489,6 @@ router.patch('/:id/verify', async (req, res) => {
         res.json({
             donation: updated,
             bookItems,
-            craftListings,
             points,
             leveledUp,
             newLevel,
@@ -516,32 +515,17 @@ router.post('/:id/publish-marketplace', async (req, res) => {
         const isCraft = donation.category && donation.category.startsWith('Craft:');
         const pointsPrice = parseInt(price) || 0;
 
+        // For crafts, update the bookItems in the craft bundle
         if (isCraft) {
-            const count = await prisma.craftListing.count({ where: { donationRequestId: id } });
-            if (count === 0) {
-                await prisma.craftListing.create({
-                    data: {
-                        userId: donation.userId,
-                        title: title || donation.collectionName || donation.category.replace(/^Craft:\s*/, '') || 'Donated Craft',
-                        description: description || `Donated craft item: ${donation.category} in ${condition || 'GOOD'} condition.`,
-                        pointsPrice,
-                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : '',
-                        additionalImages: donation.donationImages || [],
-                        status: 'LISTED',
-                        donationRequestId: donation.id
-                    }
-                });
-            } else {
-                await prisma.craftListing.updateMany({
-                    where: { donationRequestId: id },
-                    data: {
-                        status: 'LISTED',
-                        pointsPrice,
-                        description: description || `Donated craft item in ${condition || 'GOOD'} condition.`,
-                        title: title || undefined,
-                    }
-                });
-            }
+            // Update all bookItems from this donation to be available
+            await prisma.bookItem.updateMany({
+                where: { donationRequestId: id },
+                data: {
+                    isAvailable: true,
+                    addedToMarketplaceAt: new Date(),
+                    pointsPrice: pointsPrice || undefined,
+                }
+            });
         } else {
             const count = await prisma.bookItem.count({ where: { donationRequestId: id } });
             const targetQty = parseInt(quantity) || 1;
