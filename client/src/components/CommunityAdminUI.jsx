@@ -309,6 +309,19 @@ export function CommunityAdminFonts() {
         @keyframes communityFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes communityMenuIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Respect the OS "reduce motion" setting. The shimmer and spinner are
+           the worst offenders here, so they stop rather than just shorten. */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+          .community-skeleton { animation: none; background: ${colors.surfaceContainerHigh}; }
+          .community-btn:hover:not(:disabled) { transform: none; }
+        }
+
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
         ::-webkit-scrollbar-thumb { background: ${colors.primaryContainer}; border-radius: 10px; }
