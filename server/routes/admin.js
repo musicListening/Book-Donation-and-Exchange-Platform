@@ -391,10 +391,10 @@ router.get('/report', async (req, res) => {
 
       const loginLogs = await prisma.loginLog.findMany({
         where: {
-          user: { role: { in: staffRoles } },
+          User: { role: { in: staffRoles } },
           ...(hasDateFilter ? { createdAt: dateFilter } : {}),
         },
-        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        include: { User: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -404,9 +404,9 @@ router.get('/report', async (req, res) => {
         const uid = log.userId;
         if (!userMap[uid]) {
           userMap[uid] = {
-            name: log.user.name,
-            email: log.user.email,
-            role: log.user.role,
+            name: log.User.name,
+            email: log.User.email,
+            role: log.User.role,
             totalLogins: 0,
             totalLogouts: 0,
             lastLogin: null,
