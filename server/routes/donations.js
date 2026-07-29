@@ -9,10 +9,23 @@ router.post('/', uploadDonation.array('images', 10), async (req, res) => {
     try {
         const { userId, type, collectionName, category, requestedCount, notes, dropOffDate, timeSlot } = req.body;
 
-        // Upload donor images to Cloudinary
+        // Upload donor images to Cloudinary with local fallback
         let donationImages = [];
         if (req.files && req.files.length > 0) {
-            donationImages = await uploadToCloudinaryMultiple(req.files);
+            try {
+                donationImages = await uploadToCloudinaryMultiple(req.files);
+            } catch (cloudinaryError) {
+                console.warn('⚠️ Cloudinary upload failed, falling back to local storage:', cloudinaryError.message);
+                const fs = require('fs');
+                const path = require('path');
+                donationImages = [];
+                for (const file of req.files) {
+                    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+                    const filepath = path.join(__dirname, '../uploads', filename);
+                    fs.writeFileSync(filepath, file.buffer);
+                    donationImages.push(`http://localhost:5000/uploads/${filename}`);
+                }
+            }
         }
 
         const donation = await prisma.donationRequest.create({
@@ -28,6 +41,16 @@ router.post('/', uploadDonation.array('images', 10), async (req, res) => {
                 timeSlot: timeSlot || 'Morning (10:00 AM - 12:00 PM)',
                 pointsAwarded: 0,
                 donationImages,
+            }
+        });
+
+        await prisma.notification.create({
+            data: {
+                userId,
+                type: 'SYSTEM',
+                title: 'Donation Request Submitted!',
+                message: `Your donation request for ${requestedCount || 0} items has been submitted. Drop-off scheduled on ${dropOffDate ? new Date(dropOffDate).toLocaleDateString() : 'N/A'} during ${timeSlot || 'Morning (10:00 AM - 12:00 PM)'}.`,
+                relatedDonationId: donation.id
             }
         });
 
@@ -305,6 +328,16 @@ router.patch('/:id/verify', async (req, res) => {
                 }
             });
         }
+
+        await prisma.notification.create({
+            data: {
+                userId: user.id,
+                type: 'POINT_ADJUSTMENT',
+                title: 'Donation Verified!',
+                message: `Your donation request (ID: ${id.substring(0, 8).toUpperCase()}) has been verified. ${points.total + points.bonus} points have been added to your balance.`,
+                relatedDonationId: id
+            }
+        });
 
         if (leveledUp) {
             const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
@@ -638,6 +671,17 @@ router.patch('/:id/reject', async (req, res) => {
         });
 
         console.log('❌ Donation rejected:', updated);
+
+        await prisma.notification.create({
+            data: {
+                userId: updated.userId,
+                type: 'SYSTEM',
+                title: 'Donation Request Rejected',
+                message: `Your donation request (ID: ${updated.id.substring(0, 8).toUpperCase()}) was rejected. Reason: ${notes || 'Rejected by staff'}`,
+                relatedDonationId: updated.id
+            }
+        });
+
         res.json(updated);
     } catch (error) {
         console.error('Error rejecting donation:', error);

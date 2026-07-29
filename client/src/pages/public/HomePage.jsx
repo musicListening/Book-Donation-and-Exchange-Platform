@@ -20,14 +20,15 @@ const Home = () => {
     const frameRef = useRef(null);
 
     useEffect(() => {
-      if (!start || target <= 0) return;
+      const numTarget = Number(target) || 0;
+      if (!start || numTarget <= 0) return;
       const startTime = performance.now();
       const animate = (now) => {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         // ease-out cubic
         const eased = 1 - Math.pow(1 - progress, 3);
-        setValue(Math.floor(eased * target));
+        setValue(Math.floor(eased * numTarget));
         if (progress < 1) {
           frameRef.current = requestAnimationFrame(animate);
         }
@@ -378,9 +379,9 @@ const Home = () => {
     
     testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
-    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
-    testimonialAvatar: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', margin: '0 auto 16px', fontWeight: 'bold', objectFit: 'cover' },
-    testimonialAuthor: { marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' },
+    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease', display: 'flex', flexDirection: 'column' },
+    testimonialAvatar: { width: 56, height: 56, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
+    testimonialAuthor: { marginTop: 'auto', paddingTop: 24, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
     authorName: { margin: 0, fontSize: 16, color: '#343A40', fontWeight: 700 },
     authorRole: { fontSize: 13, color: '#6C757D', marginTop: 4 },
     testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
@@ -414,7 +415,7 @@ const Home = () => {
       {/* ... (keep all the other sections unchanged) ... */}
       
       {/* ============ HERO SECTION ============ */}
-      <section className="hero-section-bg" style={styles.heroSection}>
+      <section className="hero-section-bg hero-section-container" style={styles.heroSection}>
         {/* Background Image */}
         <img 
           src="https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&q=80&w=1920" 
@@ -433,8 +434,8 @@ const Home = () => {
           </div>
         </div>
 
-        <div style={styles.hero}>
-          <div style={styles.heroContent}>
+        <div className="hero-inner" style={styles.hero}>
+          <div className="hero-content" style={styles.heroContent}>
             <div className="hero-badge-shimmer hero-enter hero-enter--delay-1" style={styles.heroBadge}>
               <i className="fa-solid fa-book"></i> ShareShelf Book Exchange
             </div>
@@ -446,7 +447,7 @@ const Home = () => {
               of curated book bundles or handmade paper crafts. Join our sustainable 
               reading revolution.
             </p>
-            <div className="hero-enter hero-enter--delay-4" style={styles.heroButtons}>
+            <div className="hero-enter hero-enter--delay-4 hero-buttons" style={styles.heroButtons}>
               <button
                 type="button"
                 className="hero-btn-primary"
@@ -470,7 +471,7 @@ const Home = () => {
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> Instant points</span>
             </div>
           </div>
-          <div className="hero-visual-enter" style={styles.heroVisual}>
+          <div className="hero-visual-enter hero-visual" style={styles.heroVisual}>
             <div style={styles.heroCollage}>
               <div className="hexagon-wrapper-1" style={styles.hexagonWrapper1}>
                 <div style={styles.hexagonInner}>
@@ -493,10 +494,10 @@ const Home = () => {
       </section>
 
       {/* ============ HOW IT WORKS ============ */}
-      <section id="how-it-works" style={styles.howItWorks}>
+      <section id="how-it-works" className="how-it-works-section" style={styles.howItWorks}>
         <h2 className="reveal" style={styles.sectionTitle}>How ShareShelf Works</h2>
         <p className="reveal" style={styles.sectionSubtitle}>Four simple steps to turn your books into new adventures.</p>
-        <div className="reveal-stagger" style={styles.stepsGrid}>
+        <div className="reveal-stagger steps-grid" style={styles.stepsGrid}>
           <div className="card-hover-lift" style={styles.stepCard}>
             <div className="step-icon-hover" style={styles.stepIcon}>
               <i className="fa-solid fa-calendar-plus"></i>
@@ -533,8 +534,8 @@ const Home = () => {
       </section>
 
       {/* ============ STATS BAR ============ */}
-      <section style={styles.statsBar}>
-        <div ref={statsRef} className="reveal-stagger" style={styles.statsGrid}>
+      <section className="stats-bar-section" style={styles.statsBar}>
+        <div ref={statsRef} className="reveal-stagger stats-grid" style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
             <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
@@ -551,12 +552,12 @@ const Home = () => {
       </section>
 
       {/* ============ CATEGORIES ============ */}
-      <section id="marketplace" style={styles.categories}>
+      <section id="marketplace" className="categories-section" style={styles.categories}>
         <div style={styles.categoriesHeader}>
           <h2 className="reveal" style={styles.sectionTitle}>Find Your Genre</h2>
           <p className="reveal" style={styles.sectionSubtitle}>Browse thousands of books across every category imaginable.</p>
         </div>
-        <div className="reveal-stagger" style={styles.categoryGrid}>
+        <div className="reveal-stagger category-grid" style={styles.categoryGrid}>
           <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Fiction')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(231,111,81,0.15)', color: '#E76F51' }}><i className="fa-solid fa-dragon"></i></div>
             <div><h4>Fiction</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Novels, Fantasy & more</span></div>
@@ -592,12 +593,12 @@ const Home = () => {
 
 
       {/* ============ TESTIMONIALS ============ */}
-      <section style={styles.testimonials}>
+      <section className="testimonials-section" style={styles.testimonials}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h2 className="reveal" style={styles.sectionTitle}>What Our Readers Say</h2>
           <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
         </div>
-        <div className="reveal-stagger" style={styles.testimonialGrid}>
+        <div className="reveal-stagger testimonial-grid" style={styles.testimonialGrid}>
           {topReviews.length > 0 ? topReviews.map((review, idx) => (
             <div key={review.id || idx} className="card-hover-lift" style={styles.testimonialCard}>
               <div style={styles.testimonialStars}>
@@ -618,7 +619,7 @@ const Home = () => {
                     {review.user?.name?.charAt(0) || 'U'}
                   </div>
                 )}
-                <div>
+                <div style={{ textAlign: 'left' }}>
                   <h4 style={styles.authorName}>{review.user?.name || 'Anonymous User'}</h4>
                   <span style={styles.authorRole}>ShareShelf Member</span>
                 </div>
@@ -633,10 +634,10 @@ const Home = () => {
       </section>
 
       {/* ============ LEVELS ============ */}
-      <section style={styles.levels}>
+      <section className="levels-section" style={styles.levels}>
         <h2 className="reveal" style={styles.sectionTitle}>Level Up Your Reading</h2>
         <p className="reveal" style={styles.sectionSubtitle}>Earn more benefits as you donate and engage.</p>
-        <div className="reveal-stagger" style={styles.levelsGrid}>
+        <div className="reveal-stagger levels-grid" style={styles.levelsGrid}>
           <div className="level-hover" style={styles.levelCard}>
             <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666' }}>📚</div>
             <h3>Book Lover</h3>
@@ -675,7 +676,7 @@ const Home = () => {
       </section>
 
       {/* ============ CTA BANNER ============ */}
-      <section className="cta-pulse" style={styles.ctaBanner}>
+      <section className="cta-pulse cta-banner-section" style={styles.ctaBanner}>
         <h2 className="reveal" style={{ color: 'white', fontSize: 36, marginBottom: 16, position: 'relative', zIndex: 1 }}>Ready to Give Your Books a New Story?</h2>
         <p className="reveal" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, marginBottom: 24, position: 'relative', zIndex: 1 }}>Join thousands of readers and crafters building a library without walls.</p>
         <button type="button" onClick={() => openAuthModal('signup', '/user-dashboard')} className="reveal" style={{ ...styles.btn, background: 'white', color: '#E76F51', borderColor: 'white', fontSize: 18, padding: '16px 36px', position: 'relative', zIndex: 1 }}>
@@ -685,8 +686,8 @@ const Home = () => {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer id="about" style={styles.footer}>
-        <div style={styles.footerGrid}>
+      <footer id="about" className="footer-section" style={styles.footer}>
+        <div className="footer-grid" style={styles.footerGrid}>
           <div>
             <div style={styles.footerLogo}>📚 ShareShelf</div>
             <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
