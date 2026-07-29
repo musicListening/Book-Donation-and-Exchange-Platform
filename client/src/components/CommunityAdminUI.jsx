@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // ============================================================
@@ -187,6 +187,7 @@ export function CommunityAdminFonts() {
           font-family: 'Playfair Display', serif;
         }
         @keyframes communityFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes communityMenuIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
@@ -294,8 +295,22 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
 export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate ? useNavigate() : null;
-  const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CA';
+  const navigate = useNavigate();
+  const menuButtonRef = useRef(null);
+
+  // Escape closes the menu and hands focus back to the button that opened it,
+  // so keyboard users do not get dropped at the top of the page.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [userMenuOpen]);
 
   return (
     <header style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0, backdropFilter: "blur(10px)" }}>
@@ -313,7 +328,14 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {action}
         <div style={{ position: 'relative' }}>
-          <button onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, cursor: 'pointer' }}>
+          <button
+            ref={menuButtonRef}
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            aria-label={`Account menu for ${user?.name || 'Community Admin'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: radius.pill, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, cursor: 'pointer', transition: `box-shadow ${motion.fast}` }}
+          >
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: colors.primary, overflow: 'hidden', display: "flex", alignItems: "center", justifyContent: "center", color: colors.onPrimary, fontWeight: 600, position: "relative", flexShrink: 0 }}>
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -328,18 +350,20 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
           {userMenuOpen && (
             <>
               <div onClick={() => setUserMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                background: 'white', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                border: '1px solid #E9ECEF', minWidth: 160, zIndex: 100, overflow: 'hidden'
+              <div role="menu" style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: space.xs,
+                background: colors.surfaceContainerLowest, borderRadius: radius.md, boxShadow: elevation.float,
+                border: `1px solid ${colors.outlineVariant}`, minWidth: 190, zIndex: layer.menu, overflow: 'hidden',
+                animation: `communityMenuIn ${motion.fast} both`
               }}>
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid #F1F3F5' }}>
                   <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{user?.name}</p>
                   <p style={{ margin: 0, fontSize: 11, color: '#6C757D' }}>Community Admin</p>
                 </div>
                 <button
+                  role="menuitem"
                   onClick={() => { if (navigate) navigate('/community-admin/profile'); else window.location.href = '/community-admin/profile'; setUserMenuOpen(false); }}
-                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                  style={{ display: 'block', width: '100%', padding: '11px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: `background ${motion.fast}` }}
                   onMouseEnter={e => e.target.style.background = '#F8F9FA'}
                   onMouseLeave={e => e.target.style.background = 'none'}
                 >
@@ -347,8 +371,9 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
                 </button>
                 <div style={{ height: 1, background: '#F1F3F5' }} />
                 <button
+                  role="menuitem"
                   onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/login'; }}
-                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#E63946' }}
+                  style={{ display: 'block', width: '100%', padding: '11px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: colors.error, transition: `background ${motion.fast}` }}
                   onMouseEnter={e => e.target.style.background = '#FFF5F5'}
                   onMouseLeave={e => e.target.style.background = 'none'}
                 >
