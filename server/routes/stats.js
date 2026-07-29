@@ -44,7 +44,9 @@ router.get('/leaderboard', async (req, res) => {
       role: 'END_USER',
       booksDonated: { gt: 0 },
     },
-    orderBy: { booksDonated: 'desc' },
+    // Ties on book count fall back to points, then to whoever joined first,
+    // so the ranking stays stable between requests.
+    orderBy: [{ booksDonated: 'desc' }, { points: 'desc' }, { createdAt: 'asc' }],
     take: 10,
     select: {
       id: true,
