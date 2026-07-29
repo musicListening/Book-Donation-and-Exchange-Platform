@@ -101,6 +101,37 @@ export function CommunityAdminFonts() {
           color: ${colors.onSurface};
         }
         a { text-decoration: none; }
+
+        /* Keyboard focus was invisible everywhere in this area. Only shows for
+           keyboard users, so mouse clicks stay clean. */
+        :focus { outline: none; }
+        :focus-visible {
+          outline: 3px solid ${colors.primary};
+          outline-offset: 2px;
+          border-radius: ${radius.sm}px;
+        }
+        .on-dark :focus-visible {
+          outline-color: ${colors.primaryFixed};
+        }
+        /* Anything interactive should say so */
+        button, [role="button"] { cursor: pointer; font-family: inherit; }
+        button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+        /* Skip past the sidebar straight to the page content */
+        .skip-link {
+          position: absolute;
+          left: ${space.md}px;
+          top: -100px;
+          z-index: ${layer.menu + 1};
+          padding: ${space.sm}px ${space.md}px;
+          border-radius: ${radius.sm}px;
+          background: ${colors.primary};
+          color: ${colors.onPrimary};
+          font-weight: 700;
+          font-size: 14px;
+          transition: top ${motion.fast};
+        }
+        .skip-link:focus-visible { top: ${space.md}px; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-family: 'Material Symbols Outlined'; }
         .content-wrapper { flex: 1; }
         .soft-card {
