@@ -92,6 +92,7 @@ router.get('/marketplace', async (req, res) => {
                     title: cleanTitle,
                     author: book.author,
                     genre: book.genre,
+                    category: book.collection?.category || book.genre || 'Book',
                     condition: book.condition,
                     pointsPrice: book.pointsPrice,
                     imageUrl: book.imageUrl,
@@ -105,6 +106,16 @@ router.get('/marketplace', async (req, res) => {
                 existing.quantity += 1;
                 existing.bookIds.push(book.id);
                 if (!existing.imageUrl && book.imageUrl) existing.imageUrl = book.imageUrl;
+                
+                // Prioritize book collection over craft/null collection
+                const currentCategory = existing.category;
+                const isCurrentCraft = currentCategory && currentCategory.startsWith('Craft:');
+                const isNewCraft = book.collection?.category && book.collection.category.startsWith('Craft:');
+                
+                if (book.collection && (!existing.collection || (isCurrentCraft && !isNewCraft))) {
+                    existing.collection = book.collection;
+                    existing.category = book.collection.category;
+                }
                 if (book.donationRequest?.donationImages?.length && !existing.donorImages?.length) {
                     existing.donorImages = book.donationRequest.donationImages;
                 }
@@ -242,6 +253,26 @@ router.put('/:id/add-to-marketplace', authenticate, uploadBook.single('image'), 
             where: { id: { in: idsToUpdate } },
             data: updateData
         });
+
+        // If a new image was uploaded, update all existing available books with the same title and condition
+        if (req.file && imageUrl) {
+            const cleanTitle = (title || '').replace(/\s*#\d+$/i, '').trim();
+            const currentBookFull = await prisma.bookItem.findUnique({
+                where: { id }
+            });
+            if (currentBookFull) {
+                await prisma.bookItem.updateMany({
+                    where: {
+                        isAvailable: true,
+                        title: { equals: cleanTitle, mode: 'insensitive' },
+                        condition: currentBookFull.condition
+                    },
+                    data: {
+                        imageUrl: imageUrl
+                    }
+                });
+            }
+        }
 
         // If the requested quantity is greater than the available books in the DB,
         // we create the remaining books!
