@@ -467,8 +467,6 @@ router.get('/report', async (req, res) => {
   }
 });
 
-// ===== SYSTEM CONFIGURATION =====
-
 // GET /api/admin/config — fetch all system config as key-value pairs
 router.get('/config', async (req, res) => {
   try {

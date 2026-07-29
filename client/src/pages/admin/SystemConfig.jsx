@@ -5,27 +5,29 @@ import "../../styles/systemconfig.css";
 import { showToast } from "../../utils/toast";
 
 export default function SystemConfig() {
+  // State: UI
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // Point & Economics
+  // State: Point & Economics
   const [basePointRate, setBasePointRate] = useState("10");
   const [collectionBonus, setCollectionBonus] = useState("10");
   const [conversionRate, setConversionRate] = useState("100:10");
 
-  // Levels
+  // State: Levels
   const [levels, setLevels] = useState([]);
 
-  // Mystery Box
+  // State: Mystery Box
   const [mysteryBoxBooks, setMysteryBoxBooks] = useState("5");
   const [mysteryBoxPointsCost, setMysteryBoxPointsCost] = useState("200");
   const [rareCollectionMinLevel, setRareCollectionMinLevel] = useState("2");
   const [mysteryBoxLocks, setMysteryBoxLocks] = useState([]);
 
-  // NEW: Per-level mystery box configs
+  // State: Mystery Box Configs
   const [mysteryBoxConfigs, setMysteryBoxConfigs] = useState([]);
 
+  // useEffect: Fetch configuration data
   useEffect(() => {
     loadConfig();
   }, []);
@@ -58,7 +60,7 @@ export default function SystemConfig() {
     }
   };
 
-  // ── Level handlers ──
+  // Level handlers
   const handleAddTier = () => {
     const newId = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
     setLevels([...levels, { level: newId, minBooks: "0", name: "New Level", reward: "TBD" }]);
@@ -73,7 +75,7 @@ export default function SystemConfig() {
     setMysteryBoxConfigs(mysteryBoxConfigs.filter(c => c.level !== level));
   };
 
-  // ── Mystery Box Lock handlers ──
+  // Mystery Box Lock handlers
   const handleAddLock = () => {
     setMysteryBoxLocks([...mysteryBoxLocks, { level: "1", unlock: "New Unlock" }]);
   };
@@ -88,7 +90,7 @@ export default function SystemConfig() {
     setMysteryBoxLocks(mysteryBoxLocks.filter((_, i) => i !== idx));
   };
 
-  // ── Mystery Box Per-Level Config handlers ──
+  // Mystery Box Per-Level Config handlers
   const handleAddMysteryBoxConfig = () => {
     const usedLevels = mysteryBoxConfigs.map(c => c.level);
     const unlockedLevelNums = mysteryBoxLocks.map(lock => parseInt(lock.level, 10));
@@ -145,7 +147,7 @@ export default function SystemConfig() {
     }));
   };
 
-  // ── Save ──
+  // Save handler
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -189,7 +191,7 @@ export default function SystemConfig() {
   return (
     <AdminLayout title="System Configuration" hideHeaderLabel={true} hideNotifications={true}>
       <div className="sc-wrapper">
-        {/* ── Hero Header ── */}
+        {/* Hero header */}
         <div className="sc-hero-panel">
           <div className="sc-hero-grid">
             <div>
@@ -225,11 +227,11 @@ export default function SystemConfig() {
         <div className="sc-content">
           {message && (
             <div className={`sc-toast ${message.type === 'success' ? 'sc-toast-success' : 'sc-toast-error'}`}>
-              {message.type === 'success' ? '✓' : '⚠'} {message.text}
+              {message.type === 'success' ? <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', backgroundColor: '#2E7D32', color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 4 }}>✓</span> : <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', backgroundColor: '#C62828', color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 4 }}>!</span>} {message.text}
             </div>
           )}
 
-          {/* ── Section 1: Point & Economics ── */}
+          {/* Point & Economics section card */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-teal">
@@ -265,7 +267,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* ── Section 2: Gamification & Levels ── */}
+          {/* Gamification & Levels section card */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-gold">
@@ -315,7 +317,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* ── Section 3: Mystery Box Per-Level Config ── */}
+          {/* Mystery Box Per-Level Config section card */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-orange">
@@ -393,7 +395,7 @@ export default function SystemConfig() {
             </div>
           </section>
 
-          {/* ── Section 4: General Mystery Box & Rare Collections ── */}
+          {/* General Mystery Box section card */}
           <section className="sc-card">
             <div className="sc-card-header">
               <div className="sc-card-icon sc-icon-purple">
@@ -455,7 +457,7 @@ export default function SystemConfig() {
           </section>
         </div>
 
-        {/* ── Sticky Footer ── */}
+        {/* Sticky footer with save/cancel buttons */}
         <footer className="sc-footer">
           <button className="sc-btn-cancel" onClick={loadConfig}>Cancel Changes</button>
           <button className="sc-btn-save" onClick={handleSave} disabled={saving}>
