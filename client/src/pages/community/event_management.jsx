@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors } from '../../components/communityTokens';
+import { Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 const localDateTime = (value) => { if (!value) return ''; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date - offset).toISOString().slice(0, 16); };
 const eventLabel = (event) => new Date(event.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });

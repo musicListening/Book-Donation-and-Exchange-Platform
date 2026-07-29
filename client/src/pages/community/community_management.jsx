@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, space, radius, Icon, Button, Alert, SkeletonCard, EmptyState, CommunityConfirm, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius } from '../../components/communityTokens';
+import { Icon, Button, Alert, SkeletonCard, EmptyState, CommunityConfirm, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function currentUser() {
   try {
