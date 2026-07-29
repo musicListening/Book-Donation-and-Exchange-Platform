@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, space, radius, elevation, motion, Icon, Button, Chip, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius, elevation, motion, Icon, Button, Chip, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
   return (
@@ -193,7 +193,7 @@ export default function CommunityAdminDashboard() {
             </section>
           </div>
 
-          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
+          {error && <Alert>{error}</Alert>}
 
           <div className="metric-grid" style={{ marginBottom: 48 }}>
             {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}

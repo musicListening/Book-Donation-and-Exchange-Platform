@@ -145,6 +145,30 @@ export function Chip({ children, tone = 'accent', style = {} }) {
   );
 }
 
+// Inline error/notice banner. role="alert" so a failure is announced rather
+// than silently appearing above the fold.
+export function Alert({ children, tone = 'error', onRetry, style = {} }) {
+  const tones = {
+    error: { background: colors.errorContainer, color: colors.onErrorContainer, icon: 'error' },
+    info: { background: colors.tertiaryFixed, color: colors.tertiary, icon: 'info' },
+  };
+  const t = tones[tone];
+  return (
+    <div
+      role="alert"
+      style={{ display: 'flex', alignItems: 'flex-start', gap: space.sm, marginBottom: space.lg, padding: `${space.md}px ${space.md + 2}px`, borderRadius: radius.md, background: t.background, color: t.color, fontSize: 14, lineHeight: 1.6, ...style }}
+    >
+      <Icon name={t.icon} size={20} style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ flex: 1 }}>{children}</span>
+      {onRetry && (
+        <button onClick={onRetry} style={{ background: 'none', border: 'none', color: 'inherit', fontWeight: 700, fontSize: 13, textDecoration: 'underline', flexShrink: 0 }}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Placeholder block used while data loads. Mirrors the shape of the real
 // content so the layout does not jump when it arrives.
 export function Skeleton({ height = 16, width = '100%', radius: r = radius.sm, style = {} }) {
