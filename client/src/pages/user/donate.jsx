@@ -31,13 +31,38 @@ const Donate = () => {
     { id: Date.now(), craftType: '', craftCount: 1, pointsPrice: 50, files: [], itemFiles: {} }
   ]);
   const navigate = useNavigate();
+  useEffect(() => {
+    const handleError = (msg, url, line) => {
+      alert(`Runtime Error: ${msg}\nat ${url}:${line}`);
+    };
+    const handleRejection = (e) => {
+      alert(`Unhandled Promise Rejection: ${e.reason}`);
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
+    let storedUser = { points: 0, name: 'User' };
+    try {
+      const u = localStorage.getItem('ss_current_user');
+      if (u && u !== 'undefined') storedUser = JSON.parse(u);
+    } catch (e) {
+      console.error('Error parsing user:', e);
+    }
     setUser(storedUser);
     
     if (storedUser.id) {
-      fetch(`${API_BASE}/donations?userId=${storedUser.id}`)
+      const token = localStorage.getItem('token');
+      fetch(`${API_BASE}/donations?userId=${storedUser.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch');
           return res.json();
@@ -55,7 +80,8 @@ const Donate = () => {
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
             time: 'N/A', 
-            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            status: d.status === 'VERIFIED' ? 'Completed' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
+            staffNotes: d.staffNotes,
             details: null 
           }));
           setMyDonations(mappedDonations);
@@ -63,10 +89,21 @@ const Donate = () => {
         .catch(err => console.error('Error fetching donations:', err));
     }
 
-    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    let storedCart = [];
+    try {
+      const c = localStorage.getItem('ss_cart');
+      if (c && c !== 'undefined') storedCart = JSON.parse(c);
+    } catch (e) {
+      console.error('Error parsing cart:', e);
+    }
     setCartCount(storedCart.length);
     
-    fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`)
+    const token = localStorage.getItem('token');
+    fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data.baseRate) setPointsPerBook(data.baseRate);
@@ -75,212 +112,64 @@ const Donate = () => {
       .catch(() => {});
   }, [navigate]);
 
-  // ===== GENERATE DYNAMIC FILE INPUTS BASED ON COUNT =====
-  const generateFileInputs = (count, type, collectionIndex) => {
-    const inputs = [];
-    const maxCount = Math.min(count, 10);
-    
-    for (let i = 0; i < maxCount; i++) {
-      inputs.push(
-        <div key={`${type}-${collectionIndex}-${i}`} style={{ 
-          marginBottom: 10, 
-          padding: '10px 16px',
-          background: '#F8F9FA',
-          borderRadius: 8,
-          border: '1px solid #DEE2E6',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ 
-            fontWeight: 600, 
-            color: '#1E4D4B',
-            minWidth: 100,
-            fontSize: 13
-          }}>
-            {type === 'book' ? `📚 Book ${i + 1}` : `🎨 Craft ${i + 1}`}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => {
-              if (type === 'book') {
-                updateBookFilesForIndex(collectionIndex, i, Array.from(e.target.files));
-              } else {
-                updateCraftFilesForIndex(collectionIndex, i, Array.from(e.target.files));
-              }
-            }}
-            style={{ 
-              flex: 1,
-              padding: '6px 8px',
-              border: '1px dashed #DEE2E6',
-              borderRadius: 6,
-              background: 'white',
-              fontSize: 13,
-              minWidth: 200
-            }}
-          />
-        </div>
-      );
-    }
-    
-    if (count > 10) {
-      inputs.push(
-        <div key={`${type}-${collectionIndex}-more`} style={{ 
-          padding: '10px 16px',
-          background: '#FFF3CD',
-          borderRadius: 8,
-          border: '1px solid #FFE082',
-          fontSize: 13,
-          color: '#856404'
-        }}>
-          <i className="fa-solid fa-info-circle"></i> Showing 10 of {count} items. Additional items can be uploaded together in one batch.
-        </div>
-      );
-    }
-    
-    return inputs;
-  };
-
-  // ===== BOOK FILE HANDLERS - FIXED DUPLICATES =====
-  const updateBookFilesForIndex = (collectionIndex, fileIndex, files) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      if (!newCols[collectionIndex].itemFiles) {
-        newCols[collectionIndex].itemFiles = {};
-      }
-      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
-        newCols[collectionIndex].itemFiles[fileIndex] = [];
-      }
-      // Prevent duplicate files by checking file name and size
-      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
-      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
-      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
-      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
-      return newCols;
-    });
-  };
-
-  const clearBookFilesForIndex = (collectionIndex) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[collectionIndex].itemFiles = {};
-      newCols[collectionIndex].files = [];
-      return newCols;
-    });
-  };
-
-  // ===== CRAFT FILE HANDLERS - FIXED DUPLICATES =====
-  const updateCraftFilesForIndex = (collectionIndex, fileIndex, files) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      if (!newCols[collectionIndex].itemFiles) {
-        newCols[collectionIndex].itemFiles = {};
-      }
-      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
-        newCols[collectionIndex].itemFiles[fileIndex] = [];
-      }
-      // Prevent duplicate files by checking file name and size
-      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
-      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
-      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
-      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
-      return newCols;
-    });
-  };
-
-  const clearCraftFilesForIndex = (collectionIndex) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[collectionIndex].itemFiles = {};
-      newCols[collectionIndex].files = [];
-      return newCols;
-    });
-  };
-
-  // ===== BOOK COLLECTION HANDLERS =====
   const updateBookCategory = (index, value) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCategory = value;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCategory: value } : col));
+  };
+
+  const updateBookTitle = (index, value) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookTitle: value } : col));
   };
 
   const updateBookCount = (index, delta) => {
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      const currentCount = newCols[index].bookCount || 1;
-      const newCount = Math.max(1, Math.min(100, currentCount + delta));
-      newCols[index].bookCount = newCount;
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, col.bookCount + delta)) } : col));
   };
 
   const setExactBookCount = (index, value) => {
     const val = parseInt(value) || 1;
-    setBookCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].bookCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, bookCount: Math.max(1, Math.min(100, val)) } : col));
+  };
+
+  const updateBookFiles = (index, files) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
+  };
+
+  const clearBookFiles = (index) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
   };
 
   const addBookCollection = () => {
-    setBookCollections(prev => [
-      ...prev, 
-      { 
-        id: Date.now() + Math.random(), 
-        bookCategory: '', 
-        bookTitle: '', 
-        bookCount: 1, 
-        files: [],
-        itemFiles: {} 
-      }
-    ]);
+    setBookCollections(prev => [...prev, { bookCategory: '', bookTitle: '', bookCount: 1, files: [] }]);
   };
 
   const removeBookCollection = (index) => {
     setBookCollections(prev => prev.filter((_, i) => i !== index));
   };
 
-  // ===== CRAFT COLLECTION HANDLERS =====
-  const updateCraftCount = (index, delta) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      const currentCount = newCols[index].craftCount || 1;
-      const newCount = Math.max(1, Math.min(100, currentCount + delta));
-      newCols[index].craftCount = newCount;
-      return newCols;
-    });
+  const updateCraftCollectionFiles = (index, files) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [...(col.files || []), ...files] } : col));
   };
 
-  const setExactCraftCount = (index, value) => {
-    const val = parseInt(value) || 1;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftCount = Math.max(1, Math.min(100, val));
-      return newCols;
-    });
-  };
-
-  const updateCraftType = (index, value) => {
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].craftType = value;
-      return newCols;
-    });
+  const clearCraftFiles = (index) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
   };
 
   const updateCraftPoints = (index, value) => {
     const val = parseInt(value) || 0;
-    setCraftCollections(prev => {
-      const newCols = [...prev];
-      newCols[index].pointsPrice = Math.max(0, val);
-      return newCols;
-    });
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, pointsPrice: Math.max(0, val) } : col));
+  };
+
+  // ===== CRAFT COLLECTION HANDLERS =====
+  const updateCraftCount = (index, delta) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, col.craftCount + delta)) } : col));
+  };
+
+  const setExactCraftCount = (index, value) => {
+    const val = parseInt(value) || 1;
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftCount: Math.max(1, Math.min(100, val)) } : col));
+  };
+
+  const updateCraftType = (index, value) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, craftType: value } : col));
   };
 
   const addCraftCollection = () => {
@@ -299,6 +188,65 @@ const Donate = () => {
 
   const removeCraftCollection = (index) => {
     setCraftCollections(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearBookFilesForIndex = (index) => {
+    setBookCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
+  };
+
+  const clearCraftFilesForIndex = (index) => {
+    setCraftCollections(prev => prev.map((col, i) => i === index ? { ...col, files: [] } : col));
+  };
+
+  const generateFileInputs = (count, categoryType, collectionIdx) => {
+    const inputs = [];
+    const collections = categoryType === 'book' ? bookCollections : craftCollections;
+    const col = collections[collectionIdx];
+    const files = col.files || [];
+
+    for (let i = 0; i < count; i++) {
+      const isAttached = !!files[i];
+      inputs.push(
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: '#495057', minWidth: 60 }}>Item #{i + 1}:</span>
+          <label style={{
+            background: isAttached ? '#E8F5E9' : '#FFF',
+            border: isAttached ? '1px solid #2E7D32' : '1px solid #DEE2E6',
+            color: isAttached ? '#2E7D32' : '#495057',
+            padding: '6px 12px',
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: 'pointer',
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <i className={isAttached ? "fa-solid fa-circle-check" : "fa-solid fa-upload"}></i>
+            {isAttached ? 'Change Photo' : 'Upload Photo'}
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const selectedFile = e.target.files[0];
+                if (selectedFile) {
+                  const updatedFiles = [...files];
+                  updatedFiles[i] = selectedFile;
+                  if (categoryType === 'book') {
+                    setBookCollections(prev => prev.map((c, idx) => idx === collectionIdx ? { ...c, files: updatedFiles } : c));
+                  } else {
+                    setCraftCollections(prev => prev.map((c, idx) => idx === collectionIdx ? { ...c, files: updatedFiles } : c));
+                  }
+                }
+              }}
+            />
+          </label>
+          {isAttached && <span style={{ fontSize: 12, color: '#6C757D', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files[i].name}</span>}
+        </div>
+      );
+    }
+    return inputs;
   };
 
   const nextStep = () => {
@@ -426,8 +374,12 @@ const Donate = () => {
         }
       }
 
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/donations`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: bodyData
       });
 
@@ -440,7 +392,11 @@ const Donate = () => {
       console.log('Donation created with images:', result);
 
       // Re-fetch donations to update UI
-      fetch(`${API_BASE}/donations?userId=${user.id}`)
+      fetch(`${API_BASE}/donations?userId=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch after submit');
           return res.json();
@@ -457,7 +413,8 @@ const Donate = () => {
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
             time: 'N/A',
-            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            status: d.status === 'VERIFIED' ? 'Completed' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
+            staffNotes: d.staffNotes,
             details: null
           }));
           setMyDonations(mappedDonations);
@@ -467,14 +424,20 @@ const Donate = () => {
       document.getElementById('successModal').style.display = 'flex';
       document.getElementById('finalPoints').innerText = points;
     } catch (error) {
-      console.error('Error creating donation:', error);
-      alert('Failed to submit donation. Please try again.');
+      console.error('Error creating donations:', error);
+      alert('Failed to submit donations: ' + error.message);
     }
   };
 
   const handleCompleteDonation = async (fullId) => {
     try {
-      const res = await fetch(`${API_BASE}/donations/${fullId}/complete`, { method: 'PUT' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/donations/${fullId}/complete`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to complete donation');
@@ -525,7 +488,8 @@ const Donate = () => {
     donationCard: { background: 'white', padding: 24, borderRadius: 12, border: '1px solid #DEE2E6', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
     statusBadge: { display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, backgroundColor: '#E9ECEF', color: '#495057' },
     statusPending: { backgroundColor: '#FFF3CD', color: '#856404' },
-    statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' }
+    statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' },
+    statusRejected: { backgroundColor: '#F8D7DA', color: '#721C24' }
   };
 
   const totalBooks = donationCategory === 'books' ? bookCollections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
@@ -534,17 +498,18 @@ const Donate = () => {
     ? bookCollections.reduce((sum, col) => sum + (col.bookCount * pointsPerBook) + (col.bookCount > 1 ? Math.round((col.bookCount * pointsPerBook) * (collectionBonusPct / 100)) : 0), 0)
     : (totalCrafts * 10);
 
-  return (
-    <div style={styles.body}>
+  try {
+    return (
+      <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
-      <main style={styles.mainContent}>
+      <main className="donate-main" style={styles.mainContent}>
         <div style={styles.pageHeader}>
           <h1 style={styles.pageHeaderH1}>Donate Your Items</h1>
           <p>Help others discover new stories or crafts, and earn points for your generosity.</p>
         </div>
 
-        <div style={styles.formCard}>
+        <div className="donate-form-card" style={styles.formCard}>
           <div style={styles.stepper}>
             <div style={{ ...styles.step, ...(step >= 1 ? styles.stepActive : {}) }}>1</div>
             <div style={{ ...styles.step, ...(step >= 2 ? styles.stepActive : {}) }}>2</div>
@@ -632,6 +597,8 @@ const Donate = () => {
                         <p style={{ fontSize: 11, color: '#6C757D', marginTop: 4 }}>
                           Based on {pointsPerBook} pts/book {col.bookCount > 1 ? `+ ${collectionBonusPct}% collection bonus` : ''}
                         </p>
+
+
                       </div>
                     ))}
 
@@ -710,15 +677,28 @@ const Donate = () => {
                         )}
 
                         <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Price per Craft (Points)</label>
-                          <input
-                            type="number"
-                            style={{ ...styles.formControl, width: '100%' }}
-                            value={col.pointsPrice || 50}
-                            onChange={(e) => updateCraftPoints(idx, e.target.value)}
-                            min="0"
-                            step="10"
-                          />
+                          <label style={styles.label}>Photos for this Craft Item (Optional)</label>
+                          <label style={{ ...styles.btn, display: 'inline-block', background: '#F8F9FA', color: '#495057', border: '1px solid #CED4DA', padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                            <i className="fa-solid fa-upload" style={{ marginRight: 8 }}></i> Choose Files
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                updateCraftCollectionFiles(idx, Array.from(e.target.files));
+                                e.target.value = null;
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                          {col.files && col.files.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                              <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                ✓ {col.files.length} photo(s) attached
+                              </p>
+                              <button type="button" onClick={() => clearCraftFiles(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear photos</button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -828,41 +808,47 @@ const Donate = () => {
               </select>
             </div>
           </div>
-          
           {myDonations.filter(d => 
             (filterStatus === 'All' || d.status === filterStatus) && 
-            (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+            (filterType === 'All' || (filterType === 'Books' && !(d.type || '').includes('Craft')) || (filterType === 'Crafts' && (d.type || '').includes('Craft')))
           ).length === 0 ? (
             <div style={{ background: 'white', padding: 40, borderRadius: 12, textAlign: 'center', border: '1px dashed #DEE2E6' }}>
-              <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
+               <i className="fa-solid fa-box-open" style={{ fontSize: 48, color: '#DEE2E6', marginBottom: 16 }}></i>
               <p style={{ color: '#6C757D' }}>No donations match your filters.</p>
             </div>
           ) : (
             <div style={styles.donationsGrid}>
               {myDonations.filter(d => 
                 (filterStatus === 'All' || d.status === filterStatus) && 
-                (filterType === 'All' || (filterType === 'Books' && !d.type.includes('Craft')) || (filterType === 'Crafts' && d.type.includes('Craft')))
+                (filterType === 'All' || (filterType === 'Books' && !(d.type || '').includes('Craft')) || (filterType === 'Crafts' && (d.type || '').includes('Craft')))
               ).map((donation, idx) => (
                 <div key={idx} style={styles.donationCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>
-                        {donation.type?.includes('Craft') ? `Crafts: ${donation.type.replace(/Crafts?:\s*/i, '')}` : `Books: ${donation.type || 'General'}`}
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: 16, lineHeight: '1.4' }}>
+                        {donation.type?.includes('Craft') ? (
+                          `Crafts: ${donation.type.replace(/Crafts?:\s*/i, '')}`
+                        ) : (
+                          <>
+                            <span style={{ fontWeight: 600, display: 'block', marginBottom: 4, fontSize: 18 }}>Books:</span>
+                            {(donation.type || 'General').split('|').map((part, pIdx) => (
+                              <div key={pIdx} style={{ fontSize: 14, fontWeight: 500, color: '#374151', paddingLeft: 8, borderLeft: '3px solid #2A9D8F', margin: '6px 0' }}>
+                                {part.trim()}
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </h4>
                       <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {donation.status === 'Pending' && (
-                        <button 
-                          onClick={() => handleCompleteDonation(donation.fullId)} 
-                          style={{ background: '#2A9D8F', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
-                        >
-                          Complete Drop-off
-                        </button>
-                      )}
                       <span style={{ 
                         ...styles.statusBadge, 
-                        ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
+                        ...(donation.status === 'Completed' 
+                          ? styles.statusCompleted 
+                          : donation.status === 'Rejected' 
+                          ? styles.statusRejected 
+                          : styles.statusPending) 
                       }}>
                         {donation.status || 'Pending'}
                       </span>
@@ -875,9 +861,17 @@ const Donate = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}><i className="fa-solid fa-calendar" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.date}</div>
                   </div>
-                  <div style={{ fontSize: 14 }}>
+                  <div style={{ fontSize: 14, marginBottom: donation.status === 'Rejected' ? 12 : 0 }}>
                     <i className="fa-solid fa-clock" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.time}
                   </div>
+                  {donation.status === 'Rejected' && donation.staffNotes && (
+                    <div style={{ background: '#F8D7DA', color: '#721C24', padding: '10px 14px', borderRadius: 8, fontSize: 13, display: 'flex', gap: 6, alignItems: 'flex-start', border: '1px solid #F5C6CB', marginTop: 12 }}>
+                      <i className="fa-solid fa-circle-exclamation" style={{ marginTop: 2 }}></i>
+                      <div>
+                        <strong>Rejection Reason: </strong>{donation.staffNotes}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -898,7 +892,17 @@ const Donate = () => {
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error('Render crash:', err);
+    return (
+      <div style={{ padding: 40, color: 'red', background: '#FFF3CD', border: '1px solid #FFEBAA', borderRadius: 8, margin: 40 }}>
+        <h3>Render Error (Please report this error message):</h3>
+        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{err.message}</pre>
+        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>{err.stack}</pre>
+      </div>
+    );
+  }
 };
 
 export default Donate;

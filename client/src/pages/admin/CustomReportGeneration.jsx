@@ -4,37 +4,64 @@ import { adminAPI } from "../../services/api";
 import "../../styles/CustomReportGeneration.css";
 
 export default function CustomReportGeneration() {
+  // State declarations
   const [reportType, setReportType] = useState("System Logs");
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  const [startDate, setStartDate] = useState(() => new Date().getFullYear() + "-01-01");
+  const [endDate, setEndDate] = useState(() => new Date().getFullYear() + "-12-31");
   const [exportFormat, setExportFormat] = useState("PDF");
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [anonymizeUsers, setAnonymizeUsers] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [currentReport, setCurrentReport] = useState(null);
   const [notification, setNotification] = useState("");
   const [error, setError] = useState("");
 
-  const handleGenerateReport = async () => {
-    setIsGenerating(true);
+  // handlePreview handler
+  const handlePreview = async () => {
+    setIsPreviewing(true);
     setError("");
     setNotification("");
     try {
       const data = await adminAPI.getReport(reportType, startDate, endDate);
       if (!data || !data.rows) throw new Error("No data returned");
       setCurrentReport(data);
-      exportReport(data, exportFormat);
-      setNotification(`Report generated and downloaded as ${exportFormat}!`);
+    } catch (err) {
+      const msg = err.message?.includes("HTTP 500")
+        ? `Server error: Unable to generate "${reportType}" report. The database query may have failed.`
+        : err.message?.includes("HTTP 404")
+        ? `Report type "${reportType}" is not available on the server.`
+        : `Failed to load preview: ${err.message || "Please try again."}`;
+      setError(msg);
+      console.error("Preview error:", err);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  // handleGenerateReport handler
+  const handleGenerateReport = async () => {
+    if (!currentReport) {
+      setError("Please preview the report first.");
+      return;
+    }
+    setIsGenerating(true);
+    setError("");
+    setNotification("");
+    try {
+      exportReport(currentReport, exportFormat);
+      setNotification(`Report downloaded as ${exportFormat}!`);
       setTimeout(() => setNotification(""), 4000);
     } catch (err) {
-      setError("Failed to generate report. Please try again.");
-      console.error("Report error:", err);
+      setError("Failed to export report. Please try again.");
+      console.error("Export error:", err);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // ── Export helpers (real file output) ──
+  // real file output
+  // downloadBlob helper
   const downloadBlob = (content, filename, mime) => {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -47,11 +74,13 @@ export default function CustomReportGeneration() {
     URL.revokeObjectURL(url);
   };
 
+  // sanitize helper
   const sanitize = (v) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
+  // toCSV helper
   const toCSV = (report) => {
     const headers = report.headers || [];
     const lines = [headers.map(sanitize).join(",")];
@@ -61,6 +90,7 @@ export default function CustomReportGeneration() {
     return lines.join("\n");
   };
 
+  // exportReport handler
   const exportReport = (report, format) => {
     const stamp = new Date().toISOString().slice(0, 10);
     const base = `report_${reportType.replace(/\s+/g, "_").toLowerCase()}_${stamp}`;
@@ -83,7 +113,7 @@ export default function CustomReportGeneration() {
       return;
     }
 
-    // PDF — render a print-friendly document and trigger browser print (Save as PDF)
+    // Save as PDF
     const html = `
       <html>
         <head>
@@ -140,8 +170,6 @@ export default function CustomReportGeneration() {
     return text;
   };
 
-  const report = currentReport;
-
   return (
     <AdminLayout title="Custom Reports" hideHeaderLabel={true} hideNotifications={true}>
       <div className="report-dashboard-container">
@@ -151,24 +179,27 @@ export default function CustomReportGeneration() {
             <span className="toast-message">{notification}</span>
           </div>
         )}
+        {/* Header */}
         <header className="report-header">
           <h2 className="report-title">Custom Report Generation</h2>
           <p className="report-subtitle">Configure and visualize data exports for platform analytics and auditing.</p>
         </header>
 
+        {/* Error banner */}
         {error && (
           <div style={{ backgroundColor: '#FDF2F2', color: '#C02B2B', border: '1px solid #FECACA', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: 500 }}>
-            ⚠ {error}
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', backgroundColor: '#C02B2B', color: '#fff', fontSize: 12, fontWeight: 700, marginRight: 8, flexShrink: 0 }}>!</span>
+            {error}
           </div>
         )}
 
         <div className="report-layout-grid">
-          {/* Left Panel: Configuration Form */}
+          {/* Left panel / Config form */}
           <section className="control-panel-card">
             <h3 className="panel-title-label">Configuration</h3>
            
             <div className="form-stack">
-              {/* Report Type Select */}
+              {/* Report type select */}
               <div className="form-group">
                 <label className="input-label">Report Type</label>
                 <div className="select-wrapper">
@@ -187,7 +218,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Timeframe Pickers */}
+              {/* Date range pickers */}
               <div className="form-group">
                 <label className="input-label">Timeframe</label>
                 <div className="date-picker-row">
@@ -211,7 +242,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Segmented Buttons for Format */}
+              {/* Format select */}
               <div className="form-group">
                 <label className="input-label">Export Format</label>
                 <div className="segmented-control">
@@ -228,7 +259,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Checkbox Options */}
+              {/* Checkbox options */}
               <div className="checkbox-options-stack">
                 <label className="checkbox-label-group">
                   <input 
@@ -262,39 +293,50 @@ export default function CustomReportGeneration() {
                 )}
               </div>
 
-              {/* Primary CTA */}
-              <button 
-                onClick={handleGenerateReport}
-                className="btn-generate-report"
-                disabled={isGenerating}
-              >
-                <span className="btn-icon-symbol">🪄</span>
-                {isGenerating ? "Generating..." : "Generate Report"}
-              </button>
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  onClick={handlePreview}
+                  className="btn-generate-report"
+                  disabled={isPreviewing || isGenerating}
+                  style={{ flex: 1, background: '#fff', color: '#1A6B68', border: '2px solid #1A6B68' }}
+                >
+                  {isPreviewing ? "Loading..." : "Preview Report"}
+                </button>
+                <button 
+                  onClick={handleGenerateReport}
+                  className="btn-generate-report"
+                  disabled={isPreviewing || isGenerating || !currentReport}
+                  style={{ flex: 1, opacity: currentReport ? 1 : 0.5 }}
+                >
+                  <span className="btn-icon-symbol">↓</span>
+                  {isGenerating ? "Exporting..." : `Export ${exportFormat}`}
+                </button>
+              </div>
             </div>
           </section>
 
-          {/* Right Panel: Live Preview */}
+          {/* Right panel / Live preview */}
           <section className="preview-canvas-column">
             <div className="document-preview-card">
-              {!report ? (
+              {!currentReport ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-neutral)', fontSize: '0.95rem' }}>
-                  {isGenerating ? '' : 'Click "Generate Report" to view live data'}
+                  {isPreviewing ? '' : 'Click "Preview Report" to see your data here'}
                 </div>
               ) : (
                 <>
-                  {/* Document Header */}
-                  <div className="doc-preview-header">
-                    <div className="doc-header-details">
-                      <h4 className="doc-main-title">{report.title}</h4>
-                      <p className="doc-sub-title">{report.subtitle}</p>
+                    {/* Preview header */}
+                    <div className="doc-preview-header">
+                      <div className="doc-header-details">
+                      <h4 className="doc-main-title">{currentReport.title}</h4>
+                      <p className="doc-sub-title">{currentReport.subtitle}</p>
                     </div>
                     <div className="doc-badge-pill">
                       {exportFormat} FORMAT
                     </div>
                   </div>
 
-                  {/* Document Metadata Details (If checked) */}
+                  {/* Preview metadata */}
                   {includeMetadata && (
                     <div className="doc-metadata-bar">
                       <span><strong>Date Span:</strong> {startDate || "N/A"} to {endDate || "N/A"}</span>
@@ -302,42 +344,41 @@ export default function CustomReportGeneration() {
                     </div>
                   )}
 
-                  {/* Document Main Data Table */}
+                  {/* Preview table */}
                   <div className="doc-table-wrapper">
                     <table className="doc-preview-table">
                       <thead>
                         <tr>
-                          {report.headers.map((h, i) => (
+                          {currentReport.headers.map((h, i) => (
                             <th key={i}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {report.rows.map((row, index) => (
+                        {currentReport.rows.map((row, index) => (
                           <tr key={index}>
-                            <td className="font-mono">{maskUserIdentity(row.col1)}</td>
-                            <td>{maskUserIdentity(row.col2)}</td>
-                            <td>
-                              {row.col3 === "High" || (typeof row.col3 === 'string' && (row.col3.includes("Level 5") || row.col3.includes("Expert"))) ? (
-                                <span className="pill-status success">{row.col3}</span>
-                              ) : row.col3 === "Medium" || (typeof row.col3 === 'string' && (row.col3.includes("Level 4") || row.col3.includes("Level 3"))) ? (
-                                <span className="pill-status warning">{row.col3}</span>
-                              ) : (
-                                row.col3
-                              )}
-                            </td>
-                            <td>{row.col4}</td>
+                            {currentReport.headers.map((_, i) => {
+                              const val = row[`col${i + 1}`];
+                              if (i === 0) return <td key={i} className="font-mono">{maskUserIdentity(val)}</td>;
+                              if (i === 1 && (val === "High" || (typeof val === 'string' && (val.includes("Level 5") || val.includes("Expert"))))) {
+                                return <td key={i}><span className="pill-status success">{val}</span></td>;
+                              }
+                              if (i === 1 && (val === "Medium" || (typeof val === 'string' && (val.includes("Level 4") || val.includes("Level 3"))))) {
+                                return <td key={i}><span className="pill-status warning">{val}</span></td>;
+                              }
+                              return <td key={i}>{typeof val === 'string' ? maskUserIdentity(val) : val}</td>;
+                            })}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* Visual CSS-based Chart */}
+                  {/* Preview chart */}
                   <div className="doc-chart-wrapper">
                     <h5 className="chart-label-title">Visualized Trends</h5>
                     <div className="doc-chart-canvas">
-                      {report.chartData.map((bar, index) => (
+                      {currentReport.chartData.map((bar, index) => (
                         <div key={index} className="doc-chart-bar-group">
                           <div className="doc-chart-bar-container">
                             <div 
@@ -356,7 +397,7 @@ export default function CustomReportGeneration() {
                     </div>
                   </div>
 
-                  {/* Footer */}
+                  {/* Preview footer */}
                   <div className="doc-preview-footer">
                     <span className="footer-doc-stamp">Ethos Auditing & Compliance System</span>
                     <span className="footer-doc-page">Page 1 of 1</span>
@@ -364,24 +405,27 @@ export default function CustomReportGeneration() {
                 </>
               )}
 
-              {/* Live Preview Mode Overlay (Absolute position) */}
-              {isGenerating && (
+              {/* Preview overlay */}
+              {isPreviewing && (
                 <div className="loading-report-overlay">
                   <div className="spinner-loader"></div>
-                  <p className="loading-text">Compiling database rows...</p>
+                  <p className="loading-text">Fetching report data...</p>
                 </div>
               )}
-              {!isGenerating && report && (
+              {!isPreviewing && currentReport && (
                 <div className="live-preview-indicator-overlay">
                   <div className="indicator-badge">
-                    <span className="pulsing-eye">👁</span>
+                    <span className="pulsing-eye" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ display: 'inline-block', width: 16, height: 10, border: '2px solid currentColor', borderRadius: '50%', position: 'relative' }}>
+                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 4, height: 4, borderRadius: '50%', backgroundColor: 'currentColor' }} />
+                      </span>
+                    </span>
                     <span>Live Preview Mode</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Context Info Chips */}
             <div className="preview-info-chips">
               <div className="info-chip accent-yellow">
                 <span className="chip-dot"></span>

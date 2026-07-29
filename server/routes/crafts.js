@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db');
 const { uploadBook, uploadToCloudinary } = require('../config/cloudinary');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/crafts — List crafts (filterable by status)
 router.get('/', async (req, res) => {
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/crafts — User submits craft listing
-router.post('/', uploadBook.single('image'), async (req, res) => {
+router.post('/', authenticate, uploadBook.single('image'), async (req, res) => {
   try {
     const { userId, title, description, pointsPrice } = req.body;
 
@@ -54,7 +55,7 @@ router.post('/', uploadBook.single('image'), async (req, res) => {
 });
 
 // PATCH /api/crafts/:id/approve — Staff approves craft
-router.patch('/:id/approve', async (req, res) => {
+router.patch('/:id/approve', authenticate, async (req, res) => {
   try {
     const craft = await prisma.craftListing.update({
       where: { id: req.params.id },
@@ -68,7 +69,7 @@ router.patch('/:id/approve', async (req, res) => {
 });
 
 // PATCH /api/crafts/:id/reject — Staff rejects craft
-router.patch('/:id/reject', async (req, res) => {
+router.patch('/:id/reject', authenticate, async (req, res) => {
   try {
     const craft = await prisma.craftListing.update({
       where: { id: req.params.id },
@@ -82,7 +83,7 @@ router.patch('/:id/reject', async (req, res) => {
 });
 
 // PUT /api/crafts/:id/image — Update craft image
-router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
+router.put('/:id/image', authenticate, uploadBook.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image provided' });
 
@@ -102,7 +103,7 @@ router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
 });
 
 // PUT /api/crafts/:id — Update craft details
-router.put('/:id', uploadBook.single('image'), async (req, res) => {
+router.put('/:id', authenticate, uploadBook.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, pointsPrice, status } = req.body;
@@ -131,7 +132,7 @@ router.put('/:id', uploadBook.single('image'), async (req, res) => {
 });
 
 // DELETE /api/crafts/:id — Delete craft listing
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     try {

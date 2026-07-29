@@ -244,7 +244,7 @@ export default function StaffMarketplace() {
             style={{ ...styles.tabBtn, ...(currentTab === 'crafts' ? styles.tabBtnActive : {}) }}
             onClick={() => setCurrentTab('crafts')}
           >
-            🎨 Paper Crafts
+            🎨 Crafts
           </button>
           <button
             style={{ ...styles.tabBtn, ...(currentTab === 'pending' ? styles.tabBtnActive : {}) }}

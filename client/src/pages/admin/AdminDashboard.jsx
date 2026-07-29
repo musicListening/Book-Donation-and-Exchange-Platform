@@ -16,6 +16,7 @@ const GENRE_COLORS = [
   "#457B9D",
 ];
 
+/* Helper: map donation status to pill tone */
 function statusTone(s) {
   const status = s || "";
   if (status === "Verified") return "success";
@@ -24,6 +25,7 @@ function statusTone(s) {
   return "neutral";
 }
 
+/* Reusable stat card component */
 function MetricCard({ variant, label, value, hint, delta }) {
   const isAccent = variant === "accent";
   return (
@@ -49,32 +51,50 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("Monthly");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
+  /* Fetch dashboard data on mount */
   useEffect(() => {
     adminAPI.getDashboard()
       .then((d) => {
         setData(d);
         setLoading(false);
-        showToast("Analytics dashboard loaded successfully.", "success");
       })
       .catch((err) => {
         console.error("Dashboard data fetch failed:", err);
         setLoading(false);
+        setError("Failed to load dashboard data. Please try again.");
         showToast("Failed to load dashboard data. Please try again.", "error");
       });
   }, []);
 
+  /* Loading state */
   if (loading) {
     return (
     <AdminLayout title="Admin Console" hideNotifications={true}>
         <div className="loading-box">
-          <span className="loading-spinner-char">⏳</span>
+          <div style={{ width: 36, height: 36, border: '3px solid #E2E8F0', borderTopColor: '#1A6B68', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           <p className="loading-text">Loading dashboard analytics...</p>
         </div>
       </AdminLayout>
     );
   }
 
+  /* Error state */
+  if (error) {
+    return (
+      <AdminLayout title="Admin Console" hideNotifications={true}>
+        <div className="dashboard-content-wrapper">
+          <div style={{ backgroundColor: '#FDF2F2', color: '#C02B2B', border: '1px solid #FECACA', borderRadius: '8px', padding: '1rem 1.25rem', fontSize: '0.9rem', fontWeight: 500, marginTop: '1.5rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', backgroundColor: '#C02B2B', color: '#fff', fontSize: 12, fontWeight: 700, marginRight: 8, flexShrink: 0 }}>!</span>
+            {error}
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  /* Prepare derived data for render */
   const stats = data?.stats || {};
   const genres = data?.genreDistribution || [];
   const daily = data?.dailyPerformance || [];
@@ -91,6 +111,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout title="Admin Console" hideNotifications={true}>
+      {/* Dashboard header */}
       <header className="dashboard-header-bar">
         <div className="dashboard-header-inner">
           <div className="dashboard-header-title-block">
@@ -103,7 +124,7 @@ export default function AdminDashboard() {
       </header>
 
       <div className="dashboard-content-wrapper">
-        {/* ── Hero ink panel ───────────────────────────────────────────────── */}
+        {/* Hero / summary section */}
         <section className="hero-ink-panel">
           <div className="hero-grid">
             <div>
@@ -151,7 +172,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* ── Stat row ─────────────────────────────────────────────────────── */}
+        {/* Metric stat cards */}
         <section className="metric-cards-row">
           <MetricCard
             variant="accent"
@@ -186,9 +207,8 @@ export default function AdminDashboard() {
           />
         </section>
 
-        {/* ── Performance chart + Genre distribution ────────────────────────── */}
+        {/* Performance chart + Genre distribution */}
         <section className="charts-split-grid">
-          {/* Performance chart */}
           <div className="editorial-card-box">
             <div className="editorial-card-header">
               <div>
@@ -210,7 +230,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </div>
-            <div className="h-52" style={{ height: "220px" }}>
+            <div style={{ height: "220px" }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={performanceData}
@@ -270,7 +290,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Genre distribution */}
           <div className="editorial-card-box">
             <div style={{ marginBottom: "20px" }}>
               <p className="card-pretitle">Section 02</p>
@@ -305,7 +324,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* ── Recent Donations table ────────────────────────────────────────── */}
+        {/* Recent donations table */}
         <section className="table-editorial-box">
           <div className="table-header-bar">
             <div>

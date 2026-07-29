@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+  // uncomment next line if you use Prisma <5.10
+  // directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model User {
@@ -26,7 +28,6 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
-  loginLogs                                       LoginLog[]
   Cart                                            Cart?
   craftListings                                   CraftListing[]
   Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
@@ -76,7 +77,6 @@ model DonationRequest {
   requestedCount       Int
   verifiedCount        Int
   dropOffDate          DateTime?
-  timeSlot             String? 
   verifiedDate         DateTime?
   verifiedBy           String?
   pointsAwarded        Int                @default(0)
@@ -441,7 +441,7 @@ model LoginLog {
   ip        String?
   userAgent String?
   createdAt DateTime    @default(now())
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {
