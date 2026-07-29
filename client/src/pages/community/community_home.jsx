@@ -89,7 +89,21 @@ function Events({ events, loading, error, onOpen, isAdmin, onAdd, onEdit, onDele
           {isAdmin && <button className="primary-button" onClick={onAdd}><Icon name="add" size={20} />Add event</button>}
         </div>
       </div>
-      {loading && <div className="empty">Loading events...</div>}
+      {loading && (
+        <div className="event-grid" aria-hidden="true">
+          {[0, 1, 2].map((n) => (
+            <div key={n} className="event-card skel-card">
+              <div className="skel skel-media" />
+              <div className="skel-body">
+                <div className="skel" style={{ height: 11, width: '36%' }} />
+                <div className="skel" style={{ height: 18, width: '74%' }} />
+                <div className="skel" style={{ height: 12 }} />
+                <div className="skel" style={{ height: 12, width: '84%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {!loading && error && <div className="empty error">{error}</div>}
       {!loading && !error && events.length === 0 && <div className="empty"><Icon name="event_busy" size={48} /><h2>No events published</h2><p>{isAdmin ? 'Click "Add event" to publish the first one.' : 'The community administrator has not published an event yet.'}</p></div>}
       <div className="event-grid">
@@ -241,7 +255,13 @@ function Conversation({ messages, loading, error, onSend, onUpdate, onDelete, on
         <button className="icon-button" title="Refresh messages" aria-label="Refresh messages" onClick={onRefresh}><Icon name="refresh" /></button>
       </div>
       <div className="message-list">
-        {loading && <p className="center">Loading messages...</p>}
+        {loading && (
+          <div aria-hidden="true" style={{ display: 'grid', gap: 14 }}>
+            {[0, 1, 2].map((n) => (
+              <div key={n} className="skel" style={{ height: 74, borderRadius: 14 }} />
+            ))}
+          </div>
+        )}
         {!loading && error && <p className="center error">{error}</p>}
         {!loading && !error && messages.length === 0 && <div className="center"><Icon name="chat_bubble_outline" size={48} /><p>Be the first to start the conversation.</p></div>}
         {messages.map((message) => (
@@ -451,6 +471,12 @@ export default function CommunityHome() {
         .join-button.joined{background:${c.green};border-color:${c.green};color:#fff}
         .join-button:disabled{opacity:.6;cursor:not-allowed}
         .join-button.large{margin-top:26px;padding:13px 22px;font-size:14px}
+        .skel{background:linear-gradient(100deg, ${c.soft} 28%, #fff 48%, ${c.soft} 68%);background-size:220% 100%;animation:chShimmer 1.3s ease-in-out infinite;border-radius:8px}
+        @keyframes chShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .skel-card{cursor:default}
+        .skel-media{height:170px;border-radius:0}
+        .skel-body{padding:18px;display:grid;gap:10px}
+        @media (prefers-reduced-motion: reduce){ .skel{animation:none;background:${c.soft}} }
         .empty{border:1px dashed ${c.greenBorder};background:#fff;padding:68px 28px;text-align:center;color:${c.muted};border-radius:12px;grid-column:1/-1}
         .empty h2{color:${c.ink};font-size:20px;margin:12px 0 6px}
         .error{color:${c.error}}
