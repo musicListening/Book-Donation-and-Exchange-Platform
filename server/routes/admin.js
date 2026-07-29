@@ -35,8 +35,8 @@ router.get('/dashboard', async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { name: true, email: true } } }
     }));
-    const genreDistribution = await q(() => prisma.bookItem.groupBy({
-      by: ['genre'],
+    const genreDistribution = await q(() => prisma.bookCollection.groupBy({
+      by: ['category'],
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     }));
@@ -175,7 +175,7 @@ router.get('/dashboard', async (req, res) => {
         totalEarnedRupees: totalEarnedRupeesVal,
       },
       genreDistribution: (genreDistribution || []).map(g => ({
-        name: g.genre || 'Uncategorized',
+        name: g.category || 'Uncategorized',
         count: g._count.id,
       })),
       collections: (collections || []).map(c => ({
@@ -284,75 +284,77 @@ router.get('/report', async (req, res) => {
 
     if (type === 'Total Deliveries') {
       const orders = await prisma.order.findMany({
-        where: hasDateFilter ? { createdAt: dateFilter } : {},
-        include: { items: true },
+        where: { status: 'COMPLETED', ...(hasDateFilter ? { createdAt: dateFilter } : {}) },
+        include: {
+          user: { select: { name: true, email: true } },
+          items: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
       });
 
-      const statusMap = { PENDING: 'Order Confirmed', PROCESSING: 'Processed & Packed', COMPLETED: 'Delivered', CANCELLED: 'Cancelled' };
-      const statuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'];
-      const counts = {};
-      for (const s of statuses) counts[s] = { book: 0, craft: 0 };
+      const rows = orders.map((o, i) => {
+        const itemTotal = (o.items || []).reduce((s, it) => s + it.quantity, 0);
+        return {
+          col1: `#${o.id.substring(0, 8).toUpperCase()}`,
+          col2: o.user?.name || 'Unknown',
+          col3: o.user?.email || '',
+          col4: itemTotal.toLocaleString(),
+          col5: `Rs. ${(o.cashAmount || 0).toLocaleString()}`,
+          col6: (o.totalPoints || 0).toLocaleString(),
+          col7: new Date(o.createdAt).toLocaleDateString(),
+        };
+      });
 
-      for (const order of orders) {
-        const s = order.status;
-        if (!counts[s]) counts[s] = { book: 0, craft: 0 };
-        for (const item of order.items || []) {
-          if (item.collectionId || item.bookItemId) counts[s].book += item.quantity;
-          if (item.craftListingId) counts[s].craft += item.quantity;
-        }
-      }
+      const counts = { PENDING: 0, PROCESSING: 0, COMPLETED: 0, CANCELLED: 0 };
+      const allOrders = await prisma.order.findMany({
+        where: hasDateFilter ? { createdAt: dateFilter } : {},
+        select: { status: true },
+      });
+      for (const o of allOrders) { if (counts[o.status] !== undefined) counts[o.status]++; }
+      const maxCount = Math.max(counts.COMPLETED, 1);
 
-      let totalBook = 0, totalCraft = 0;
-      const rows = [];
-      for (const s of statuses) {
-        const b = counts[s]?.book || 0;
-        const c = counts[s]?.craft || 0;
-        totalBook += b; totalCraft += c;
-        rows.push({ col1: statusMap[s] || s, col2: b.toLocaleString(), col3: c.toLocaleString(), col4: (b + c).toLocaleString() });
-      }
-      rows.push({ col1: 'Total Deliveries', col2: totalBook.toLocaleString(), col3: totalCraft.toLocaleString(), col4: (totalBook + totalCraft).toLocaleString() });
-
-      const maxVal = Math.max(totalBook, totalCraft, 1);
       return res.json({
-        title: 'Delivery & Fulfillment Status Report',
-        subtitle: 'Real-time tracking of book and craft shipments across all stages',
-        headers: ['Status Stage', 'Book Orders', 'Craft Orders', 'Total'],
+        title: 'Completed Deliveries Report',
+        subtitle: `Total of ${counts.COMPLETED} orders delivered${hasDateFilter ? ' in selected date range' : ''}`,
+        headers: ['Order ID', 'Customer Name', 'Email', 'Items', 'Cash', 'Points', 'Date'],
         rows,
         chartData: [
-          { label: 'Books', val: Math.round(totalBook / maxVal * 100), color: '#1E4D4B' },
-          { label: 'Crafts', val: Math.round(totalCraft / maxVal * 100), color: '#E9C46A' },
+          { label: 'Delivered', val: Math.round(counts.COMPLETED / maxCount * 100), color: '#1E4D4B' },
         ],
       });
     }
 
-    if (type === 'Most Popular Collections') {
-      const orderItems = await prisma.orderItem.findMany({
-        where: {
-          collectionId: { not: null },
-          ...(hasDateFilter ? { order: { createdAt: dateFilter } } : {}),
-        },
-        include: { collection: true },
+    if (type === 'Most Popular Bundles') {
+      const bundles = await prisma.bookCollection.findMany({
+        where: hasDateFilter ? { createdAt: dateFilter } : {},
+        include: { _count: { select: { books: true } } },
+        orderBy: { stock: 'desc' },
+        take: 50,
       });
 
-      const collectionMap = {};
-      for (const item of orderItems) {
-        if (!item.collection) continue;
-        const id = item.collectionId;
-        if (!collectionMap[id]) collectionMap[id] = { name: item.collection.title, category: item.collection.category, units: 0 };
-        collectionMap[id].units += item.quantity;
-      }
+      const rows = bundles.map((b, i) => ({
+        col1: b.title,
+        col2: b.category || 'General',
+        col3: (b._count?.books || 0).toLocaleString(),
+        col4: (b.stock || 0).toLocaleString(),
+        col5: (b.pointsRequired || 0).toLocaleString(),
+        col6: b.cashPrice ? `Rs. ${b.cashPrice.toLocaleString()}` : '-',
+        col7: b.type || 'STANDARD',
+      }));
 
-      const sorted = Object.values(collectionMap).sort((a, b) => b.units - a.units).slice(0, 5);
-      const maxUnits = Math.max(...sorted.map(s => s.units), 1);
-      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#767777', '#2A9D8F'];
-      const demand = (u) => u > maxUnits * 0.7 ? 'High' : u > maxUnits * 0.4 ? 'Medium' : 'Low';
+      const maxBooks = Math.max(...rows.map(r => parseInt(r.col3.replace(/,/g, ''))), 1);
 
       return res.json({
-        title: 'Top Performing Book Collections',
-        subtitle: 'Most requested and curated book bundles by genre',
-        headers: ['Collection Name', 'Category', 'Units Sold', 'Demand Trend'],
-        rows: sorted.map(s => ({ col1: s.name, col2: s.category, col3: s.units.toLocaleString(), col4: demand(s.units) })),
-        chartData: sorted.map((s, i) => ({ label: s.category, val: Math.round(s.units / maxUnits * 100), color: colors[i % colors.length] })),
+        title: 'Top Performing Bundles',
+        subtitle: 'All book bundles ranked by stock and book count',
+        headers: ['Bundle Name', 'Category', 'Books', 'Stock', 'Points', 'Cash Price', 'Type'],
+        rows,
+        chartData: bundles.slice(0, 8).map((b, i) => ({
+          label: b.title.length > 12 ? b.title.substring(0, 12) + '...' : b.title,
+          val: Math.round(((b._count?.books || 0) / maxBooks) * 100),
+          color: (['#1E4D4B', '#E9C46A', '#643C29', '#767777', '#2A9D8F', '#E76F51', '#457B9D', '#A8DADC'])[i % 8],
+        })),
       });
     }
 
