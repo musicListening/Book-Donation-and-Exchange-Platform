@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
 import { colors } from '../../components/communityTokens';
-import { Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { Icon, Button, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 // Shared field styling so every input in the event form matches
 const fieldLabel = { display: 'block', fontSize: 13.5, fontWeight: 600, marginBottom: 7, color: colors.onSurface };
@@ -17,6 +17,18 @@ function EventForm({ event, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  // Escape closes the form and the page behind it stops scrolling
+  useEffect(() => {
+    const onKeyDown = (e) => { if (e.key === 'Escape' && !saving) onClose(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [saving, onClose]);
 
   const submit = async (submitEvent) => {
     submitEvent.preventDefault();
@@ -33,15 +45,21 @@ function EventForm({ event, onClose, onSave }) {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
-      <form onSubmit={submit} style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: colors.surfaceContainerLowest, borderRadius: 16, padding: 28, width: '90%', maxWidth: 560, zIndex: 101, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 35px -10px rgba(0,0,0,0.2)' }}>
+      <div onClick={() => !saving && onClose()} aria-hidden="true" style={{ position: 'fixed', inset: 0, background: 'rgba(10, 59, 50, 0.55)', backdropFilter: 'blur(2px)', zIndex: 100 }} />
+      <form
+        onSubmit={submit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-form-title"
+        style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: colors.surfaceContainerLowest, borderRadius: 20, padding: 28, width: '90%', maxWidth: 560, zIndex: 101, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 48px -12px rgba(10, 59, 50, 0.24)' }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: colors.primary }}>{event ? 'Edit Event' : 'Add New Event'}</h3>
-          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: '50%', display: 'flex' }}>
+          <h3 id="event-form-title" style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: colors.primary }}>{event ? 'Edit event' : 'Add new event'}</h3>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: '50%', display: 'flex' }}>
             <Icon name="close" size={24} style={{ color: colors.onSurfaceVariant }} />
           </button>
         </div>
-        {error && <p style={{ color: colors.error, background: colors.errorContainer, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{error}</p>}
+        {error && <Alert>{error}</Alert>}
         {form.imageUrl && (
           <img src={form.imageUrl} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }} />
         )}
@@ -70,8 +88,8 @@ function EventForm({ event, onClose, onSave }) {
           <p style={fieldHint}>Leave empty to use the default event picture.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, background: 'transparent', cursor: 'pointer', fontSize: 14, color: colors.onSurfaceVariant }}>Cancel</button>
-          <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: colors.primary, color: 'white', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 500, opacity: saving ? 0.7 : 1 }}>{saving ? 'Saving...' : event ? 'Update Event' : 'Create Event'}</button>
+          <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" loading={saving}>{saving ? 'Saving...' : event ? 'Update event' : 'Create event'}</Button>
         </div>
       </form>
     </>
@@ -79,16 +97,16 @@ function EventForm({ event, onClose, onSave }) {
 }
 
 function EventCard({ event, onEdit, onDelete, deleting }) {
-  const [hovered, setHovered] = useState(false);
-  const [imgHovered, setImgHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isUpcoming = new Date(event.eventDate) >= new Date();
 
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => { setHovered(false); setMenuOpen(false); }} style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: 12, overflow: 'hidden', transition: 'transform 0.2s ease, box-shadow 0.2s ease', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none', position: 'relative' }}>
-      {hovered && (
-        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-          <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', backdropFilter: 'blur(4px)' }}>
+    <article className="lift-card event-card" onMouseLeave={() => setMenuOpen(false)} style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+      {/* Kept mounted rather than hover-only: a hover gate made Edit and
+          Delete unreachable for keyboard and touch users entirely. */}
+      <div className="event-card-actions" style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
+        <div>
+          <button onClick={() => setMenuOpen(!menuOpen)} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`Actions for ${event.title}`} style={{ background: 'rgba(10, 59, 50, 0.72)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', backdropFilter: 'blur(4px)' }}>
             <Icon name="more_vert" size={20} />
           </button>
           {menuOpen && (
@@ -102,8 +120,8 @@ function EventCard({ event, onEdit, onDelete, deleting }) {
             </div>
           )}
         </div>
-      )}
-      <div style={{ position: 'relative', height: 180, overflow: 'hidden' }} onMouseEnter={() => setImgHovered(true)} onMouseLeave={() => setImgHovered(false)}>
+      </div>
+      <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
         <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', transform: imgHovered ? 'scale(1.05)' : 'scale(1)' }} />
         <span style={{ position: 'absolute', top: 16, left: 16, padding: '4px 12px', borderRadius: 40, fontSize: 12, fontWeight: 500, backdropFilter: 'blur(4px)', background: isUpcoming ? 'rgba(0,109,91,0.88)' : colors.outlineVariant, color: isUpcoming ? '#fff' : colors.onSurface }}>{isUpcoming ? 'Upcoming' : 'Past'}</span>
       </div>
@@ -121,7 +139,7 @@ function EventCard({ event, onEdit, onDelete, deleting }) {
         </div>
       </div>
       {deleting && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', display: 'grid', placeItems: 'center', fontWeight: 600, color: colors.error }}>Deleting...</div>}
-    </div>
+    </article>
   );
 }
 
@@ -228,6 +246,16 @@ export default function EventManagement() {
         .event-search { flex: 1; min-width: 220px; padding: 10px 14px 10px 40px; border-radius: 40px; border: 1px solid ${colors.outlineVariant}; font-size: 14px; background-position: 12px center; background-repeat: no-repeat; }
         .event-hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; margin-bottom: 28px; }
         @media (max-width: 1024px) { .event-hero { grid-template-columns: 1fr; } }
+
+        /* Actions stay in the DOM and in the tab order; they only fade
+           visually, and come fully forward on hover or keyboard focus. */
+        .event-card-actions { opacity: 0.35; transition: opacity 180ms ease; }
+        .event-card:hover .event-card-actions,
+        .event-card:focus-within .event-card-actions { opacity: 1; }
+        @media (hover: none) { .event-card-actions { opacity: 1; } }
+
+        .event-card img { transition: transform 500ms ease; }
+        .event-card:hover img { transform: scale(1.05); }
 
         /* One field style for the whole event form */
         .event-field {
