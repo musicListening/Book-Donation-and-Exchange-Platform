@@ -430,6 +430,16 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
   const menuButtonRef = useRef(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Lift the header once the page moves under it, so it reads as a layer
+  // above the content rather than floating text.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Escape closes the menu and hands focus back to the button that opened it,
   // so keyboard users do not get dropped at the top of the page.
@@ -446,7 +456,7 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
   }, [userMenuOpen]);
 
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0, backdropFilter: "blur(10px)" }}>
+    <header style={{ position: "sticky", top: 0, zIndex: layer.header, background: scrolled ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: scrolled ? elevation.raised : elevation.rest, flexShrink: 0, backdropFilter: "blur(10px)", transition: `box-shadow ${motion.base}, background ${motion.base}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         {!isMd && (
           <button onClick={onMenuClick} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, color: colors.primary, display: "flex", borderRadius: 8 }}>
