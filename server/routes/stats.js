@@ -40,38 +40,46 @@ router.get('/', async (req, res) => {
 router.get('/leaderboard', async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
 
-  const donors = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      role: 'END_USER',
-      booksDonated: { gt: 0 },
-    },
-    // Ties on book count fall back to points, then to whoever joined first,
-    // so the ranking stays stable between requests.
-    orderBy: [{ booksDonated: 'desc' }, { points: 'desc' }, { createdAt: 'asc' }],
-    take: limit,
-    select: {
-      id: true,
-      name: true,
-      profileImage: true,
-      booksDonated: true,
-      points: true,
-      level: true,
-    },
-  });
+  try {
+    const donors = await withRetry(() =>
+      prisma.user.findMany({
+        where: {
+          isActive: true,
+          role: 'END_USER',
+          booksDonated: { gt: 0 },
+        },
+        // Ties on book count fall back to points, then to whoever joined first,
+        // so the ranking stays stable between requests.
+        orderBy: [{ booksDonated: 'desc' }, { points: 'desc' }, { createdAt: 'asc' }],
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          profileImage: true,
+          booksDonated: true,
+          points: true,
+          level: true,
+        },
+      })
+    , 2);
 
-  // Map the numeric level onto its configured tier name, e.g. 3 -> "Literary Elite"
-  const levels = await prisma.level.findMany({ orderBy: { level: 'asc' } });
-  const levelNames = new Map(levels.map(l => [l.level, l.name.trim()]));
+    // Map the numeric level onto its configured tier name, e.g. 3 -> "Literary Elite"
+    const levels = await withRetry(() => prisma.level.findMany({ orderBy: { level: 'asc' } }), 2);
+    const levelNames = new Map(levels.map(l => [l.level, l.name.trim()]));
 
-  res.json(
-    donors.map((u, idx) => ({
-      rank: idx + 1,
-      ...u,
-      name: u.name.trim(),
-      levelName: levelNames.get(u.level) || 'New Donor',
-    }))
-  );
+    res.json(
+      donors.map((u, idx) => ({
+        rank: idx + 1,
+        ...u,
+        name: u.name.trim(),
+        levelName: levelNames.get(u.level) || 'New Donor',
+      }))
+    );
+  } catch (error) {
+    // Match /api/stats: an empty board is better than a broken home page.
+    console.error('Leaderboard fetch error:', error);
+    res.json([]);
+  }
 });
 
 module.exports = router;
