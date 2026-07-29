@@ -38,6 +38,8 @@ router.get('/', async (req, res) => {
 
 // GET /api/stats/leaderboard — public top book donors for the home page
 router.get('/leaderboard', async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
+
   const donors = await prisma.user.findMany({
     where: {
       isActive: true,
@@ -47,7 +49,7 @@ router.get('/leaderboard', async (req, res) => {
     // Ties on book count fall back to points, then to whoever joined first,
     // so the ranking stays stable between requests.
     orderBy: [{ booksDonated: 'desc' }, { points: 'desc' }, { createdAt: 'asc' }],
-    take: 10,
+    take: limit,
     select: {
       id: true,
       name: true,
