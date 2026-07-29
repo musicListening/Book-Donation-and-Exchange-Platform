@@ -7,12 +7,25 @@ const router = express.Router();
 // ===== CREATE Donation Request =====
 router.post('/', uploadDonation.array('images', 10), async (req, res) => {
     try {
-        const { userId, type, collectionName, category, requestedCount, notes, dropOffDate } = req.body;
+        const { userId, type, collectionName, category, requestedCount, notes, dropOffDate, timeSlot } = req.body;
 
-        // Upload donor images to Cloudinary
+        // Upload donor images to Cloudinary with local fallback
         let donationImages = [];
         if (req.files && req.files.length > 0) {
-            donationImages = await uploadToCloudinaryMultiple(req.files);
+            try {
+                donationImages = await uploadToCloudinaryMultiple(req.files);
+            } catch (cloudinaryError) {
+                console.warn('⚠️ Cloudinary upload failed, falling back to local storage:', cloudinaryError.message);
+                const fs = require('fs');
+                const path = require('path');
+                donationImages = [];
+                for (const file of req.files) {
+                    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+                    const filepath = path.join(__dirname, '../uploads', filename);
+                    fs.writeFileSync(filepath, file.buffer);
+                    donationImages.push(`http://localhost:5000/uploads/${filename}`);
+                }
+            }
         }
 
         const donation = await prisma.donationRequest.create({
@@ -25,6 +38,7 @@ router.post('/', uploadDonation.array('images', 10), async (req, res) => {
                 verifiedCount: 0,
                 notes,
                 dropOffDate: dropOffDate ? new Date(dropOffDate) : null,
+                timeSlot: timeSlot || 'Morning (10:00 AM - 12:00 PM)',
                 pointsAwarded: 0,
                 donationImages,
             }
@@ -206,14 +220,12 @@ router.patch('/:id/update-points', async (req, res) => {
             awardedMysteryBox 
         });
 
-        // ✅ Only update points-related fields - status stays PENDING
         const updated = await prisma.donationRequest.update({
             where: { id },
             data: {
                 verifiedCount: parseInt(verifiedCount) || 0,
                 pointsAwarded: parseInt(pointsAwarded) || 0,
                 awardedMysteryBox: awardedMysteryBox === true || awardedMysteryBox === 'true',
-                // ✅ DO NOT change status - stays PENDING
             },
             include: { user: true }
         });
@@ -235,14 +247,22 @@ router.patch('/:id/verify', async (req, res) => {
             condition, 
             notes, 
             staffId,
-            isCollectionComplete
+            isCollectionComplete,
+            category,
+            bundleId,
+            addToMarketplace
         } = req.body;
+
+        console.log('🔍 Verifying donation:', { id, verifiedCount, category, bundleId, addToMarketplace });
 
         const donation = await prisma.donationRequest.findUnique({
             where: { id },
             include: { user: true }
         });
-        if (!donation) return res.status(404).json({ error: 'Donation not found' });
+        
+        if (!donation) {
+            return res.status(404).json({ error: 'Donation not found' });
+        }
 
         const isCollection = donation.type === 'COLLECTION' || isCollectionComplete;
         const points = await calculateDonationPoints(parseInt(verifiedCount) || 0, isCollection);
@@ -253,27 +273,89 @@ router.patch('/:id/verify', async (req, res) => {
         const newPoints = (user.points || 0) + points.total;
         const leveledUp = newLevel > (user.level !== undefined && user.level !== null ? user.level : 0);
 
+        // Determine the category to use
+        const finalCategory = category || donation.category || 'General';
+        console.log(`📚 Final category: ${finalCategory}`);
+
+        // ===== FIND OR CREATE BUNDLE (Using BookCollection model) =====
+        let targetBundleId = bundleId;
+
+        // If no bundleId provided, try to find or create one
+        if (!targetBundleId && !donation.category?.startsWith('Craft:')) {
+            // Try to find existing collection with this category
+            const existingCollection = await prisma.bookCollection.findFirst({
+                where: { category: finalCategory }
+            });
+
+            if (existingCollection) {
+                targetBundleId = existingCollection.id;
+                console.log(`✅ Found existing bundle: ${existingCollection.title} (${existingCollection.id})`);
+            } else {
+                // Create a new collection for this category
+                try {
+                    const slug = `${finalCategory.toLowerCase().replace(/\s+/g, '-')}-collection-${Date.now()}`;
+                    const newCollection = await prisma.bookCollection.create({
+                        data: {
+                            title: `${finalCategory} Collection`,
+                            description: `Collection of ${finalCategory} books from donations`,
+                            category: finalCategory,
+                            slug: slug,
+                            stock: 0,
+                            pointsRequired: 0,
+                            cashPrice: 0,
+                            isRare: false,
+                            type: 'STANDARD',
+                            minLevelRequired: 1
+                        }
+                    });
+                    targetBundleId = newCollection.id;
+                    console.log(`✅ Created new bundle: ${newCollection.title} (${newCollection.id})`);
+                } catch (createError) {
+                    console.error('Error creating collection:', createError);
+                    // Try one more time to find a collection
+                    const retryCollection = await prisma.bookCollection.findFirst({
+                        where: { category: finalCategory }
+                    });
+                    if (retryCollection) {
+                        targetBundleId = retryCollection.id;
+                        console.log(`✅ Found bundle on retry: ${retryCollection.id}`);
+                    }
+                }
+            }
+        }
+
+        console.log(`🎯 Target bundle ID: ${targetBundleId}`);
+
+        // Update donation with category if provided
+        const updateData = {
+            status: 'VERIFIED',
+            verifiedCount: parseInt(verifiedCount) || 0,
+            condition: condition || 'good',
+            notes: notes || '',
+            pointsAwarded: points.total,
+            staffNotes: req.body.staffNotes || '',
+            isCollectionComplete: isCollection,
+            verifiedDate: new Date(),
+            verifiedBy: staffId || null
+        };
+
+        if (category) {
+            updateData.category = category;
+        }
+
         const updated = await prisma.donationRequest.update({
             where: { id },
-            data: {
-                status: 'VERIFIED',
-                verifiedCount: parseInt(verifiedCount) || 0,
-                condition: condition || 'good',
-                notes: notes || '',
-                pointsAwarded: points.total,
-                staffNotes: req.body.staffNotes || '',
-                isCollectionComplete: isCollection,
-                verifiedDate: new Date(),
-                verifiedBy: staffId || null
-            },
+            data: updateData,
             include: { user: true }
         });
 
+        // Update user points and books donated
         await prisma.user.update({
             where: { id: user.id },
             data: { points: newPoints, booksDonated: newBooksDonated, level: newLevel }
         });
 
+        // Create point transactions
         await prisma.pointTransaction.create({
             data: {
                 userId: user.id,
@@ -298,6 +380,7 @@ router.patch('/:id/verify', async (req, res) => {
             });
         }
 
+        // Handle level up and mystery box
         if (leveledUp) {
             const levelConfig = await prisma.level.findUnique({ where: { level: newLevel } });
             const hasMysteryBox = levelConfig?.mysteryBoxUnlock && levelConfig.mysteryBoxUnlock.trim() !== '';
@@ -329,7 +412,8 @@ router.patch('/:id/verify', async (req, res) => {
                         level: newLevel,
                         status: 'UNCLAIMED',
                         assignedBy: staffId || null,
-                        description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
+                        description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`,
+                        updatedAt: new Date(),
                     }
                 });
 
@@ -338,7 +422,6 @@ router.patch('/:id/verify', async (req, res) => {
                         where: { id: book.id },
                         data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
                     });
-                    // Decrement bundle stock if book was in a collection
                     if (book.collectionId) {
                         await prisma.bookCollection.update({
                             where: { id: book.collectionId },
@@ -358,36 +441,10 @@ router.patch('/:id/verify', async (req, res) => {
             }
         }
 
-        // Create BookItem or CraftListing records for verified items
+        // ===== CREATE BOOK ITEMS AND ADD TO BUNDLE =====
         const isCraft = donation.category && donation.category.startsWith('Craft:');
         const bookItems = [];
         const craftListings = [];
-        const { bundleId, addToMarketplace } = req.body;
-        
-        // Auto-find or create bundle for the donation's category
-        let finalBundleId = bundleId || null;
-        if (!finalBundleId && !isCraft && donation.category) {
-            // Try to find existing bundle for this category
-            let existingBundle = await prisma.bookCollection.findFirst({
-                where: { category: donation.category }
-            });
-            
-            if (!existingBundle) {
-                // Create a new bundle for this category
-                existingBundle = await prisma.bookCollection.create({
-                    data: {
-                        title: `${donation.category} Collection`,
-                        slug: `${donation.category.toLowerCase().replace(/\s+/g, '-')}-collection-${Date.now()}`,
-                        category: donation.category,
-                        stock: 0,
-                        pointsRequired: 0,
-                        type: 'STANDARD'
-                    }
-                });
-                console.log(`📦 Auto-created bundle: ${existingBundle.title}`);
-            }
-            finalBundleId = existingBundle.id;
-        }
 
         let dbCondition = 'GOOD';
         if (condition) {
@@ -399,11 +456,13 @@ router.patch('/:id/verify', async (req, res) => {
             else if (condUpper === 'POOR') dbCondition = 'POOR';
         }
 
-        const notesPointsMatch = donation.notes && donation.notes.match(/Expected Points:\s*(\d+)/i);
-        const specifiedPoints = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
-        const initialPointsPrice = specifiedPoints || ((condition === 'NEW' || condition === 'excellent') ? 50 : (condition === 'LIKE_NEW' || condition === 'good') ? 40 : (condition === 'GOOD') ? 30 : (condition === 'FAIR' || condition === 'fair') ? 20 : 10);
+        const initialPointsPrice = (condition === 'NEW' || condition === 'excellent') ? 50 : 
+                                   (condition === 'LIKE_NEW' || condition === 'good') ? 40 : 
+                                   (condition === 'GOOD') ? 30 : 
+                                   (condition === 'FAIR' || condition === 'fair') ? 20 : 10;
 
         if (isCraft) {
+            // Handle crafts
             for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
                 const craftTitle = donation.collectionName || (donation.category.replace(/^Craft:\s*/, '') + (parseInt(verifiedCount) > 1 ? ` #${i + 1}` : ''));
                 const craft = await prisma.craftListing.create({
@@ -421,32 +480,60 @@ router.patch('/:id/verify', async (req, res) => {
                 craftListings.push(craft);
             }
         } else {
-            for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
-                const bookTitle = (donation.collectionName || donation.category || 'Donated Book').replace(/\s*#\d+$/i, '').trim();
+            // ===== CREATE BOOK ITEMS =====
+            const verifiedCountNum = parseInt(verifiedCount) || 0;
+            
+            for (let i = 0; i < verifiedCountNum; i++) {
+                const bookTitle = (donation.collectionName || donation.category || 'Donated Book')
+                    .replace(/\s*#\d+$/i, '')
+                    .trim();
+                
+                // Use the specific book title if it's a single book donation
+                const finalTitle = verifiedCountNum === 1 && donation.collectionName 
+                    ? donation.collectionName 
+                    : `${bookTitle}${verifiedCountNum > 1 ? ` #${i + 1}` : ''}`;
+
+                // Use the donation image for this book if available
+                const bookImage = donation.donationImages && donation.donationImages.length > 0 
+                    ? donation.donationImages[i % donation.donationImages.length] 
+                    : null;
+
                 const bookItem = await prisma.bookItem.create({
                     data: {
-                        title: bookTitle,
+                        title: finalTitle,
+                        category: finalCategory,
                         condition: dbCondition,
                         isDonated: true,
                         donationRequestId: donation.id,
-                        collectionId: finalBundleId,
-                        isAvailable: addToMarketplace === true || addToMarketplace === 'true' ? true : false,
+                        collectionId: targetBundleId,
+                        isAvailable: addToMarketplace === true || addToMarketplace === 'true',
                         addedToMarketplaceAt: addToMarketplace === true || addToMarketplace === 'true' ? new Date() : null,
                         pointsPrice: initialPointsPrice,
-                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : null,
+                        imageUrl: bookImage,
                     },
                 });
                 bookItems.push(bookItem);
+                console.log(`📚 Created book: ${finalTitle} in bundle ${targetBundleId}`);
             }
         }
 
-        // Update bundle stock count
-        if (finalBundleId && bookItems.length > 0) {
-            await prisma.bookCollection.update({
-                where: { id: finalBundleId },
-                data: { stock: { increment: bookItems.length } }
-            });
+        // ===== UPDATE BUNDLE STOCK =====
+        if (targetBundleId && bookItems.length > 0) {
+            try {
+                await prisma.bookCollection.update({
+                    where: { id: targetBundleId },
+                    data: { 
+                        stock: { increment: bookItems.length }
+                    }
+                });
+                console.log(`📊 Updated bundle stock: +${bookItems.length} books`);
+            } catch (stockError) {
+                console.error('Error updating bundle stock:', stockError);
+            }
         }
+
+        // ===== LOG SUMMARY =====
+        console.log(`✅ Verification complete: ${bookItems.length} books added to bundle ${targetBundleId}`);
 
         res.json({
             donation: updated,
@@ -456,14 +543,17 @@ router.patch('/:id/verify', async (req, res) => {
             leveledUp,
             newLevel,
             newPoints,
-            newBooksDonated
+            newBooksDonated,
+            bundleId: targetBundleId,
+            booksAdded: bookItems.length
         });
     } catch (error) {
-        console.error('Error verifying donation:', error);
+        console.error('❌ Error verifying donation:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
+// ===== PUBLISH TO MARKETPLACE =====
 router.post('/:id/publish-marketplace', async (req, res) => {
     try {
         const { id } = req.params;
@@ -574,7 +664,8 @@ router.post('/:id/mystery-box', async (req, res) => {
                 level: user.level,
                 status: 'UNCLAIMED',
                 assignedBy: staffId || null,
-                description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`
+                description: `${levelConfig.mysteryBoxUnlock} - ${selectedBooks.length} books`,
+                updatedAt: new Date(),
             }
         });
 
@@ -583,7 +674,6 @@ router.post('/:id/mystery-box', async (req, res) => {
                 where: { id: book.id },
                 data: { mysteryBoxId: mysteryBox.id, isAvailable: false, collectionId: null }
             });
-            // Decrement bundle stock if book was in a collection
             if (book.collectionId) {
                 await prisma.bookCollection.update({
                     where: { id: book.collectionId },
@@ -643,7 +733,6 @@ router.put('/:id/complete', async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Use a transaction to ensure both operations succeed
         const result = await prisma.$transaction(async (tx) => {
             const donation = await tx.donationRequest.findUnique({ where: { id } });
             

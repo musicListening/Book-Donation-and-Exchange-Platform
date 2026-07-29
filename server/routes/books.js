@@ -2,10 +2,11 @@
 const express = require('express');
 const { prisma } = require('../db');
 const { uploadBook, uploadToCloudinary } = require('../config/cloudinary');
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 // ===== CREATE Book Item =====
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const { title, author, isbn, condition, genre, publicationYear } = req.body;
 
@@ -137,7 +138,7 @@ router.get('/collection/:collectionId', async (req, res) => {
 });
 
 // ===== UPDATE Book =====
-router.put('/:id', uploadBook.single('image'), async (req, res) => {
+router.put('/:id', authenticate, uploadBook.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
         const { title, author, isbn, condition, genre, publicationYear,
@@ -172,7 +173,7 @@ router.put('/:id', uploadBook.single('image'), async (req, res) => {
 });
 
 // ===== Upload/Replace Book Image =====
-router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
+router.put('/:id/image', authenticate, uploadBook.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!req.file) return res.status(400).json({ error: 'No image provided' });
@@ -193,7 +194,7 @@ router.put('/:id/image', uploadBook.single('image'), async (req, res) => {
 });
 
 // ===== Add Book to Marketplace =====
-router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, res) => {
+router.put('/:id/add-to-marketplace', authenticate, uploadBook.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
         const { pointsPrice } = req.body;
@@ -225,7 +226,7 @@ router.put('/:id/add-to-marketplace', uploadBook.single('image'), async (req, re
 });
 
 // ===== Remove Book from Marketplace =====
-router.put('/:id/remove-from-marketplace', async (req, res) => {
+router.put('/:id/remove-from-marketplace', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const book = await prisma.bookItem.update({
@@ -244,7 +245,7 @@ router.put('/:id/remove-from-marketplace', async (req, res) => {
 });
 
 // ===== DELETE Book =====
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         try {

@@ -1,9 +1,22 @@
 // pages/staff/DonationSchedule.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import StaffLayout from '../../components/StaffLayout';
 import { systemConfigAPI, API_BASE } from '../../services/api';
+import { showToast } from '../../utils/toast';
+
+// ===== BOOK CATEGORIES CONSTANT =====
+const BOOK_CATEGORIES = [
+  'Fiction',
+  'Non-Fiction',
+  'Academic',
+  'Children',
+  'Comics',
+  'Mixed'
+];
 
 function DonationSchedule() {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
   const [donations, setDonations] = useState([]);
   const [users, setUsers] = useState([]);
@@ -18,18 +31,10 @@ function DonationSchedule() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState(null);
-  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
-  const [marketplaceDonation, setMarketplaceDonation] = useState(null);
-  const [marketplaceForm, setMarketplaceForm] = useState({
-    title: '',
-    price: 0,
-    condition: 'good',
-    description: '',
-    category: 'General'
-  });
   const [bundles, setBundles] = useState([]);
   const [selectedBundleId, setSelectedBundleId] = useState('');
   const [addToMarketplace, setAddToMarketplace] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
   const [verifyForm, setVerifyForm] = useState({
     verifiedCount: 0,
     condition: 'good',
@@ -39,8 +44,13 @@ function DonationSchedule() {
     userLevel: 0,
     currentPoints: 0,
     userId: null,
-    booksDonated: 0
+    booksDonated: 0,
+    category: ''
   });
+
+  // Download state
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [downloadReceiptAfterVerify, setDownloadReceiptAfterVerify] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -62,6 +72,13 @@ function DonationSchedule() {
     }
     fetchAllData();
     fetchConfig();
+
+    // Check if coming from verification
+    const fromVerification = sessionStorage.getItem('fromVerification');
+    if (fromVerification === 'true') {
+      sessionStorage.removeItem('fromVerification');
+      fetchAllData();
+    }
   }, []);
 
   const fetchConfig = async () => {
@@ -215,8 +232,40 @@ function DonationSchedule() {
     return currentLevel;
   };
 
+  // ===== VALIDATION FUNCTION =====
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validate verified count
+    if (verifyForm.verifiedCount === undefined || verifyForm.verifiedCount === null) {
+      errors.verifiedCount = 'Please enter the number of books received';
+    } else if (verifyForm.verifiedCount < 0) {
+      errors.verifiedCount = 'Number of books cannot be negative';
+    } else if (verifyForm.verifiedCount > (selectedDonation?.requestedCount || 0)) {
+      errors.verifiedCount = `Cannot verify more than the submitted count (${selectedDonation?.requestedCount || 0})`;
+    } else if (verifyForm.verifiedCount === 0) {
+      errors.verifiedCount = 'Please enter at least 1 book received';
+    }
+
+    // Validate condition
+    if (!verifyForm.condition) {
+      errors.condition = 'Please select a book condition';
+    }
+
+    // Validate category (only for books, not crafts)
+    if (!selectedDonation?.category?.startsWith('Craft:')) {
+      if (!verifyForm.category || verifyForm.category === '') {
+        errors.category = 'Please select a category';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleVerifyDonation = async (donation) => {
     setSelectedDonation(donation);
+    setValidationErrors({});
     const points = calculatePoints(donation.requestedCount || 0, donation.type === 'COLLECTION');
     setVerifyForm({
       verifiedCount: donation.requestedCount || 0,
@@ -227,11 +276,13 @@ function DonationSchedule() {
       userLevel: donation.userLevel || 0,
       currentPoints: donation.userPoints || 0,
       userId: donation.userId || null,
-      booksDonated: donation.booksDonated || 0
+      booksDonated: donation.booksDonated || 0,
+      category: donation.category || ''
     });
+    setDownloadReceiptAfterVerify(false);
     setShowVerifyModal(true);
 
-    // Fetch available bundles for assignment
+    // Fetch bundles to get the correct bundle ID for each category
     try {
       const token = localStorage.getItem('token');
       const bundleRes = await fetch(`${API_BASE}/collections`, {
@@ -246,18 +297,36 @@ function DonationSchedule() {
     }
   };
 
+  // ===== FIXED: UPDATED HANDLE CONFIRM VERIFICATION =====
   const handleConfirmVerification = async () => {
     if (!selectedDonation) {
-      alert('No donation selected');
+      showToast('No donation selected', 'error');
+      return;
+    }
+
+    // ===== RUN VALIDATION =====
+    if (!validateForm()) {
+      showToast('Please fix the validation errors before continuing', 'error');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('No token found. Please login again.');
+        showToast('Please login again', 'error');
         return;
       }
+
+      // ===== FIND BUNDLE ID FOR THE SELECTED CATEGORY =====
+      const getBundleIdForCategory = (category) => {
+        const matchingBundle = bundles.find(b => b.category === category);
+        return matchingBundle ? matchingBundle.id : null;
+      };
+      
+      const selectedCategory = verifyForm.category || selectedDonation.category || 'General';
+      const bundleIdForCategory = getBundleIdForCategory(selectedCategory);
+
+      console.log(`✅ Selected Category: ${selectedCategory}, Bundle ID: ${bundleIdForCategory}`);
 
       const response = await fetch(`${API_BASE}/donations/${selectedDonation.id}/verify`, {
         method: 'PATCH',
@@ -271,8 +340,9 @@ function DonationSchedule() {
           notes: verifyForm.notes,
           staffId: currentUser.id,
           isCollectionComplete: verifyForm.isComplete,
-          bundleId: selectedBundleId || null,
-          addToMarketplace,
+          bundleId: bundleIdForCategory,
+          addToMarketplace: true, // Always add to marketplace
+          category: selectedCategory
         })
       });
 
@@ -294,77 +364,40 @@ function DonationSchedule() {
       setShowVerifyModal(false);
       
       const levelUpMsg = leveledUp ? ` Level up to Level ${newLevel}! Mystery Box awarded!` : '';
-      const isCraftDonation = selectedDonation.category && selectedDonation.category.startsWith('Craft:');
-      const itemLabel = isCraftDonation ? 'craft' : 'book';
 
       setVerifyForm({
         verifiedCount: 0, condition: 'good', notes: '', isComplete: true,
-        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0
+        awardPoints: 0, userLevel: 0, currentPoints: 0, userId: null, booksDonated: 0,
+        category: ''
       });
-      
-      const notesPointsMatch = selectedDonation.notes && selectedDonation.notes.match(/Expected Points:\s*(\d+)/i);
-      const userEnteredPrice = notesPointsMatch ? parseInt(notesPointsMatch[1]) : null;
+      setValidationErrors({});
 
-      const defaultBookLkrPrice = (
-        (verifyForm.condition === 'NEW' || verifyForm.condition === 'excellent') ? 750 
-        : (verifyForm.condition === 'LIKE_NEW' || verifyForm.condition === 'good') ? 500 
-        : (verifyForm.condition === 'GOOD') ? 400 
-        : (verifyForm.condition === 'FAIR' || verifyForm.condition === 'fair') ? 250 
-        : 150
-      );
+      // ===== REFRESH DATA FIRST =====
+      await fetchAllData();
 
-      const calculatedPrice = isCraftDonation ? (userEnteredPrice || 50) : defaultBookLkrPrice;
-      const displayTitle = selectedDonation.collectionName || (selectedDonation.category || '').replace(/^Craft:\s*/i, '') || 'Donated Item';
+      if (downloadReceiptAfterVerify) {
+        setTimeout(() => {
+          downloadReceipt(selectedDonation);
+        }, 500);
+      }
 
-      setMarketplaceDonation(selectedDonation);
-      setMarketplaceForm({
-        title: displayTitle,
-        price: calculatedPrice,
-        condition: verifyForm.condition || 'good',
-        description: '',
-        category: selectedDonation.category || 'General'
-      });
-      setShowMarketplaceModal(true);
+      showToast(`Donation verified! ${points} points awarded.${levelUpMsg}`, 'success');
 
-      fetchAllData();
+      // ===== FIX: Navigate to Bundle Management with session flag =====
+      setTimeout(() => {
+        // Set flag to indicate we're coming from verification
+        sessionStorage.setItem('fromVerification', 'true');
+        
+        if (window.confirm(`✅ Donation verified successfully!\n\nBooks added to "${selectedCategory}" bundle.\n\nWould you like to go to Bundle Management to manage the books?`)) {
+          navigate('/staff/bundle-management');
+        } else {
+          showToast('You can also go to Bundle Management from the sidebar.', 'info');
+        }
+      }, 1000);
       
     } catch (error) {
       console.error('Error verifying donation:', error);
-      alert(`Failed to verify: ${error.message}`);
-    }
-  };
-
-  const handleAddToMarketplace = async () => {
-    if (!marketplaceDonation) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/donations/${marketplaceDonation.id}/publish-marketplace`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: marketplaceForm.title,
-          price: marketplaceForm.price,
-          description: marketplaceForm.description || `${marketplaceDonation.category} in ${marketplaceForm.condition} condition`,
-          condition: marketplaceForm.condition,
-          quantity: verifyForm.verifiedCount
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add to marketplace');
-      }
-
-      setShowMarketplaceModal(false);
-      setMarketplaceDonation(null);
-      alert('Item added to marketplace successfully!');
-      
-    } catch (error) {
-      console.error('Error adding to marketplace:', error);
-      alert('Error adding to marketplace. Please try again.');
+      showToast('Failed to verify: ' + error.message, 'error');
     }
   };
 
@@ -399,21 +432,18 @@ function DonationSchedule() {
         awardPoints: 0,
         userLevel: 0,
         currentPoints: 0,
-        userId: null
+        userId: null,
+        category: ''
       });
+      setValidationErrors({});
 
-      alert('Donation rejected.');
+      showToast('Donation rejected.', 'warning');
       fetchAllData();
       
     } catch (error) {
       console.error('Error rejecting donation:', error);
-      alert('Error rejecting donation. Please try again.');
+      showToast('Error rejecting donation: ' + error.message, 'error');
     }
-  };
-
-  const handleSkipMarketplace = () => {
-    setShowMarketplaceModal(false);
-    setMarketplaceDonation(null);
   };
 
   const getUserInitials = () => {
@@ -423,6 +453,194 @@ function DonationSchedule() {
       return currentUser.name[0].toUpperCase();
     }
     return 'SU';
+  };
+
+  const downloadReceipt = (donation) => {
+    const dateStr = new Date().toLocaleDateString();
+    const timeStr = new Date().toLocaleTimeString();
+    const isCraft = donation.category && donation.category.startsWith('Craft:');
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Donation Receipt - ${donation.donor}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Segoe UI', Arial, sans-serif; 
+              padding: 40px; 
+              background: white; 
+              max-width: 700px; 
+              margin: 0 auto;
+              color: #1a1a1a;
+            }
+            .receipt {
+              border: 2px solid #1E4D4B;
+              border-radius: 16px;
+              padding: 40px;
+              position: relative;
+            }
+            .receipt-header {
+              text-align: center;
+              border-bottom: 2px solid #1E4D4B;
+              padding-bottom: 20px;
+              margin-bottom: 24px;
+            }
+            .receipt-title { font-size: 28px; color: #1E4D4B; font-weight: 700; }
+            .receipt-subtitle { color: #6C757D; font-size: 14px; margin-top: 4px; }
+            .receipt-number {
+              position: absolute;
+              top: 20px;
+              right: 30px;
+              font-size: 13px;
+              color: #6C757D;
+              background: #f8fafc;
+              padding: 4px 12px;
+              border-radius: 20px;
+            }
+            .receipt-details {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px 24px;
+              margin: 20px 0;
+            }
+            .detail-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+            .detail-label { font-weight: 600; color: #495057; font-size: 13px; }
+            .detail-value { font-size: 15px; margin-top: 2px; }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 16px;
+              border-radius: 20px;
+              font-size: 13px;
+              font-weight: 600;
+              background: #28a745;
+              color: white;
+            }
+            .footer {
+              margin-top: 24px;
+              padding-top: 16px;
+              border-top: 1px solid #e5e5e5;
+              text-align: center;
+              font-size: 12px;
+              color: #6C757D;
+            }
+            .watermark {
+              position: absolute;
+              bottom: 40px;
+              right: 40px;
+              opacity: 0.05;
+              font-size: 50px;
+              font-weight: 700;
+              color: #1E4D4B;
+              pointer-events: none;
+            }
+            .print-btn {
+              background: #1E4D4B;
+              color: white;
+              border: none;
+              padding: 10px 24px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              margin-top: 20px;
+            }
+            .print-btn:hover { background: #163a38; }
+            @media print {
+              .no-print { display: none; }
+              body { padding: 20px; }
+              .receipt { border-color: #ddd; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="watermark">RECEIPT</div>
+            <div class="receipt-number">#${donation.id?.substring(0, 8) || 'N/A'}</div>
+            
+            <div class="receipt-header">
+              <div class="receipt-title">Donation Receipt</div>
+              <div class="receipt-subtitle">Thank you for your donation!</div>
+            </div>
+
+            <div class="receipt-details">
+              <div class="detail-item">
+                <div class="detail-label">Donor Name</div>
+                <div class="detail-value"><strong>${donation.donor}</strong></div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Date</div>
+                <div class="detail-value">${new Date(donation.createdAt).toLocaleDateString()} at ${new Date(donation.createdAt).toLocaleTimeString()}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Category</div>
+                <div class="detail-value">${donation.category || 'General'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Type</div>
+                <div class="detail-value">${isCraft ? 'Craft' : 'Book'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Quantity</div>
+                <div class="detail-value"><strong>${donation.requestedCount || 0}</strong></div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Points Awarded</div>
+                <div class="detail-value"><strong>${donation.estimatedPoints || 0} pts</strong></div>
+              </div>
+              ${donation.collectionName ? `
+                <div class="detail-item" style="grid-column: span 2;">
+                  <div class="detail-label">Collection</div>
+                  <div class="detail-value">${donation.collectionName}</div>
+                </div>
+              ` : ''}
+              ${donation.notes ? `
+                <div class="detail-item" style="grid-column: span 2;">
+                  <div class="detail-label">Notes</div>
+                  <div class="detail-value">${donation.notes}</div>
+                </div>
+              ` : ''}
+              <div class="detail-item" style="grid-column: span 2;">
+                <div class="detail-label">Status</div>
+                <div class="detail-value"><span class="status-badge">VERIFIED</span></div>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin: 16px 0; padding: 12px; background: #e8f5e9; border-radius: 8px;">
+              <p style="font-size: 13px; color: #2E7D32; font-weight: 500;">
+                This donation has been verified by staff.
+              </p>
+            </div>
+
+            <div class="footer">
+              <p>Verified by ${currentUser.name} on ${dateStr} at ${timeStr}</p>
+              <p style="margin-top: 4px;">ShareShelf — Donation Receipt</p>
+            </div>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 16px;">
+            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+            <button class="print-btn" style="background: #6C757D; margin-left: 12px;" onclick="window.close()">Close</button>
+          </div>
+
+          <script>
+            window.onload = function() {
+              if (window.location.search.includes('print=true')) {
+                setTimeout(function() { window.print(); }, 500);
+              }
+            }
+          <\/script>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Please allow popups to download the receipt.', 'error');
+      return;
+    }
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
   };
 
   const pendingCount = donations.length;
@@ -444,30 +662,30 @@ function DonationSchedule() {
           <h1>Donation Management</h1>
           <p className="page-subtitle">Review and award points for pending donation submissions</p>
         </div>
-        <div className="user-info">
-          <div className="user-avatar">{getUserInitials()}</div>
-        </div>
-      </div>
-
-      <div className="cards-grid">
-        <div className="stat-card accent-warning">
-          <h3>Pending Donations</h3>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
-          <div className="stat-trend">Awaiting review</div>
-          <div className="stat-sub">Donations waiting for staff verification</div>
-        </div>
-        <div className="stat-card">
-          <h3>Total Pending</h3>
-          <div className="stat-value">{pendingCount}</div>
-          <div className="stat-trend">To be reviewed</div>
-          <div className="stat-sub">Donations pending approval</div>
-        </div>
       </div>
 
       <div className="card-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, color: 'var(--teal)', fontFamily: 'var(--font-family)' }}>Pending Donations</h3>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ 
+              padding: '4px 12px', 
+              borderRadius: '20px', 
+              background: '#fff3e0', 
+              color: '#e65100',
+              fontSize: '13px',
+              fontWeight: '600',
+              fontFamily: 'var(--font-family)'
+            }}>
+              {donations.filter(d => {
+                const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
+                const isCraft = d.category && d.category.startsWith('Craft:');
+                let matchesType = true;
+                if (typeFilter === 'BOOKS') matchesType = !isCraft;
+                if (typeFilter === 'CRAFTS') matchesType = isCraft;
+                return matchesSearch && matchesType;
+              }).length} pending
+            </span>
             <input
               type="text"
               placeholder="Search by donor name..."
@@ -498,27 +716,9 @@ function DonationSchedule() {
               }}
             >
               <option value="ALL">All Items (Books & Crafts)</option>
-              <option value="BOOKS">📚 Books Only</option>
-              <option value="CRAFTS">🎨 Crafts Only</option>
+              <option value="BOOKS">Books Only</option>
+              <option value="CRAFTS">Crafts Only</option>
             </select>
-            <span style={{ 
-              padding: '4px 12px', 
-              borderRadius: '20px', 
-              background: '#fff3e0', 
-              color: '#e65100',
-              fontSize: '13px',
-              fontWeight: '600',
-              fontFamily: 'var(--font-family)'
-            }}>
-              {donations.filter(d => {
-                const matchesSearch = !searchTerm || d.donor.toLowerCase().includes(searchTerm.toLowerCase());
-                const isCraft = d.category && d.category.startsWith('Craft:');
-                let matchesType = true;
-                if (typeFilter === 'BOOKS') matchesType = !isCraft;
-                if (typeFilter === 'CRAFTS') matchesType = isCraft;
-                return matchesSearch && matchesType;
-              }).length} pending
-            </span>
           </div>
         </div>
 
@@ -590,7 +790,7 @@ function DonationSchedule() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            🎨 Craft • {d.requestedCount || 0}
+                            Craft • {d.requestedCount || 0}
                           </span>
                         ) : (
                           <span style={{
@@ -604,7 +804,7 @@ function DonationSchedule() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            📚 Book • {d.requestedCount || 0}
+                            Book • {d.requestedCount || 0}
                           </span>
                         )}
                       </td>
@@ -711,9 +911,11 @@ function DonationSchedule() {
               })()}
             </div>
 
+            {/* ===== VERIFIED COUNT WITH VALIDATION ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
                 {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? 'Actual Crafts Received' : 'Actual Books Received'}
+                <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
               </label>
               <input
                 type="number"
@@ -727,64 +929,139 @@ function DonationSchedule() {
                     verifiedCount: count,
                     awardPoints: points.total
                   });
+                  // Clear validation error when user types
+                  if (validationErrors.verifiedCount) {
+                    setValidationErrors({ ...validationErrors, verifiedCount: '' });
+                  }
                 }}
                 min="0"
+                max={selectedDonation?.requestedCount || 0}
                 style={{ 
                   width: '100%', 
                   padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
+                  border: `1px solid ${validationErrors.verifiedCount ? '#dc3545' : 'var(--border-light)'}`,
                   borderRadius: '8px',
                   fontSize: '18px',
                   fontWeight: '600',
                   fontFamily: 'var(--font-family)'
                 }}
               />
+              {validationErrors.verifiedCount && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {validationErrors.verifiedCount}
+                </p>
+              )}
+              <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                Max allowed: {selectedDonation?.requestedCount || 0} books
+              </p>
             </div>
 
+            {/* ===== CONDITION WITH VALIDATION ===== */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Book Condition</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Condition <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
+              </label>
               <select
                 className="form-control"
                 value={verifyForm.condition}
-                onChange={(e) => setVerifyForm({ ...verifyForm, condition: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
+                onChange={(e) => {
+                  setVerifyForm({ ...verifyForm, condition: e.target.value });
+                  if (validationErrors.condition) {
+                    setValidationErrors({ ...validationErrors, condition: '' });
+                  }
+                }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: `1px solid ${validationErrors.condition ? '#dc3545' : 'var(--border-light)'}`,
+                  borderRadius: '8px', 
+                  fontFamily: 'var(--font-family)' 
+                }}
               >
                 <option value="excellent">Excellent</option>
                 <option value="good">Good</option>
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
+              {validationErrors.condition && (
+                <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                  {validationErrors.condition}
+                </p>
+              )}
             </div>
 
-            {/* Bundle Assignment */}
+            {/* ===== CATEGORY WITH VALIDATION ===== */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Assign to Bundle</label>
-              <select
-                value={selectedBundleId}
-                onChange={(e) => setSelectedBundleId(e.target.value)}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
-              >
-                <option value="">— No Bundle (Individual Listing) —</option>
-                {bundles.map((bundle) => (
-                  <option key={bundle.id} value={bundle.id}>
-                    {bundle.title} ({bundle.stock || 0} items)
-                  </option>
-                ))}
-              </select>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
+                Book Category {!selectedDonation?.category?.startsWith('Craft:') && <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>}
+              </label>
+              {selectedDonation.category && selectedDonation.category.startsWith('Craft:') ? (
+                <div style={{
+                  padding: '10px 14px',
+                  background: '#f0f7f6',
+                  borderRadius: '8px',
+                  border: '1px solid #b2dfdb',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  color: '#1E4D4B',
+                  fontFamily: 'var(--font-family)'
+                }}>
+                  {selectedDonation.category}
+                </div>
+              ) : (
+                <>
+                  <select
+                    className="form-control"
+                    value={verifyForm.category || selectedDonation.category || ''}
+                    onChange={(e) => {
+                      setVerifyForm({ ...verifyForm, category: e.target.value });
+                      if (validationErrors.category) {
+                        setValidationErrors({ ...validationErrors, category: '' });
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '10px 14px', 
+                      border: `1px solid ${validationErrors.category ? '#dc3545' : 'var(--border-light)'}`,
+                      borderRadius: '8px',
+                      fontSize: '15px',
+                      fontFamily: 'var(--font-family)',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="">Select a category...</option>
+                    {BOOK_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.category && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', fontFamily: 'var(--font-family)' }}>
+                      {validationErrors.category}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Add to Marketplace */}
+            {/* ===== DOWNLOAD RECEIPT CHECKBOX ===== */}
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
                 <input
                   type="checkbox"
-                  checked={addToMarketplace}
-                  onChange={(e) => setAddToMarketplace(e.target.checked)}
+                  checked={downloadReceiptAfterVerify}
+                  onChange={(e) => setDownloadReceiptAfterVerify(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Add verified books to Marketplace</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Download Receipt after verification</span>
               </label>
+              <p style={{ fontSize: '12px', color: '#6C757D', marginTop: '4px', marginLeft: '26px', fontFamily: 'var(--font-family)' }}>
+                A printable receipt will be generated for the donor after verification
+              </p>
             </div>
 
+            {/* ===== COLLECTION COMPLETE ===== */}
             {selectedDonation.type === 'COLLECTION' && (
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-family)' }}>
@@ -806,6 +1083,7 @@ function DonationSchedule() {
               </div>
             )}
 
+            {/* ===== STAFF NOTES ===== */}
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Staff Notes</label>
               <textarea
@@ -818,6 +1096,7 @@ function DonationSchedule() {
               />
             </div>
 
+            {/* ===== POINTS TO AWARD ===== */}
             <div style={{ 
               padding: '16px', 
               background: '#e8f5e9', 
@@ -836,89 +1115,11 @@ function DonationSchedule() {
               </span>
             </div>
 
+            {/* ===== ACTION BUTTONS ===== */}
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); }}>Cancel</button>
+              <button className="btn-cancel" onClick={() => { setShowVerifyModal(false); setSelectedDonation(null); setValidationErrors({}); }}>Cancel</button>
               <button className="btn-reject" onClick={handleRejectDonation}>Reject</button>
               <button className="btn-save" onClick={handleConfirmVerification}>Verify & Award Points</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMarketplaceModal && marketplaceDonation && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '550px' }}>
-            <h2 style={{ color: 'var(--teal)', marginBottom: '8px', fontFamily: 'var(--font-family)' }}>Add to Marketplace</h2>
-            <p className="modal-subtitle" style={{ color: 'var(--text-light)', marginBottom: '20px', fontFamily: 'var(--font-family)' }}>
-              Would you like to list this {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'} in the marketplace?
-            </p>
-
-            <div style={{ marginBottom: '20px', padding: '16px', background: '#f5f5f5', borderRadius: '8px', fontFamily: 'var(--font-family)' }}>
-              <p><strong>Category:</strong> {marketplaceDonation.category}</p>
-              <p><strong>Donor:</strong> {marketplaceDonation.donor}</p>
-              <p><strong>Condition:</strong> {marketplaceForm.condition}</p>
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Craft Name' : 'Book Name'}
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={marketplaceForm.title}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, title: e.target.value })}
-                placeholder="Enter name..."
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontFamily: 'var(--font-family)',
-                  marginBottom: '15px'
-                }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>
-                {marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'Price (Points)' : 'Selling Price (LKR / Rs.)'}
-              </label>
-              <input
-                type="number"
-                className="form-control"
-                value={marketplaceForm.price}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, price: parseInt(e.target.value) || 0 })}
-                min="0"
-                step="1"
-                placeholder={marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'e.g. 50' : 'e.g. 500'}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: '1px solid var(--border-light)', 
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontFamily: 'var(--font-family)'
-                }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontFamily: 'var(--font-family)' }}>Description</label>
-              <textarea
-                className="form-control"
-                value={marketplaceForm.description}
-                onChange={(e) => setMarketplaceForm({ ...marketplaceForm, description: e.target.value })}
-                placeholder={`Brief description of the ${marketplaceDonation.category && marketplaceDonation.category.startsWith('Craft:') ? 'craft' : 'book'}...`}
-                rows="3"
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-light)', borderRadius: '8px', fontFamily: 'var(--font-family)' }}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={handleSkipMarketplace}>Skip</button>
-              <button className="btn-save" style={{ background: '#FF9800', color: 'white' }} onClick={handleAddToMarketplace}>Add to Marketplace</button>
             </div>
           </div>
         </div>

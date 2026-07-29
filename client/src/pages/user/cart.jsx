@@ -18,8 +18,8 @@ const Cart = () => {
     setCart(storedCart);
   }, []);
 
-  const subtotalLKR = cart.filter(i => i.type === 'bundles').reduce((sum, item) => sum + item.price, 0);
-  const subtotalPoints = cart.filter(i => i.type === 'crafts').reduce((sum, item) => sum + item.price, 0);
+  const subtotalLKR = cart.filter(i => i.type === 'bundles').reduce((sum, item) => sum + (item.price || item.pointsPrice || 0), 0);
+  const subtotalPoints = cart.filter(i => i.type === 'crafts').reduce((sum, item) => sum + (item.price || item.pointsPrice || 0), 0);
   
   const maxLkrDiscount = Math.floor(subtotalLKR * 0.25);
   // User must have enough points to pay for crafts first!
@@ -167,7 +167,7 @@ const Cart = () => {
                 <p style={{ color: '#6C757D', fontSize: 14 }}>{item.type === 'bundles' ? 'Curated Bundle' : 'Handmade Craft'}</p>
               </div>
               <div style={styles.itemPrice}>
-                {item.type === 'bundles' ? `LKR ${item.price}` : <><i className="fa-solid fa-coins" style={{ marginRight: 6 }}></i> {item.price}</>}
+                {item.type === 'bundles' ? `LKR ${item.price || item.pointsPrice || 0}` : <><i className="fa-solid fa-coins" style={{ marginRight: 6 }}></i> {item.price || item.pointsPrice || 0}</>}
               </div>
               <button style={styles.removeBtn} onClick={() => removeItem(index)}><i className="fa-solid fa-trash-can"></i></button>
             </div>

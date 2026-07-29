@@ -20,7 +20,7 @@ const Home = () => {
     const frameRef = useRef(null);
 
     useEffect(() => {
-      if (!start || target <= 0) return;
+      if (!start || typeof target !== 'number' || target <= 0) return;
       const startTime = performance.now();
       const animate = (now) => {
         const elapsed = now - startTime;
@@ -91,6 +91,7 @@ const Home = () => {
 
   // ── Format numbers for display ──
   const formatNumber = (num) => {
+    if (typeof num !== 'number' || isNaN(num)) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (num >= 1000) return num.toLocaleString();
     return num.toString();
