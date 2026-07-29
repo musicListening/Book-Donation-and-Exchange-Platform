@@ -66,6 +66,7 @@ const communityRoutes = require('./routes/community');
 const mysteryBoxRoutes = require('./routes/mysteryBoxes');
 const reviewRoutes = require('./routes/reviews');
 const craftRoutes = require('./routes/crafts');
+const notificationRoutes = require('./routes/notifications');
 
 // 3b. Auth middleware
 const { authenticate, requireRole } = require('./middleware/auth');
@@ -101,6 +102,7 @@ app.use('/api/stats', apiLimiter, statsRoutes);
 app.use('/api/community', apiLimiter, communityRoutes);
 app.use('/api/mystery-boxes', apiLimiter, authenticate, mysteryBoxRoutes);
 app.use('/api/crafts', apiLimiter, craftRoutes);
+app.use('/api/notifications', apiLimiter, authenticate, notificationRoutes);
 
 // 5. Health check endpoint
 app.get('/api/health', (req, res) => {

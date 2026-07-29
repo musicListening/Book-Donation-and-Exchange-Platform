@@ -94,8 +94,7 @@ const Cart = () => {
 
         // Clear cart
         localStorage.setItem('ss_cart', '[]');
-        alert('Order placed successfully!');
-        window.location.href = '/orders';
+        window.location.href = '/notifications';
     } catch (error) {
         console.error('Error placing order:', error);
         alert('Failed to place order: ' + error.message);

@@ -80,7 +80,8 @@ const Donate = () => {
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
             time: 'N/A', 
-            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            status: d.status === 'VERIFIED' ? 'Completed' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
+            staffNotes: d.staffNotes,
             details: null 
           }));
           setMyDonations(mappedDonations);
@@ -412,7 +413,8 @@ const Donate = () => {
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
             time: 'N/A',
-            status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
+            status: d.status === 'VERIFIED' ? 'Completed' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
+            staffNotes: d.staffNotes,
             details: null
           }));
           setMyDonations(mappedDonations);
@@ -486,7 +488,8 @@ const Donate = () => {
     donationCard: { background: 'white', padding: 24, borderRadius: 12, border: '1px solid #DEE2E6', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
     statusBadge: { display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, backgroundColor: '#E9ECEF', color: '#495057' },
     statusPending: { backgroundColor: '#FFF3CD', color: '#856404' },
-    statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' }
+    statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' },
+    statusRejected: { backgroundColor: '#F8D7DA', color: '#721C24' }
   };
 
   const totalBooks = donationCategory === 'books' ? bookCollections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
@@ -822,15 +825,30 @@ const Donate = () => {
                 <div key={idx} style={styles.donationCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: 18 }}>
-                        {donation.type?.includes('Craft') ? `Crafts: ${donation.type.replace(/Crafts?:\s*/i, '')}` : `Books: ${donation.type || 'General'}`}
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: 16, lineHeight: '1.4' }}>
+                        {donation.type?.includes('Craft') ? (
+                          `Crafts: ${donation.type.replace(/Crafts?:\s*/i, '')}`
+                        ) : (
+                          <>
+                            <span style={{ fontWeight: 600, display: 'block', marginBottom: 4, fontSize: 18 }}>Books:</span>
+                            {(donation.type || 'General').split('|').map((part, pIdx) => (
+                              <div key={pIdx} style={{ fontSize: 14, fontWeight: 500, color: '#374151', paddingLeft: 8, borderLeft: '3px solid #2A9D8F', margin: '6px 0' }}>
+                                {part.trim()}
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </h4>
                       <div style={{ color: '#6C757D', fontSize: 14 }}>ID: {donation.id}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ 
                         ...styles.statusBadge, 
-                        ...(donation.status === 'Completed' ? styles.statusCompleted : styles.statusPending) 
+                        ...(donation.status === 'Completed' 
+                          ? styles.statusCompleted 
+                          : donation.status === 'Rejected' 
+                          ? styles.statusRejected 
+                          : styles.statusPending) 
                       }}>
                         {donation.status || 'Pending'}
                       </span>
@@ -843,9 +861,17 @@ const Donate = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}><i className="fa-solid fa-calendar" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.date}</div>
                   </div>
-                  <div style={{ fontSize: 14 }}>
+                  <div style={{ fontSize: 14, marginBottom: donation.status === 'Rejected' ? 12 : 0 }}>
                     <i className="fa-solid fa-clock" style={{ color: '#2A9D8F', width: 20 }}></i> {donation.time}
                   </div>
+                  {donation.status === 'Rejected' && donation.staffNotes && (
+                    <div style={{ background: '#F8D7DA', color: '#721C24', padding: '10px 14px', borderRadius: 8, fontSize: 13, display: 'flex', gap: 6, alignItems: 'flex-start', border: '1px solid #F5C6CB', marginTop: 12 }}>
+                      <i className="fa-solid fa-circle-exclamation" style={{ marginTop: 2 }}></i>
+                      <div>
+                        <strong>Rejection Reason: </strong>{donation.staffNotes}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

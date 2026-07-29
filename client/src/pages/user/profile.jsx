@@ -18,6 +18,30 @@ const Profile = () => {
   const [transactions, setTransactions] = useState([]);
   const [donations, setDonations] = useState([]);
   const [claimingId, setClaimingId] = useState(null);
+  const [settings, setSettings] = useState({ mobileNotifications: true, newsletter: true });
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  useEffect(() => {
+    if (user && user.id) {
+      const saved = localStorage.getItem(`ss_settings_${user.id}`);
+      if (saved) {
+        setSettings(JSON.parse(saved));
+      }
+    }
+  }, [user]);
+
+  const handleSettingChange = (key, value) => {
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    if (user && user.id) {
+      localStorage.setItem(`ss_settings_${user.id}`, JSON.stringify(updated));
+    }
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || JSON.parse(localStorage.getItem('user')) || { name: 'Arjun Sharma', email: 'arjun@example.com', points: 450 };
@@ -582,10 +606,38 @@ const Profile = () => {
         <div>
           <h3 style={styles.sectionTitle}><i className="fa-solid fa-gear"></i> Account Settings</h3>
           <div style={styles.settingsGroup}>
-            <div><label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Mobile Notifications</label><input type="checkbox" defaultChecked /> Receive updates about order status</div>
-            <div><label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Newsletter</label><input type="checkbox" defaultChecked /> Monthly staff-curated book recommendations</div>
-            <hr style={{ border: 'none', borderTop: '1px solid #DEE2E6' }} />
-            <button style={styles.deactivateBtn}>Deactivate Account</button>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Mobile Notifications</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+                <input 
+                  type="checkbox" 
+                  checked={settings.mobileNotifications} 
+                  onChange={(e) => {
+                    handleSettingChange('mobileNotifications', e.target.checked);
+                    showToast(e.target.checked ? 'Mobile notifications enabled!' : 'Mobile notifications disabled!');
+                  }} 
+                /> 
+                Receive updates about order status
+              </label>
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Newsletter</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+                <input 
+                  type="checkbox" 
+                  checked={settings.newsletter} 
+                  onChange={(e) => {
+                    handleSettingChange('newsletter', e.target.checked);
+                    showToast(e.target.checked ? 'Subscribed to monthly recommendations!' : 'Unsubscribed from monthly recommendations!');
+                  }} 
+                /> 
+                Monthly staff-curated book recommendations
+              </label>
+            </div>
+            <hr style={{ border: 'none', borderTop: '1px solid #DEE2E6', margin: '24px 0' }} />
+            <button style={styles.deactivateBtn} onClick={() => alert('Account deactivation request submitted to administrators.')}>
+              Deactivate Account
+            </button>
           </div>
         </div>
       );
@@ -610,41 +662,7 @@ const Profile = () => {
             <div style={styles.levelContainer}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}><span>Level: <strong>{levelName}</strong></span><span style={{ color: '#1E4D4B', fontWeight: 700 }}>{Math.round(levelProgress)}%</span></div><div style={styles.progressBar}><div style={{ ...styles.progressFill, width: `${levelProgress}%` }}></div></div></div>
             <button style={styles.btn} onClick={openEditModal}>Edit Profile</button>
 
-            {/* Unclaimed Mystery Box Alert */}
-            {unclaimedCount > 0 && (
-              <div style={{
-                background: 'linear-gradient(135deg, #FFE8E8 0%, #FFF3F3 100%)',
-                border: '1px dashed #E63946',
-                borderRadius: 12,
-                padding: 16,
-                marginTop: 20,
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12
-              }}>
-                <div style={{ fontSize: 24 }}>🎁</div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: '#E63946' }}>Unclaimed Box!</p>
-                  <p style={{ margin: '2px 0 0 0', fontSize: 11, color: '#666' }}>You have {unclaimedCount} unclaimed mystery box{unclaimedCount > 1 ? 'es' : ''}.</p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('mystery-boxes')}
-                  style={{
-                    background: '#E63946',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Claim
-                </button>
-              </div>
-            )}
+
           </div>
         </div>
 
@@ -683,6 +701,26 @@ const Profile = () => {
               <button type="submit" style={styles.btn}>Save Changes</button>
             </form>
           </div>
+        </div>
+      )}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          background: '#1E4D4B',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: 8,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 10000,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i>
+          {toastMessage}
         </div>
       )}
     </div>
