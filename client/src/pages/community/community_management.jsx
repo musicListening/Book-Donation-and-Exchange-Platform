@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius, Icon, Button, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function currentUser() {
   try {
@@ -13,22 +13,18 @@ function currentUser() {
 
 // Real customer message pulled from EventComment + User records.
 function MessageCard({ message, onDelete, deleting, canDelete }) {
-  const [hovered, setHovered] = useState(false);
   const initials = message.user.name.charAt(0).toUpperCase();
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <article
+      className="lift-card"
+      aria-busy={deleting || undefined}
       style={{
         background: colors.surfaceContainerLowest,
         border: `1px solid ${colors.outlineVariant}`,
-        borderRadius: 16,
-        padding: 20,
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.28s',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none',
-        opacity: deleting ? 0.5 : 1,
+        borderRadius: radius.lg,
+        padding: space.lg,
+        opacity: deleting ? 0.55 : 1,
         position: 'relative',
       }}
     >
@@ -68,7 +64,7 @@ function MessageCard({ message, onDelete, deleting, canDelete }) {
           </button>
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -170,19 +166,27 @@ export default function MessageModeration() {
             <div style={{ padding: '10px 16px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
           </div>
 
-          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
+          {error && <Alert onRetry={loadMessages}>{error}</Alert>}
 
           {loading && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <p style={{ color: colors.onSurfaceVariant }}>Loading messages...</p>
+            <div className="message-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => <SkeletonCard key={n} />)}
             </div>
           )}
 
           {!loading && filteredMessages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <Icon name="forum" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
-              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>No community messages yet.</p>
-            </div>
+            search.trim()
+              ? <EmptyState
+                  icon="search_off"
+                  title="No messages match that search"
+                  message={`Nothing found for "${search.trim()}". Try a different name or word.`}
+                  action={<Button variant="accent" onClick={() => setSearch('')}>Clear search</Button>}
+                />
+              : <EmptyState
+                  icon="forum"
+                  title="No community messages yet"
+                  message="When members comment on events, their messages show up here for review."
+                />
           )}
 
           {!loading && filteredMessages.length > 0 && (
