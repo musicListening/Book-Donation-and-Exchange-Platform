@@ -14,6 +14,7 @@ const UserDashboard = () => {
   const [claiming, setClaiming] = useState(null);
   const [userReview, setUserReview] = useState({ rating: 0, comment: '' });
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [claimError, setClaimError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -104,20 +105,37 @@ const UserDashboard = () => {
 
   const handleClaim = async (boxId) => {
     setClaiming(boxId);
+    setClaimError(null);
     try {
-      await mysteryBoxAPI.claim(boxId);
+      // Make the claim API call (only once!)
       const response = await mysteryBoxAPI.claim(boxId);
       const updatedBox = response.box || response;
       const cost = getPointsCostForLevel(updatedBox?.level || 0);
-      const updatedUser = { ...user, points: (user.points || 0) - cost };
+      
+      // Update user's points
+      const updatedUser = { 
+        ...user, 
+        points: Math.max(0, (user.points || 0) - cost) 
+      };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      setMysteryBoxes(prev => prev.map(b => b.id === boxId ? updatedBox : b));
-      alert('Mystery box claimed successfully! Check the contents.');
-      window.location.reload();
+      localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
+      
+      // Update mystery boxes - move from unclaimed to claimed
+      setMysteryBoxes(prev => prev.map(b => 
+        b.id === boxId ? { ...updatedBox, status: 'CLAIMED' } : b
+      ));
+      
+      alert('🎁 Mystery box claimed successfully! Check the contents.');
+      
+      // Reload after a short delay to refresh data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
     } catch (error) {
       console.error('Error claiming:', error);
-      alert('Error claiming box: ' + error.message);
+      setClaimError(error.message || 'Error claiming box. Please try again.');
     } finally {
       setClaiming(null);
     }
@@ -271,7 +289,29 @@ const UserDashboard = () => {
           </div>
         </div>
 
-        <div className="dashboard-grid" style={styles.dashboardGrid}>
+        {claimError && (
+          <div style={{ 
+            background: '#FFEBEE', 
+            border: '1px solid #EF9A9A', 
+            borderRadius: 8, 
+            padding: 12, 
+            marginBottom: 16,
+            color: '#C62828',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span><i className="fa-solid fa-exclamation-circle" style={{ marginRight: 8 }}></i>{claimError}</span>
+            <button 
+              onClick={() => setClaimError(null)}
+              style={{ background: 'transparent', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 16 }}
+            >
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        )}
+
+        <div style={styles.dashboardGrid}>
           <div>
             <div className="points-card" style={styles.pointsCard}>
               <div>
@@ -328,6 +368,7 @@ const UserDashboard = () => {
                   {unclaimed.map(box => {
                     const cost = getPointsCostForLevel(box.level);
                     const canAfford = (user?.points || 0) >= cost || cost === 0;
+                    const isClaiming = claiming === box.id;
                     return (
                       <div key={box.id} style={{
                         background: 'white',
@@ -337,6 +378,21 @@ const UserDashboard = () => {
                         position: 'relative',
                         overflow: 'hidden'
                       }}>
+                        {isClaiming && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            background: '#F39C12',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 600
+                          }}>
+                            Claiming...
+                          </div>
+                        )}
                         <div style={{ position: 'relative', zIndex: 1 }}>
                           <h3 style={{ margin: '0 0 4px', color: '#1E4D4B', fontSize: 16 }}>
                             {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
@@ -346,21 +402,27 @@ const UserDashboard = () => {
                           </p>
                           <button
                             onClick={() => handleClaim(box.id)}
-                            disabled={claiming === box.id || (cost > 0 && !canAfford)}
+                            disabled={isClaiming || (cost > 0 && !canAfford)}
                             style={{
                               width: '100%',
                               padding: '8px 12px',
-                              background: claiming === box.id ? '#ccc' : (cost > 0 && !canAfford) ? '#f0e8f7' : '#9B59B6',
-                              color: (cost > 0 && !canAfford) ? '#9B59B6' : 'white',
+                              background: isClaiming ? '#F39C12' : (cost > 0 && !canAfford) ? '#f0e8f7' : '#9B59B6',
+                              color: isClaiming ? 'white' : (cost > 0 && !canAfford) ? '#9B59B6' : 'white',
                               border: (cost > 0 && !canAfford) ? '1px solid #9B59B6' : 'none',
                               borderRadius: 8,
                               fontWeight: 600,
-                              cursor: (claiming === box.id || (cost > 0 && !canAfford)) ? 'not-allowed' : 'pointer',
+                              cursor: (isClaiming || (cost > 0 && !canAfford)) ? 'not-allowed' : 'pointer',
                               fontSize: 13,
                               transition: 'all 0.2s'
                             }}
                           >
-                            {claiming === box.id ? 'Claiming...' : (cost > 0 && !canAfford) ? `Need ${cost} pts` : `Claim (${cost > 0 ? cost + ' pts' : 'Free'})`}
+                            {isClaiming ? (
+                              <><i className="fa-solid fa-spinner fa-spin"></i> Claiming...</>
+                            ) : (cost > 0 && !canAfford) ? (
+                              `Need ${cost} pts`
+                            ) : (
+                              `Claim (${cost > 0 ? cost + ' pts' : 'Free'})`
+                            )}
                           </button>
                         </div>
                       </div>
@@ -380,7 +442,7 @@ const UserDashboard = () => {
                   <p style={{ fontSize: 13, margin: 0 }}>No claimed boxes yet.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {claimed.map(box => (
                     <div key={box.id} style={{ background: 'white', borderRadius: 12, border: '1px solid #DEE2E6', padding: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -392,13 +454,46 @@ const UserDashboard = () => {
                         </span>
                       </div>
                       {box.books && box.books.length > 0 && (
-                        <div>
-                          <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 6px', color: '#343A40' }}>📚 Books inside ({box.books.length}):</p>
-                          {box.books.map((book, idx) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: idx < box.books.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                              <span style={{ fontSize: 12 }}>{book.title}</span>
-                            </div>
-                          ))}
+                        <div style={{
+                          marginTop: 12,
+                          padding: 12,
+                          background: '#F8F9FA',
+                          borderRadius: 8,
+                          border: '1px solid #E9ECEF'
+                        }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 8px', color: '#343A40' }}>
+                            📚 Books inside ({box.books.length}):
+                          </p>
+                          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                            {box.books.map((book, idx) => (
+                              <li key={idx} style={{ 
+                                padding: '4px 0', 
+                                borderBottom: idx < box.books.length - 1 ? '1px solid #E9ECEF' : 'none',
+                                fontSize: 13,
+                                color: '#212529',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8
+                              }}>
+                                <span style={{ 
+                                  display: 'inline-block',
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '50%',
+                                  background: '#2A9D8F',
+                                  color: 'white',
+                                  fontSize: 10,
+                                  textAlign: 'center',
+                                  lineHeight: '18px',
+                                  fontWeight: 600,
+                                  flexShrink: 0
+                                }}>
+                                  {idx + 1}
+                                </span>
+                                {book.title}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>
