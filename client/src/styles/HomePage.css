@@ -1550,3 +1550,31 @@ h1, h2, h3 {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+
+.leaderboard-section {
+    padding: 80px;
+}
+.leaderboard-podium {
+    grid-template-columns: repeat(3, 1fr);
+}
+.leaderboard-row {
+    grid-template-columns: 56px 56px 1fr auto;
+    padding: 16px 28px;
+}
+
+@media (max-width: 1024px) {
+    .leaderboard-section { padding: 64px 40px; }
+}
+
+@media (max-width: 768px) {
+    .leaderboard-section { padding: 48px var(--space-sm); }
+    /* Stack the podium; the winner keeps its emphasis but not the extra height */
+    .leaderboard-podium { grid-template-columns: 1fr; }
+    .leaderboard-row { grid-template-columns: 32px 44px 1fr auto; gap: 12px; padding: 14px 18px; }
+}
+
+@media (max-width: 480px) {
+    .leaderboard-row { grid-template-columns: 26px 1fr auto; gap: 10px; padding: 12px 14px; }
+    /* Avatar is the second cell; hide it rather than squeeze the name */
+    .leaderboard-row > :nth-child(2) { display: none; }
+}

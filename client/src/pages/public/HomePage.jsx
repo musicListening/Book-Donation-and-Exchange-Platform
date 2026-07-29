@@ -401,15 +401,17 @@ const Home = () => {
     craftDetails: { padding: '20px 20px 16px' },
     wishlistBtn: { background: 'none', border: 'none', color: '#DEE2E6', fontSize: 20, cursor: 'pointer' },
     
-    leaderboard: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
-    podium: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, alignItems: 'end', marginBottom: 40 },
+    // Layout lives in HomePage.css (.leaderboard-*) so the media queries can
+    // override it — inline styles would always win over a breakpoint.
+    leaderboard: { maxWidth: 1440, margin: '0 auto' },
+    podium: { display: 'grid', gap: 28, alignItems: 'end', marginBottom: 40 },
     podiumCard: { background: 'white', borderRadius: 24, padding: '32px 24px', textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', position: 'relative', transition: 'all 0.35s ease' },
     podiumMedal: { position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' },
     podiumAvatar: { width: 84, height: 84, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'white', margin: '18px auto 16px', fontWeight: 'bold', objectFit: 'cover' },
     donorBooks: { fontSize: 34, fontWeight: 800, color: '#1E4D4B', lineHeight: 1.1, marginTop: 16 },
     donorPoints: { marginTop: 12, fontSize: 13, color: '#E76F51', fontWeight: 600 },
     rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
-    rankRow: { display: 'grid', gridTemplateColumns: '56px 56px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 28px', borderTop: '1px solid #F1F3F5' },
+    rankRow: { display: 'grid', alignItems: 'center', gap: 16, borderTop: '1px solid #F1F3F5' },
     rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
     rankAvatar: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
     donorName: { margin: 0, fontSize: 17, color: '#343A40', fontWeight: 700 },
@@ -625,7 +627,7 @@ const Home = () => {
 
 
       {/* ============ LEADERBOARD ============ */}
-      <section style={styles.leaderboard}>
+      <section className="leaderboard-section" style={styles.leaderboard}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h2 className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
           <p className="reveal" style={styles.sectionSubtitle}>
@@ -634,7 +636,7 @@ const Home = () => {
         </div>
 
         {boardLoading ? (
-          <div style={styles.podium}>
+          <div className="leaderboard-podium" style={styles.podium}>
             {[2, 1, 3].map((n) => (
               <div key={n} style={{ ...styles.podiumCard, ...styles.boardSkeleton, height: n === 1 ? 300 : 268 }} />
             ))}
@@ -646,7 +648,7 @@ const Home = () => {
         ) : (
         <>
         {/* Podium — rendered 2nd, 1st, 3rd so the winner sits in the middle */}
-        <div className="reveal-stagger" style={styles.podium}>
+        <div className="reveal-stagger leaderboard-podium" style={styles.podium}>
           {[1, 0, 2]
             .filter((i) => leaderboard[i])
             .map((i) => {
@@ -660,8 +662,16 @@ const Home = () => {
                   style={{
                     ...styles.podiumCard,
                     borderTop: `4px solid ${medal.color}`,
+                    // The reveal-stagger transition owns `transform` on these
+                    // cards, so the winner is raised with padding and shadow
+                    // instead of a scale that would get animated away.
                     ...(isWinner
-                      ? { transform: 'scale(1.06)', boxShadow: `0 16px 45px ${medal.glow}` }
+                      ? {
+                          padding: '44px 24px 40px',
+                          marginBottom: 12,
+                          boxShadow: `0 16px 45px ${medal.glow}`,
+                          border: `1px solid ${medal.color}`,
+                        }
                       : {}),
                   }}
                 >
@@ -685,7 +695,7 @@ const Home = () => {
         {leaderboard.length > 3 && (
         <div className="reveal" style={styles.rankList}>
           {leaderboard.slice(3).map((donor) => (
-            <div key={donor.id} style={styles.rankRow}>
+            <div key={donor.id} className="leaderboard-row" style={styles.rankRow}>
               <span style={styles.rankNum}>{donor.rank}</span>
               <Avatar donor={donor} style={styles.rankAvatar} />
               <div>
