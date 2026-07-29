@@ -94,8 +94,7 @@ const Cart = () => {
 
         // Clear cart
         localStorage.setItem('ss_cart', '[]');
-        alert('Order placed successfully!');
-        window.location.href = '/orders';
+        window.location.href = '/notifications';
     } catch (error) {
         console.error('Error placing order:', error);
         alert('Failed to place order: ' + error.message);
@@ -155,7 +154,7 @@ const Cart = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cart.length} />
 
-      <main style={styles.mainContent}>
+      <main className="cart-main" style={styles.mainContent}>
         <h1 style={styles.cartTitle}>Your Shopping Cart</h1>
 
         <div style={styles.cartCard}>
