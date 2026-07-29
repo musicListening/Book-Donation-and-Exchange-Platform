@@ -122,7 +122,7 @@ function EventCard({ event, onEdit, onDelete, deleting }) {
         </div>
       </div>
       <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
-        <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', transform: imgHovered ? 'scale(1.05)' : 'scale(1)' }} />
+        <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <span style={{ position: 'absolute', top: 16, left: 16, padding: '4px 12px', borderRadius: 40, fontSize: 12, fontWeight: 500, backdropFilter: 'blur(4px)', background: isUpcoming ? 'rgba(0,109,91,0.88)' : colors.outlineVariant, color: isUpcoming ? '#fff' : colors.onSurface }}>{isUpcoming ? 'Upcoming' : 'Past'}</span>
       </div>
       <div style={{ padding: 20 }}>
@@ -348,13 +348,20 @@ export default function EventManagement() {
             </select>
           </div>
 
-          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
+          {error && <Alert onRetry={loadEvents}>{error}</Alert>}
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <p style={{ color: colors.onSurfaceVariant }}>Loading events...</p>
+          {/* Announced as the search and sort narrow the list */}
+          <p aria-live="polite" className="visually-hidden">
+            {loading ? 'Loading events' : `${sortedEvents.length} ${sortedEvents.length === 1 ? 'event' : 'events'} shown`}
+          </p>
+
+          {loading && (
+            <div className="event-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => <SkeletonCard key={n} media />)}
             </div>
-          ) : (
+          )}
+
+          {!loading && sortedEvents.length > 0 && (
             <div className="event-grid">
               {sortedEvents.map((event) => (
                 <EventCard key={event.id} event={event} onEdit={handleEditEvent} onDelete={handleDeleteEvent} deleting={deletingId === event.id} />
@@ -363,10 +370,19 @@ export default function EventManagement() {
           )}
 
           {!loading && sortedEvents.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <Icon name="event_busy" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
-              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>{events.length === 0 ? 'No events found. Click "Add Event" to create one.' : 'No events match your search.'}</p>
-            </div>
+            events.length === 0
+              ? <EmptyState
+                  icon="event_busy"
+                  title="No events yet"
+                  message="Create your first event and it will appear here and on the community page."
+                  action={<Button icon="add_circle" onClick={handleAddEvent}>Add event</Button>}
+                />
+              : <EmptyState
+                  icon="search_off"
+                  title="No events match your search"
+                  message={`Nothing found for "${search.trim()}". Try a different title, venue or word.`}
+                  action={<Button variant="accent" onClick={() => setSearch('')}>Clear search</Button>}
+                />
           )}
         </div>
 
