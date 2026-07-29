@@ -84,6 +84,67 @@ export function Icon({ name, size = 24, style = {} }) {
   );
 }
 
+// ============================================================
+// SHARED PRIMITIVES
+// Every page was rebuilding the same pill button and status chip inline
+// with slightly different padding each time. These keep them identical.
+// ============================================================
+
+const BUTTON_VARIANTS = {
+  primary: { background: colors.primary, color: colors.onPrimary, border: `1px solid ${colors.primary}` },
+  accent: { background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}` },
+  quiet: { background: 'transparent', color: colors.primary, border: `1px solid ${colors.outlineVariant}` },
+  danger: { background: 'transparent', color: colors.error, border: `1px solid ${colors.outlineVariant}` },
+};
+
+const BUTTON_SIZES = {
+  sm: { padding: '8px 14px', fontSize: 12.5 },
+  md: { padding: '11px 18px', fontSize: 14 },
+};
+
+export function Button({ children, variant = 'primary', size = 'md', icon, as = 'button', loading = false, disabled, style = {}, ...rest }) {
+  const Tag = as;
+  return (
+    <Tag
+      className="community-btn"
+      disabled={Tag === 'button' ? disabled || loading : undefined}
+      aria-busy={loading || undefined}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderRadius: radius.pill,
+        fontWeight: 700,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        transition: `transform ${motion.fast}, box-shadow ${motion.fast}, background ${motion.fast}`,
+        ...BUTTON_SIZES[size],
+        ...BUTTON_VARIANTS[variant],
+        ...style,
+      }}
+      {...rest}
+    >
+      {loading ? <span className="community-spinner" aria-hidden="true" /> : icon ? <Icon name={icon} size={size === 'sm' ? 16 : 18} /> : null}
+      {children}
+    </Tag>
+  );
+}
+
+// Small status/label chip — e.g. "LATEST", "Newest first".
+export function Chip({ children, tone = 'accent', style = {} }) {
+  const tones = {
+    accent: { background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}` },
+    primary: { background: colors.primary, color: colors.onPrimary, border: `1px solid ${colors.primary}` },
+    soft: { background: colors.tertiaryFixed, color: colors.tertiary, border: `1px solid ${colors.outlineVariant}` },
+  };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: radius.pill, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', ...tones[tone], ...style }}>
+      {children}
+    </span>
+  );
+}
+
 // Fonts + global resets shared by every Community Admin page.
 export function CommunityAdminFonts() {
   return (
@@ -186,6 +247,19 @@ export function CommunityAdminFonts() {
           color: ${colors.primaryDeep};
           font-family: 'Playfair Display', serif;
         }
+        .community-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: ${elevation.raised};
+        }
+        .community-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+        .community-spinner {
+          width: 15px; height: 15px; flex-shrink: 0;
+          border: 2px solid currentColor;
+          border-right-color: transparent;
+          border-radius: 50%;
+          animation: communitySpin 620ms linear infinite;
+        }
+        @keyframes communitySpin { to { transform: rotate(360deg); } }
         @keyframes communityFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes communityMenuIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
