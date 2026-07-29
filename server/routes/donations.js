@@ -486,6 +486,9 @@ router.patch('/:id/verify', async (req, res) => {
             });
         }
 
+        // ===== LOG SUMMARY =====
+        console.log(`✅ Verification complete: ${bookItems.length} books added to bundle ${targetBundleId}`);
+
         res.json({
             donation: updated,
             bookItems,
