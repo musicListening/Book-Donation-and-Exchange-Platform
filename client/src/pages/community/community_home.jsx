@@ -389,6 +389,12 @@ export default function CommunityHome() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,0&display=swap" rel="stylesheet" />
       <style>{`
         *{box-sizing:border-box}
+        /* Nothing on this page showed keyboard focus */
+        :focus{outline:none}
+        :focus-visible{outline:3px solid ${c.primary};outline-offset:2px;border-radius:8px}
+        @media (prefers-reduced-motion: reduce){
+          *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+        }
         .community-page{min-height:100vh;background:radial-gradient(circle at top right, rgba(255,244,204,.85), transparent 24%), radial-gradient(circle at top left, rgba(191,227,211,.65), transparent 32%), ${c.canvas};color:${c.ink};font-family:'DM Sans',sans-serif}
         button{font:inherit}
         h1,h2{font-family:'Libre Baskerville',serif;letter-spacing:0}
@@ -531,9 +537,9 @@ export default function CommunityHome() {
       <header className="nav">
         <div className="nav-inner">
           <Link to="/user-dashboard" className="brand">ShareShelf Community</Link>
-          <nav className="tabs">
-            <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => switchTab('events')}><Icon name="event" size={20} />Events</button>
-            <button className={`tab ${tab === 'messages' ? 'active' : ''}`} onClick={() => switchTab('messages')}><Icon name="forum" size={20} />Conversation</button>
+          <nav className="tabs" role="tablist" aria-label="Community sections">
+            <button role="tab" aria-selected={tab === 'events'} aria-controls="panel-events" className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => switchTab('events')}><Icon name="event" size={20} />Events</button>
+            <button role="tab" aria-selected={tab === 'messages'} aria-controls="panel-messages" className={`tab ${tab === 'messages' ? 'active' : ''}`} onClick={() => switchTab('messages')}><Icon name="forum" size={20} />Conversation</button>
           </nav>
           <Link to="/user-dashboard" className="exit"><Icon name="arrow_back" size={19} /><span>Dashboard</span></Link>
         </div>
@@ -563,13 +569,17 @@ export default function CommunityHome() {
           </div>
         </section>
         {tab === 'events' ? (
-          selected ? (
-            <Details event={selected} onBack={() => setSelected(null)} isAdmin={isAdmin} onEdit={openEdit} onDelete={deleteEvent} deleting={deletingId === selected.id} onParticipate={toggleParticipation} participating={participatingId === selected.id} />
-          ) : (
-            <Events events={events} loading={loadingEvents} error={eventError} onOpen={setSelected} isAdmin={isAdmin} onAdd={openAdd} onEdit={openEdit} onDelete={deleteEvent} deletingId={deletingId} onParticipate={toggleParticipation} participatingId={participatingId} />
-          )
+          <div id="panel-events" role="tabpanel" tabIndex={-1}>
+            {selected ? (
+              <Details event={selected} onBack={() => setSelected(null)} isAdmin={isAdmin} onEdit={openEdit} onDelete={deleteEvent} deleting={deletingId === selected.id} onParticipate={toggleParticipation} participating={participatingId === selected.id} />
+            ) : (
+              <Events events={events} loading={loadingEvents} error={eventError} onOpen={setSelected} isAdmin={isAdmin} onAdd={openAdd} onEdit={openEdit} onDelete={deleteEvent} deletingId={deletingId} onParticipate={toggleParticipation} participatingId={participatingId} />
+            )}
+          </div>
         ) : (
-          <Conversation messages={messages} loading={loadingMessages} error={messageError} onSend={sendMessage} onUpdate={updateMessage} onDelete={deleteMessage} onRefresh={loadMessages} currentUserId={user?.id} />
+          <div id="panel-messages" role="tabpanel" tabIndex={-1}>
+            <Conversation messages={messages} loading={loadingMessages} error={messageError} onSend={sendMessage} onUpdate={updateMessage} onDelete={deleteMessage} onRefresh={loadMessages} currentUserId={user?.id} />
+          </div>
         )}
       </main>
 
