@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../../components/AdminLayout";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import "../../styles/UserManagement.css";
 import { showToast } from "../../utils/toast";
 
@@ -21,44 +22,59 @@ const statuses = ["All Statuses", "Active", "Deactivated"];
 
 const formatRole = (role) => {
   if (!role) return "End User";
-  return role
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return role.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
 export default function UserManagement() {
+  // ---- data state ----
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // ---- filters ----
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // ---- add modal ----
   const [showAddModal, setShowAddModal] = useState(false);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "END_USER" });
+  const [fieldErrors, setFieldErrors] = useState({});
 
+  // ---- edit modal ----
   const [showEditModal, setShowEditModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "END_USER", points: 0 });
   const [editError, setEditError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
+  // ---- confirm dialogs ----
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deactivateConfirm, setDeactivateConfirm] = useState(null);
+
+  // ============ DATA ============
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError("");
       const response = await authFetch(`${API_URL}/users`);
-      if (!response.ok) throw new Error("Failed to fetch users");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to fetch users (${response.status})`);
+      }
       const data = await response.json();
       setUsers(data);
     } catch (err) {
       console.error("Fetch error:", err);
-      setError("Could not connect to the database. Make sure your backend server is running.");
+      if (err.message.includes("401") || err.message.includes("403")) {
+        setError("Session expired or insufficient permissions. Please log in again.");
+      } else {
+        setError("Could not load users. Make sure the backend is running.");
+      }
     } finally {
       setLoading(false);
     }
@@ -66,35 +82,53 @@ export default function UserManagement() {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleToggleStatus = async (id, currentStatus) => {
+  // ============ STATUS TOGGLE ============
+  const handleToggleStatus = async () => {
+    if (!deactivateConfirm) return;
+    const { id, isActive } = deactivateConfirm;
+    setDeactivateConfirm(null);
     try {
       const response = await authFetch(`${API_URL}/users/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !currentStatus })
+        body: JSON.stringify({ isActive: !isActive })
       });
-      if (!response.ok) throw new Error("Failed to update status");
-      showToast("User status updated successfully.", "success");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update status");
+      }
+      showToast(`User ${isActive ? "deactivated" : "activated"} successfully.`, "success");
       fetchUsers();
     } catch (err) {
       console.error(err);
-      showToast("Failed to update user status.", "error");
+      showToast(err.message, "error");
     }
   };
 
-  const handleDeleteUser = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? They will be moved to deleted users.`)) return;
+  // ============ DELETE ============
+  const handleDeleteUser = async () => {
+    if (!deleteConfirm) return;
+    const { id } = deleteConfirm;
+    setDeleteConfirm(null);
     try {
       const response = await authFetch(`${API_URL}/users/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        if (response.status === 409) {
+          showToast("Cannot delete user with existing records. Deactivate instead.", "error");
+          return;
+        }
+        throw new Error(errData.error || "Failed to delete user");
+      }
       showToast("User deleted successfully.", "success");
       fetchUsers();
     } catch (err) {
       console.error(err);
-      showToast("Failed to delete user.", "error");
+      showToast(err.message, "error");
     }
   };
 
+  // ============ FILTERS ============
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -108,9 +142,9 @@ export default function UserManagement() {
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
   useEffect(() => { setCurrentPage(1); }, [search, roleFilter, statusFilter]);
 
+  // ============ EDIT ============
   const openEditModal = (user) => {
     setEditUser(user);
     setEditForm({ name: user.name || "", email: user.email || "", role: user.role || "END_USER", points: user.points ?? 0 });
@@ -143,9 +177,33 @@ export default function UserManagement() {
     }
   };
 
+  // ============ ADD ============
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateAddUser = () => {
+    const errs = {};
+    if (!newUser.name.trim() || newUser.name.trim().length < 2) {
+      errs.name = "Name must be at least 2 characters.";
+    }
+    if (!newUser.email.trim()) {
+      errs.email = "Email address is required.";
+    } else if (!emailPattern.test(newUser.email.trim())) {
+      errs.email = "Enter a valid email address (e.g., user@domain.com).";
+    }
+    if (!newUser.password) {
+      errs.password = "Password is required.";
+    } else if (newUser.password.length < 6) {
+      errs.password = "Password must be at least 6 characters.";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleAddUser = async (e) => {
     e.preventDefault();
     setFormError("");
+    setFieldErrors({});
+    if (!validateAddUser()) return;
     setIsSubmitting(true);
     try {
       const response = await authFetch(`${API_URL}/users`, {
@@ -168,6 +226,7 @@ export default function UserManagement() {
     }
   };
 
+  // ============ STATS ============
   const totalUsers = filteredUsers.length;
   const activeUsers = filteredUsers.filter(u => u.isActive).length;
   const adminCount = filteredUsers.filter(u => u.role === "PLATFORM_ADMIN" || u.role === "COMMUNITY_ADMIN").length;
@@ -176,6 +235,8 @@ export default function UserManagement() {
   return (
     <AdminLayout title="Admin Console" hideHeaderLabel={true} hideNotifications={true}>
       <section className="user-management">
+
+        {/* ==== HERO ==== */}
         <div className="um-hero-panel">
           <div className="um-hero-grid">
             <div>
@@ -186,7 +247,7 @@ export default function UserManagement() {
               <p className="um-hero-description">
                 Manage system access, monitor user activity, and perform security audits across the entire platform.
               </p>
-              <button className="um-hero-action-btn" onClick={() => setShowAddModal(true)}>
+              <button className="um-hero-action-btn" onClick={() => { setShowAddModal(true); setFieldErrors({}); setFormError(""); }}>
                 <span className="btn-icon">➕</span>
                 <span>Add New User</span>
               </button>
@@ -216,6 +277,7 @@ export default function UserManagement() {
           </div>
         </div>
 
+        {/* ==== TABLE ==== */}
         <div className="um-content-wrapper">
           {error && <div className="error-banner">⚠️ {error}</div>}
 
@@ -305,14 +367,11 @@ export default function UserManagement() {
                                 <button className="action-text-btn" onClick={() => openEditModal(user)}>Edit</button>
                                 <button
                                   className={`action-text-btn ${user.isActive ? "deactivate" : "activate"}`}
-                                  onClick={() => handleToggleStatus(user.id, user.isActive)}
+                                  onClick={() => setDeactivateConfirm({ id: user.id, name: user.name, isActive: user.isActive })}
                                 >
                                   {user.isActive ? "Deactivate" : "Activate"}
                                 </button>
-                                <button
-                                  className="action-text-btn delete"
-                                  onClick={() => handleDeleteUser(user.id, user.name)}
-                                >
+                                <button className="action-text-btn delete" onClick={() => setDeleteConfirm({ id: user.id, name: user.name })}>
                                   Delete
                                 </button>
                               </div>
@@ -343,23 +402,45 @@ export default function UserManagement() {
           </div>
         </div>
 
+        {/* ==== ADD MODAL ==== */}
         {showAddModal && (
           <div className="modal-overlay">
             <div className="modal-content">
               <h3 className="modal-title">Add New User</h3>
               {formError && <p className="modal-error">⚠️ {formError}</p>}
-              <form onSubmit={handleAddUser}>
+              <form onSubmit={handleAddUser} noValidate>
                 <div className="modal-field">
                   <label>Full Name</label>
-                  <input type="text" required value={newUser.name} onChange={(e) => setNewUser({...newUser, name: e.target.value})} />
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => { setNewUser({...newUser, name: e.target.value}); if (fieldErrors.name) setFieldErrors({...fieldErrors, name: ""}); }}
+                    className={fieldErrors.name ? "field-invalid" : ""}
+                    placeholder="e.g. John Doe"
+                  />
+                  {fieldErrors.name && <p className="field-error-msg">{fieldErrors.name}</p>}
                 </div>
                 <div className="modal-field">
                   <label>Email Address</label>
-                  <input type="email" required value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} />
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => { setNewUser({...newUser, email: e.target.value}); if (fieldErrors.email) setFieldErrors({...fieldErrors, email: ""}); }}
+                    className={fieldErrors.email ? "field-invalid" : ""}
+                    placeholder="e.g. user@domain.com"
+                  />
+                  {fieldErrors.email && <p className="field-error-msg">{fieldErrors.email}</p>}
                 </div>
                 <div className="modal-field">
                   <label>Password</label>
-                  <input type="password" required value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} />
+                  <input
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => { setNewUser({...newUser, password: e.target.value}); if (fieldErrors.password) setFieldErrors({...fieldErrors, password: ""}); }}
+                    className={fieldErrors.password ? "field-invalid" : ""}
+                    placeholder="Min. 6 characters"
+                  />
+                  {fieldErrors.password && <p className="field-error-msg">{fieldErrors.password}</p>}
                 </div>
                 <div className="modal-field">
                   <label>Role</label>
@@ -372,7 +453,7 @@ export default function UserManagement() {
                   </select>
                 </div>
                 <div className="modal-actions">
-                  <button type="button" className="modal-btn cancel" onClick={() => setShowAddModal(false)}>Cancel</button>
+                  <button type="button" className="modal-btn cancel" onClick={() => { setShowAddModal(false); setFieldErrors({}); }}>Cancel</button>
                   <button type="submit" className="modal-btn submit" disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create User"}</button>
                 </div>
               </form>
@@ -380,6 +461,7 @@ export default function UserManagement() {
           </div>
         )}
 
+        {/* ==== EDIT MODAL ==== */}
         {showEditModal && editUser && (
           <div className="modal-overlay">
             <div className="modal-content">
@@ -416,6 +498,29 @@ export default function UserManagement() {
             </div>
           </div>
         )}
+
+        {/* ==== DELETE CONFIRM ==== */}
+        <ConfirmDialog
+          open={!!deleteConfirm}
+          title="Delete User"
+          message={deleteConfirm ? <>Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? Their data will be moved to the deleted users archive.</> : ""}
+          confirmLabel="Delete"
+          confirmStyle={{ background: '#C02B2B' }}
+          onConfirm={handleDeleteUser}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+
+        {/* ==== DEACTIVATE CONFIRM ==== */}
+        <ConfirmDialog
+          open={!!deactivateConfirm}
+          title={deactivateConfirm?.isActive ? "Deactivate User" : "Activate User"}
+          message={deactivateConfirm ? <>Are you sure you want to {deactivateConfirm.isActive ? "deactivate" : "activate"} <strong>{deactivateConfirm.name}</strong>?</> : ""}
+          confirmLabel={deactivateConfirm?.isActive ? "Deactivate" : "Activate"}
+          confirmStyle={deactivateConfirm?.isActive ? { background: '#E76F51' } : { background: '#1A6B68' }}
+          onConfirm={handleToggleStatus}
+          onCancel={() => setDeactivateConfirm(null)}
+        />
+
       </section>
     </AdminLayout>
   );

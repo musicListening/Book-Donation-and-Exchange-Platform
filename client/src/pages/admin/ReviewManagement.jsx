@@ -115,6 +115,7 @@ export default function ReviewManagement() {
   return (
     <AdminLayout title="Admin Console" hideHeaderLabel={true} hideNotifications={true}>
       <section className="rm-page">
+        {/* ============ HERO ============ */}
         <div className="rm-hero-panel">
           <div className="rm-hero-grid">
             <div>
@@ -151,6 +152,7 @@ export default function ReviewManagement() {
           </div>
         </div>
 
+        {/* ============ TABLE SECTION ============ */}
         <div className="rm-content-wrapper">
           {error && <div className="rm-error-banner">⚠️ {error}</div>}
 
@@ -322,6 +324,7 @@ export default function ReviewManagement() {
           </div>
         </div>
 
+        {/* ============ DELETE CONFIRMATION OVERLAY ============ */}
         {confirmAction && (
           <div className="rm-confirm-overlay" onClick={() => setConfirmAction(null)}>
             <div className="rm-confirm-box" onClick={(e) => e.stopPropagation()}>

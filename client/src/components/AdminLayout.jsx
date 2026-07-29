@@ -28,7 +28,6 @@ const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 export default function AdminLayout({ children, title, hideHeaderLabel = false, hideNotifications = false }) {
   const navigate = useNavigate();
-  // State declarations
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [now, setNow] = useState(new Date());
@@ -54,7 +53,6 @@ export default function AdminLayout({ children, title, hideHeaderLabel = false, 
   };
 
   const user = getUser();
-  // initials derivation
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';

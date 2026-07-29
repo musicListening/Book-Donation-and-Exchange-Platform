@@ -4,7 +4,6 @@ import { adminAPI } from "../../services/api";
 import "../../styles/CustomReportGeneration.css";
 
 export default function CustomReportGeneration() {
-  // State declarations
   const [reportType, setReportType] = useState("System Logs");
   const [startDate, setStartDate] = useState(() => new Date().getFullYear() + "-01-01");
   const [endDate, setEndDate] = useState(() => new Date().getFullYear() + "-12-31");
@@ -17,7 +16,6 @@ export default function CustomReportGeneration() {
   const [notification, setNotification] = useState("");
   const [error, setError] = useState("");
 
-  // handlePreview handler
   const handlePreview = async () => {
     setIsPreviewing(true);
     setError("");
@@ -39,29 +37,27 @@ export default function CustomReportGeneration() {
     }
   };
 
-  // handleGenerateReport handler
   const handleGenerateReport = async () => {
-    if (!currentReport) {
-      setError("Please preview the report first.");
-      return;
-    }
     setIsGenerating(true);
     setError("");
     setNotification("");
     try {
-      exportReport(currentReport, exportFormat);
+      const data = await adminAPI.getReport(reportType, startDate, endDate);
+      if (!data || !data.rows) throw new Error("No data returned for this report type");
+      exportReport(data, exportFormat);
       setNotification(`Report downloaded as ${exportFormat}!`);
       setTimeout(() => setNotification(""), 4000);
     } catch (err) {
-      setError("Failed to export report. Please try again.");
+      const msg = err.message?.includes("HTTP 500")
+        ? `Server error: Unable to generate "${reportType}" report.`
+        : `Failed to export: ${err.message || "Please try again."}`;
+      setError(msg);
       console.error("Export error:", err);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // real file output
-  // downloadBlob helper
   const downloadBlob = (content, filename, mime) => {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -74,13 +70,11 @@ export default function CustomReportGeneration() {
     URL.revokeObjectURL(url);
   };
 
-  // sanitize helper
   const sanitize = (v) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
-  // toCSV helper
   const toCSV = (report) => {
     const headers = report.headers || [];
     const lines = [headers.map(sanitize).join(",")];
@@ -90,7 +84,6 @@ export default function CustomReportGeneration() {
     return lines.join("\n");
   };
 
-  // exportReport handler
   const exportReport = (report, format) => {
     const stamp = new Date().toISOString().slice(0, 10);
     const base = `report_${reportType.replace(/\s+/g, "_").toLowerCase()}_${stamp}`;
@@ -179,13 +172,13 @@ export default function CustomReportGeneration() {
             <span className="toast-message">{notification}</span>
           </div>
         )}
-        {/* Header */}
+        {/* ============ HEADER ============ */}
         <header className="report-header">
           <h2 className="report-title">Custom Report Generation</h2>
           <p className="report-subtitle">Configure and visualize data exports for platform analytics and auditing.</p>
         </header>
 
-        {/* Error banner */}
+        {/* ============ ERROR BANNER ============ */}
         {error && (
           <div style={{ backgroundColor: '#FDF2F2', color: '#C02B2B', border: '1px solid #FECACA', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: 500 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', backgroundColor: '#C02B2B', color: '#fff', fontSize: 12, fontWeight: 700, marginRight: 8, flexShrink: 0 }}>!</span>
@@ -194,12 +187,12 @@ export default function CustomReportGeneration() {
         )}
 
         <div className="report-layout-grid">
-          {/* Left panel / Config form */}
+          {/* ============ LEFT PANEL — CONFIG ============ */}
           <section className="control-panel-card">
             <h3 className="panel-title-label">Configuration</h3>
            
             <div className="form-stack">
-              {/* Report type select */}
+              {/* ===== REPORT TYPE ===== */}
               <div className="form-group">
                 <label className="input-label">Report Type</label>
                 <div className="select-wrapper">
@@ -218,7 +211,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Date range pickers */}
+              {/* ===== DATE RANGE ===== */}
               <div className="form-group">
                 <label className="input-label">Timeframe</label>
                 <div className="date-picker-row">
@@ -242,7 +235,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Format select */}
+              {/* ===== FORMAT SELECT ===== */}
               <div className="form-group">
                 <label className="input-label">Export Format</label>
                 <div className="segmented-control">
@@ -259,7 +252,7 @@ export default function CustomReportGeneration() {
                 </div>
               </div>
 
-              {/* Checkbox options */}
+              {/* ===== OPTIONS ===== */}
               <div className="checkbox-options-stack">
                 <label className="checkbox-label-group">
                   <input 
@@ -293,7 +286,7 @@ export default function CustomReportGeneration() {
                 )}
               </div>
 
-              {/* Action buttons */}
+              {/* ===== ACTIONS ===== */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button 
                   onClick={handlePreview}
@@ -306,8 +299,8 @@ export default function CustomReportGeneration() {
                 <button 
                   onClick={handleGenerateReport}
                   className="btn-generate-report"
-                  disabled={isPreviewing || isGenerating || !currentReport}
-                  style={{ flex: 1, opacity: currentReport ? 1 : 0.5 }}
+                  disabled={isPreviewing || isGenerating}
+                  style={{ flex: 1 }}
                 >
                   <span className="btn-icon-symbol">↓</span>
                   {isGenerating ? "Exporting..." : `Export ${exportFormat}`}
@@ -316,7 +309,7 @@ export default function CustomReportGeneration() {
             </div>
           </section>
 
-          {/* Right panel / Live preview */}
+          {/* ============ RIGHT PANEL — LIVE PREVIEW ============ */}
           <section className="preview-canvas-column">
             <div className="document-preview-card">
               {!currentReport ? (
@@ -325,7 +318,7 @@ export default function CustomReportGeneration() {
                 </div>
               ) : (
                 <>
-                    {/* Preview header */}
+                    {/* ===== PREVIEW HEADER ===== */}
                     <div className="doc-preview-header">
                       <div className="doc-header-details">
                       <h4 className="doc-main-title">{currentReport.title}</h4>
@@ -336,7 +329,7 @@ export default function CustomReportGeneration() {
                     </div>
                   </div>
 
-                  {/* Preview metadata */}
+                  {/* ===== PREVIEW METADATA ===== */}
                   {includeMetadata && (
                     <div className="doc-metadata-bar">
                       <span><strong>Date Span:</strong> {startDate || "N/A"} to {endDate || "N/A"}</span>
@@ -344,7 +337,7 @@ export default function CustomReportGeneration() {
                     </div>
                   )}
 
-                  {/* Preview table */}
+                  {/* ===== PREVIEW TABLE ===== */}
                   <div className="doc-table-wrapper">
                     <table className="doc-preview-table">
                       <thead>
@@ -374,7 +367,7 @@ export default function CustomReportGeneration() {
                     </table>
                   </div>
 
-                  {/* Preview chart */}
+                  {/* ===== PREVIEW CHART ===== */}
                   <div className="doc-chart-wrapper">
                     <h5 className="chart-label-title">Visualized Trends</h5>
                     <div className="doc-chart-canvas">
@@ -397,7 +390,7 @@ export default function CustomReportGeneration() {
                     </div>
                   </div>
 
-                  {/* Preview footer */}
+                  {/* ===== PREVIEW FOOTER ===== */}
                   <div className="doc-preview-footer">
                     <span className="footer-doc-stamp">Ethos Auditing & Compliance System</span>
                     <span className="footer-doc-page">Page 1 of 1</span>
@@ -405,7 +398,7 @@ export default function CustomReportGeneration() {
                 </>
               )}
 
-              {/* Preview overlay */}
+              {/* ===== PREVIEW OVERLAY ===== */}
               {isPreviewing && (
                 <div className="loading-report-overlay">
                   <div className="spinner-loader"></div>
