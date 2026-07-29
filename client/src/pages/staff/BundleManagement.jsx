@@ -28,11 +28,15 @@ function BundleManagement() {
   
   const [showAddToMarketplaceModal, setShowAddToMarketplaceModal] = useState(false);
   const [selectedBookToMarketplace, setSelectedBookToMarketplace] = useState(null);
+  const [marketplaceBooksList, setMarketplaceBooksList] = useState([]);
   const [marketplaceFormData, setMarketplaceFormData] = useState({
     title: '',
     price: '',
     image: null,
-    imagePreview: null
+    imagePreview: null,
+    qty: '1',
+    maxQty: 1,
+    existingBook: null
   });
   
   // Bundle form data
@@ -358,14 +362,32 @@ function BundleManagement() {
     setValidationErrors({});
   };
 
-  const openMarketplaceForm = (book) => {
+  const openMarketplaceForm = async (book) => {
       setSelectedBookToMarketplace(book);
+      
+      const collectionBooks = bundleBooks[book.collectionId]?.books || [];
+      const unavailableCount = collectionBooks.filter(b => !b.isAvailable).length;
+
       setMarketplaceFormData({
-          title: book.title || '',
-          price: book.pointsPrice || book.cashPrice || '',
+          title: '',
+          price: '',
           image: null,
-          imagePreview: book.imageUrl || null
+          imagePreview: null,
+          qty: '1',
+          maxQty: unavailableCount,
+          existingBook: null
       });
+
+      try {
+          const response = await fetch(`${API_BASE}/books/marketplace`);
+          if (response.ok) {
+              const data = await response.json();
+              setMarketplaceBooksList(data);
+          }
+      } catch (err) {
+          console.error('Failed to load marketplace books:', err);
+      }
+
       setShowAddToMarketplaceModal(true);
   };
 
@@ -376,6 +398,10 @@ function BundleManagement() {
           const formData = new FormData();
           formData.append('title', marketplaceFormData.title);
           formData.append('pointsPrice', marketplaceFormData.price);
+          formData.append('qty', marketplaceFormData.qty);
+          if (marketplaceFormData.existingBook) {
+              formData.append('existingImageUrl', marketplaceFormData.existingBook.imageUrl || '');
+          }
           if (marketplaceFormData.image) {
               formData.append('image', marketplaceFormData.image);
           }
@@ -912,9 +938,44 @@ function BundleManagement() {
                   type="text" 
                   required
                   value={marketplaceFormData.title}
-                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, title: e.target.value})}
+                  onChange={(e) => {
+                    const typedTitle = e.target.value;
+                    const matched = marketplaceBooksList.find(
+                      b => (b.title || '').toLowerCase().trim() === typedTitle.toLowerCase().trim()
+                    );
+                    
+                    setMarketplaceFormData(prev => ({
+                      ...prev,
+                      title: typedTitle,
+                      existingBook: matched || null,
+                      price: matched ? matched.pointsPrice : prev.price,
+                      imagePreview: matched ? matched.imageUrl : (prev.existingBook ? null : prev.imagePreview)
+                    }));
+                  }}
                   style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
                 />
+                {marketplaceFormData.existingBook && (
+                  <p style={{ color: '#2e7d32', fontSize: '13px', marginTop: '4px', fontWeight: '600' }}>
+                    ✓ Title exists in marketplace (Price: Rs. {marketplaceFormData.existingBook.pointsPrice}, Previous Qty: {marketplaceFormData.existingBook.quantity || 1}, New Qty: {(marketplaceFormData.existingBook.quantity || 0) + (parseInt(marketplaceFormData.qty) || 1)})
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
+                  Quantity to Add <span style={{ color: '#dc3545' }}>*</span>
+                </label>
+                <input 
+                  type="number" 
+                  required
+                  min="1"
+                  value={marketplaceFormData.qty}
+                  onChange={(e) => setMarketplaceFormData({...marketplaceFormData, qty: e.target.value})}
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                />
+                <p style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                  Enter any quantity you wish to add.
+                </p>
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -924,37 +985,47 @@ function BundleManagement() {
                 <input 
                   type="number" 
                   required
+                  disabled={!!marketplaceFormData.existingBook}
                   min="0"
                   value={marketplaceFormData.price}
                   onChange={(e) => setMarketplaceFormData({...marketplaceFormData, price: e.target.value})}
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    border: '1px solid #e5e5e5', 
+                    borderRadius: '8px',
+                    background: marketplaceFormData.existingBook ? '#f1f5f9' : 'white'
+                  }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#333' }}>
-                  Image
+                  Image {!marketplaceFormData.existingBook && <span style={{ color: '#dc3545' }}>*</span>}
                 </label>
                 {marketplaceFormData.imagePreview && (
                   <div style={{ marginBottom: '10px' }}>
                     <img src={marketplaceFormData.imagePreview} alt="Preview" style={{ height: '100px', borderRadius: '8px', objectFit: 'cover' }} />
                   </div>
                 )}
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setMarketplaceFormData({
-                        ...marketplaceFormData,
-                        image: file,
-                        imagePreview: URL.createObjectURL(file)
-                      });
-                    }
-                  }}
-                  style={{ width: '100%' }}
-                />
+                {!marketplaceFormData.existingBook && (
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    required={!marketplaceFormData.existingBook && !marketplaceFormData.imagePreview}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setMarketplaceFormData({
+                          ...marketplaceFormData,
+                          image: file,
+                          imagePreview: URL.createObjectURL(file)
+                        });
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: 20 }}>

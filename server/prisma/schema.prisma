@@ -26,7 +26,6 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
-  loginLogs                                       LoginLog[]
   Cart                                            Cart?
   craftListings                                   CraftListing[]
   Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
@@ -35,6 +34,7 @@ model User {
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
+  loginLogs                                       LoginLog[]
   MysteryBox_MysteryBox_assignedByToUser          MysteryBox[]       @relation("MysteryBox_assignedByToUser")
   MysteryBox_MysteryBox_userIdToUser              MysteryBox[]       @relation("MysteryBox_userIdToUser")
   Notification                                    Notification[]
@@ -75,7 +75,6 @@ model DonationRequest {
   requestedCount       Int
   verifiedCount        Int
   dropOffDate          DateTime?
-  timeSlot             String? 
   verifiedDate         DateTime?
   verifiedBy           String?
   pointsAwarded        Int                @default(0)
@@ -90,6 +89,7 @@ model DonationRequest {
   staffNotes           String?
   status               String             @default("PENDING")
   donationImages       String[]
+  timeSlot             String?
   books                BookItem[]
   crafts               CraftListing[]
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -435,11 +435,11 @@ model PlatformReview {
 model LoginLog {
   id        String      @id @default(dbgenerated("gen_random_uuid()"))
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   action    AuditAction
   ip        String?
   userAgent String?
   createdAt DateTime    @default(now())
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {
