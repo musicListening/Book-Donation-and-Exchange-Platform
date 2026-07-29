@@ -629,8 +629,45 @@ const Home = () => {
           </p>
         </div>
 
+        {/* Podium — rendered 2nd, 1st, 3rd so the winner sits in the middle */}
+        <div className="reveal-stagger" style={styles.podium}>
+          {[1, 0, 2]
+            .filter((i) => leaderboard[i])
+            .map((i) => {
+              const donor = leaderboard[i];
+              const isWinner = donor.rank === 1;
+              const medal = MEDALS[donor.rank];
+              return (
+                <div
+                  key={donor.id}
+                  className="card-hover-lift"
+                  style={{
+                    ...styles.podiumCard,
+                    borderTop: `4px solid ${medal.color}`,
+                    ...(isWinner
+                      ? { transform: 'scale(1.06)', boxShadow: `0 16px 45px ${medal.glow}` }
+                      : {}),
+                  }}
+                >
+                  <div style={{ ...styles.podiumMedal, background: medal.gradient }}>
+                    {donor.rank}
+                  </div>
+                  <Avatar donor={donor} style={styles.podiumAvatar} />
+                  <h4 style={styles.donorName}>{donor.name}</h4>
+                  <span style={styles.donorTier}>
+                    <i className="fa-solid fa-award" style={{ color: medal.color, marginRight: 6 }}></i>
+                    {donor.levelName}
+                  </span>
+                  <div style={styles.donorBooks}>{formatNumber(donor.booksDonated)}</div>
+                  <div style={styles.donorBooksLabel}>Books Donated</div>
+                  <div style={styles.donorPoints}>{formatNumber(donor.points)} points earned</div>
+                </div>
+              );
+            })}
+        </div>
+
         <div className="reveal" style={styles.rankList}>
-          {leaderboard.map((donor) => (
+          {leaderboard.slice(3).map((donor) => (
             <div key={donor.id} style={styles.rankRow}>
               <span style={styles.rankNum}>{donor.rank}</span>
               <Avatar donor={donor} style={styles.rankAvatar} />
