@@ -29,10 +29,14 @@ const MysteryBoxes = () => {
   const fetchData = async (userId) => {
     try {
       // 1. First silently auto-assign any mystery boxes the user is entitled to
+      const token = localStorage.getItem('token');
       try {
         await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({ userId })
         });
       } catch (autoErr) {
@@ -41,7 +45,9 @@ const MysteryBoxes = () => {
 
       // 2. Fetch fresh user data, mystery boxes, and system config in parallel
       const [freshUsers, boxes, config] = await Promise.all([
-        fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
+        fetch(`${API_BASE}/users`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }).then(r => r.ok ? r.json() : []),
         mysteryBoxAPI.getByUser(userId),
         systemConfigAPI.getAll()
       ]);
@@ -189,7 +195,7 @@ const MysteryBoxes = () => {
   return (
     <div style={{ fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', minHeight: '100vh' }}>
       <Navbar variant="user" user={user} />
-      <main style={{ padding: 40, maxWidth: 1200, margin: '0 auto' }}>
+      <main className="mystery-boxes-main" style={{ padding: 40, maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ color: '#1E4D4B', margin: 0 }}>Mystery Boxes</h1>
           <p style={{ color: '#6C757D', marginTop: 8 }}>Claim your mystery boxes and discover surprise books!</p>

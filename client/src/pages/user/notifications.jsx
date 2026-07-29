@@ -97,7 +97,7 @@ const Notifications = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
-      <main style={styles.mainContent}>
+      <main className="notifications-main" style={styles.mainContent}>
         <div style={styles.card}>
           <div style={styles.headerRow}>
             <h1 style={styles.headerH1}>Notifications</h1>

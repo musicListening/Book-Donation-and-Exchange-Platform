@@ -202,7 +202,7 @@ const Orders = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
-      <main style={styles.mainContent}>
+      <main className="orders-main" style={styles.mainContent}>
         <div style={styles.pageHeader}>
           <h1 style={styles.pageHeaderH1}>My Orders</h1>
           <p style={styles.pageSubtitle}>Track your book bundles and craft deliveries.</p>

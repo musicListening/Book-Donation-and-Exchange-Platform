@@ -503,13 +503,13 @@ const Donate = () => {
       <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
-      <main style={styles.mainContent}>
+      <main className="donate-main" style={styles.mainContent}>
         <div style={styles.pageHeader}>
           <h1 style={styles.pageHeaderH1}>Donate Your Items</h1>
           <p>Help others discover new stories or crafts, and earn points for your generosity.</p>
         </div>
 
-        <div style={styles.formCard}>
+        <div className="donate-form-card" style={styles.formCard}>
           <div style={styles.stepper}>
             <div style={{ ...styles.step, ...(step >= 1 ? styles.stepActive : {}) }}>1</div>
             <div style={{ ...styles.step, ...(step >= 2 ? styles.stepActive : {}) }}>2</div>

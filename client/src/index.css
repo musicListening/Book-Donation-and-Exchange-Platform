@@ -98,3 +98,168 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ========================================================
+   Mobile Responsiveness Overrides
+   ======================================================== */
+@media (max-width: 1024px) {
+  /* Global Page Content Padding overrides */
+  .user-dashboard-main,
+  .donate-main,
+  .profile-main,
+  .marketplace-main,
+  .cart-main,
+  .orders-main,
+  .notifications-main,
+  .mystery-boxes-main {
+    padding: 24px 16px !important;
+    margin-top: 24px !important;
+  }
+
+  /* Home Page Layouts */
+  .hero-section-container {
+    height: auto !important;
+    padding: 120px 24px 60px !important;
+  }
+  .hero-inner {
+    flex-direction: column-reverse !important;
+    gap: 40px !important;
+    text-align: center !important;
+    align-items: center !important;
+  }
+  .hero-content {
+    max-width: 100% !important;
+  }
+  .hero-title {
+    font-size: 38px !important;
+  }
+  .hero-buttons {
+    justify-content: center !important;
+    gap: 16px !important;
+  }
+  .hero-visual {
+    display: none !important;
+  }
+  .hexagon-wrapper-4 {
+    display: none !important;
+  }
+
+  .how-it-works-section,
+  .trending-section,
+  .crafts-section,
+  .testimonials-section,
+  .levels-section,
+  .categories-section {
+    padding: 60px 24px !important;
+  }
+
+  .steps-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+  .testimonial-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
+  }
+  .levels-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
+  }
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 32px !important;
+  }
+
+  /* User Dashboard Layouts */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  .points-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 20px !important;
+  }
+  .points-card > div:last-child {
+    width: 100% !important;
+  }
+  .welcome-header-inner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .welcome-header-inner a {
+    align-self: flex-start !important;
+  }
+
+  /* Profile Layout */
+  .profile-main {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  .profile-tab-menu {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 8px !important;
+    gap: 16px !important;
+  }
+
+  /* Cart Layout */
+  .cart-main {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Steps Grid and other grids stack on mobile */
+  .steps-grid,
+  .category-grid,
+  .testimonial-grid,
+  .levels-grid,
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .hero-buttons {
+    flex-direction: column !important;
+  }
+  .hero-buttons > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Actions Grid on Dashboard */
+  .actions-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Mobile Stepper scroll/overflow on Donate page */
+  .donate-form-card select,
+  .donate-form-card input {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  /* Additional fine-tuning for very small devices */
+  .hero-title {
+    font-size: 28px !important;
+    line-height: 1.2 !important;
+  }
+  .hero-title-span {
+    font-size: 22px !important;
+  }
+  .footer-section {
+    padding: 40px 16px !important;
+  }
+}

@@ -650,7 +650,7 @@ const Profile = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} cartCount={cartCount} />
 
-      <main style={styles.mainContent}>
+      <main className="profile-main" style={styles.mainContent}>
         <div style={styles.profileSide}>
           <div style={styles.profileCard}>
             <div style={styles.avatar}>
@@ -667,7 +667,7 @@ const Profile = () => {
         </div>
 
         <div style={styles.mainCard}>
-          <div style={styles.tabMenu}>
+          <div className="profile-tab-menu" style={styles.tabMenu}>
             <div style={{ ...styles.tabLink, ...(activeTab === 'donations' ? styles.tabLinkActive : {}) }} onClick={() => setActiveTab('donations')}>Donation History</div>
             <div style={{ ...styles.tabLink, ...(activeTab === 'points' ? styles.tabLinkActive : {}) }} onClick={() => setActiveTab('points')}>Points Log</div>
             <div style={{ ...styles.tabLink, ...(activeTab === 'mystery-boxes' ? styles.tabLinkActive : {}) }} onClick={() => setActiveTab('mystery-boxes')}>
