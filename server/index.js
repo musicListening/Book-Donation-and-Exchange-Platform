@@ -73,22 +73,6 @@ const { authenticate, requireRole } = require('./middleware/auth');
 // 4. Register routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', apiLimiter, authenticate, userRoutes);
-app.get('/api/admin/config', apiLimiter, authenticate, async (req, res) => {
-  try {
-    const { withRetry } = require('./db');
-    const { prisma } = require('./db');
-    await withRetry(() => prisma.$queryRaw`SELECT 1`, 2);
-    const configs = await prisma.systemConfig.findMany();
-    const map = {};
-    for (const c of configs) {
-      map[c.key] = c.value;
-    }
-    res.json(map);
-  } catch (error) {
-    console.error('Config fetch error:', error);
-    res.status(500).json({ error: 'Failed to load configuration' });
-  }
-});
 app.use('/api/admin', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), adminRoutes);
 app.use('/api/reviews', apiLimiter, reviewRoutes);
 app.use('/api/tasks', apiLimiter, authenticate, taskRoutes);
