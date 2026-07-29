@@ -36,4 +36,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/stats/leaderboard — public top book donors for the home page
+router.get('/leaderboard', async (req, res) => {
+  const donors = await prisma.user.findMany({
+    where: { booksDonated: { gt: 0 } },
+    orderBy: { booksDonated: 'desc' },
+    take: 10,
+    select: {
+      id: true,
+      name: true,
+      profileImage: true,
+      booksDonated: true,
+      points: true,
+      level: true,
+    },
+  });
+
+  res.json(donors.map((u, idx) => ({ rank: idx + 1, ...u })));
+});
+
 module.exports = router;
