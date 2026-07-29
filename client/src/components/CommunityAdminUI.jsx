@@ -36,6 +36,29 @@ export const colors = {
   onErrorContainer: "#93000A",
 };
 
+// Non-colour design tokens. The palette above is unchanged — these only
+// standardise spacing, corners, depth and motion so every Community screen
+// uses the same rhythm instead of ad-hoc numbers.
+export const space = { xs: 6, sm: 10, md: 16, lg: 24, xl: 32, xxl: 44 };
+
+export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 };
+
+// Three elevation steps: resting, raised on hover, floating (menus/drawers).
+export const elevation = {
+  rest: '0 1px 2px rgba(10, 59, 50, 0.04)',
+  raised: '0 12px 28px -8px rgba(10, 59, 50, 0.16)',
+  float: '0 24px 48px -12px rgba(10, 59, 50, 0.24)',
+};
+
+export const motion = {
+  fast: '140ms cubic-bezier(0.4, 0, 0.2, 1)',
+  base: '220ms cubic-bezier(0.4, 0, 0.2, 1)',
+  slow: '320ms cubic-bezier(0.4, 0, 0.2, 1)',
+};
+
+// Kept in one place so drawers, headers and menus never fight each other.
+export const layer = { header: 30, drawerScrim: 40, drawer: 50, menu: 100 };
+
 export const sidebarColors = {
   background: "#0A3B32",
   text: "#FFFFFF",
