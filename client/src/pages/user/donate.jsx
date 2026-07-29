@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../services/api';
 
 const Donate = () => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [user, setUser] = useState({ points: 0, name: '' });
   const [formData, setFormData] = useState({
-    collections: [{ bookType: '', totalCount: 5, books: [{ title: '', count: 1 }], files: [] }],
+    bookTitle: '',
+    bookCategory: '',
+    bookCount: 1,
+    bookFiles: [],
     notes: '',
     selectedDate: '',
     timeSlot: '10:00 AM'
@@ -19,14 +25,17 @@ const Donate = () => {
   const [filterType, setFilterType] = useState('All');
   const [donationCategory, setDonationCategory] = useState('books');
   const [bookCollections, setBookCollections] = useState([
-    { bookCategory: '', bookTitle: '', bookCount: 1, files: [] }
+    { id: Date.now(), bookCategory: '', bookTitle: '', bookCount: 1, files: [], itemFiles: {} }
   ]);
-  const [craftCollections, setCraftCollections] = useState([{ craftType: '', craftCount: 1, pointsPrice: 50, files: [] }]);
+  const [craftCollections, setCraftCollections] = useState([
+    { id: Date.now(), craftType: '', craftCount: 1, pointsPrice: 50, files: [], itemFiles: {} }
+  ]);
+  const navigate = useNavigate();
+
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('ss_current_user')) || { points: 0, name: 'User' };
     setUser(storedUser);
     
-    // Fetch user donations from backend
     if (storedUser.id) {
       fetch(`${API_BASE}/donations?userId=${storedUser.id}`)
         .then(res => {
@@ -39,23 +48,24 @@ const Donate = () => {
             setMyDonations([]);
             return;
           }
-          // Map backend data to frontend format
           const mappedDonations = data.map(d => ({
-            id: d.id.substring(0, 8).toUpperCase(), // Shorten UUID for display
+            id: d.id.substring(0, 8).toUpperCase(),
             fullId: d.id,
             type: d.category || d.type,
             count: d.requestedCount,
             date: d.dropOffDate ? new Date(d.dropOffDate).toLocaleDateString() : 'N/A',
-            time: 'N/A', // Time not stored separately in backend
+            time: 'N/A', 
             status: d.pointsAwarded > 0 ? 'Completed' : 'Pending',
-            details: null // Not applicable if each collection is separate
+            details: null 
           }));
           setMyDonations(mappedDonations);
         })
         .catch(err => console.error('Error fetching donations:', err));
     }
+
+    const storedCart = JSON.parse(localStorage.getItem('ss_cart') || '[]');
+    setCartCount(storedCart.length);
     
-    // Fetch system config for points calculation
     fetch(`${API_BASE}/donations/points-preview?count=1&isCollection=false`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -63,106 +73,186 @@ const Donate = () => {
         if (data && data.bonusPct) setCollectionBonusPct(data.bonusPct);
       })
       .catch(() => {});
-  }, []);
+  }, [navigate]);
 
-
-  const updateTotalCount = (colIndex, value) => {
-    const val = parseInt(value) || 1;
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      newCols[colIndex].totalCount = Math.max(1, Math.min(200, val));
-      return { ...prev, collections: newCols };
-    });
+  // ===== GENERATE DYNAMIC FILE INPUTS BASED ON COUNT =====
+  const generateFileInputs = (count, type, collectionIndex) => {
+    const inputs = [];
+    const maxCount = Math.min(count, 10);
+    
+    for (let i = 0; i < maxCount; i++) {
+      inputs.push(
+        <div key={`${type}-${collectionIndex}-${i}`} style={{ 
+          marginBottom: 10, 
+          padding: '10px 16px',
+          background: '#F8F9FA',
+          borderRadius: 8,
+          border: '1px solid #DEE2E6',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ 
+            fontWeight: 600, 
+            color: '#1E4D4B',
+            minWidth: 100,
+            fontSize: 13
+          }}>
+            {type === 'book' ? `📚 Book ${i + 1}` : `🎨 Craft ${i + 1}`}
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => {
+              if (type === 'book') {
+                updateBookFilesForIndex(collectionIndex, i, Array.from(e.target.files));
+              } else {
+                updateCraftFilesForIndex(collectionIndex, i, Array.from(e.target.files));
+              }
+            }}
+            style={{ 
+              flex: 1,
+              padding: '6px 8px',
+              border: '1px dashed #DEE2E6',
+              borderRadius: 6,
+              background: 'white',
+              fontSize: 13,
+              minWidth: 200
+            }}
+          />
+        </div>
+      );
+    }
+    
+    if (count > 10) {
+      inputs.push(
+        <div key={`${type}-${collectionIndex}-more`} style={{ 
+          padding: '10px 16px',
+          background: '#FFF3CD',
+          borderRadius: 8,
+          border: '1px solid #FFE082',
+          fontSize: 13,
+          color: '#856404'
+        }}>
+          <i className="fa-solid fa-info-circle"></i> Showing 10 of {count} items. Additional items can be uploaded together in one batch.
+        </div>
+      );
+    }
+    
+    return inputs;
   };
 
-  const updateBookTitle = (colIndex, bookIndex, value) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      newCols[colIndex].books[bookIndex].title = value;
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const updateBookCount = (colIndex, bookIndex, delta) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      const col = newCols[colIndex];
-      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
-      const maxAllowed = col.totalCount - currentSum + col.books[bookIndex].count;
-      const newCount = Math.max(1, Math.min(maxAllowed, col.books[bookIndex].count + delta));
-      col.books[bookIndex].count = newCount;
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const setExactBookCount = (colIndex, bookIndex, value) => {
-    const val = parseInt(value) || 1;
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      const col = newCols[colIndex];
-      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
-      const maxAllowed = col.totalCount - currentSum + col.books[bookIndex].count;
-      col.books[bookIndex].count = Math.max(1, Math.min(maxAllowed, val));
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const addBookTitle = (colIndex) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      const col = newCols[colIndex];
-      const currentSum = col.books.reduce((s, b) => s + b.count, 0);
-      if (currentSum >= col.totalCount) return prev;
-      newCols[colIndex].books.push({ title: '', count: 1 });
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const removeBookTitle = (colIndex, bookIndex) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      if (newCols[colIndex].books.length > 1) {
-        newCols[colIndex].books = newCols[colIndex].books.filter((_, i) => i !== bookIndex);
-      }
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const updateCollectionFiles = (colIndex, files) => {
-    setFormData(prev => {
-      const newCols = [...prev.collections];
-      newCols[colIndex].files = files;
-      return { ...prev, collections: newCols };
-    });
-  };
-
-  const updateCraftPoints = (index, value) => {
-    const val = parseInt(value) || 0;
-    setCraftCollections(prev => {
+  // ===== BOOK FILE HANDLERS - FIXED DUPLICATES =====
+  const updateBookFilesForIndex = (collectionIndex, fileIndex, files) => {
+    setBookCollections(prev => {
       const newCols = [...prev];
-      newCols[index].pointsPrice = Math.max(0, val);
+      if (!newCols[collectionIndex].itemFiles) {
+        newCols[collectionIndex].itemFiles = {};
+      }
+      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
+        newCols[collectionIndex].itemFiles[fileIndex] = [];
+      }
+      // Prevent duplicate files by checking file name and size
+      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
+      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
+      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
+      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
       return newCols;
     });
   };
 
-  const addCollection = () => {
-    setFormData(prev => ({
-      ...prev,
-      collections: [...prev.collections, { bookType: '', totalCount: 5, books: [{ title: '', count: 1 }], files: [] }]
-    }));
-  };
-
-  const removeCollection = (index) => {
-    setFormData(prev => {
-      const newCols = prev.collections.filter((_, i) => i !== index);
-      return { ...prev, collections: newCols };
+  const clearBookFilesForIndex = (collectionIndex) => {
+    setBookCollections(prev => {
+      const newCols = [...prev];
+      newCols[collectionIndex].itemFiles = {};
+      newCols[collectionIndex].files = [];
+      return newCols;
     });
   };
 
+  // ===== CRAFT FILE HANDLERS - FIXED DUPLICATES =====
+  const updateCraftFilesForIndex = (collectionIndex, fileIndex, files) => {
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      if (!newCols[collectionIndex].itemFiles) {
+        newCols[collectionIndex].itemFiles = {};
+      }
+      if (!newCols[collectionIndex].itemFiles[fileIndex]) {
+        newCols[collectionIndex].itemFiles[fileIndex] = [];
+      }
+      // Prevent duplicate files by checking file name and size
+      const existingFileNames = newCols[collectionIndex].itemFiles[fileIndex].map(f => f.name + f.size);
+      const newFiles = files.filter(f => !existingFileNames.includes(f.name + f.size));
+      newCols[collectionIndex].itemFiles[fileIndex] = [...newCols[collectionIndex].itemFiles[fileIndex], ...newFiles];
+      newCols[collectionIndex].files = Object.values(newCols[collectionIndex].itemFiles).flat();
+      return newCols;
+    });
+  };
+
+  const clearCraftFilesForIndex = (collectionIndex) => {
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[collectionIndex].itemFiles = {};
+      newCols[collectionIndex].files = [];
+      return newCols;
+    });
+  };
+
+  // ===== BOOK COLLECTION HANDLERS =====
+  const updateBookCategory = (index, value) => {
+    setBookCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].bookCategory = value;
+      return newCols;
+    });
+  };
+
+  const updateBookCount = (index, delta) => {
+    setBookCollections(prev => {
+      const newCols = [...prev];
+      const currentCount = newCols[index].bookCount || 1;
+      const newCount = Math.max(1, Math.min(100, currentCount + delta));
+      newCols[index].bookCount = newCount;
+      return newCols;
+    });
+  };
+
+  const setExactBookCount = (index, value) => {
+    const val = parseInt(value) || 1;
+    setBookCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].bookCount = Math.max(1, Math.min(100, val));
+      return newCols;
+    });
+  };
+
+  const addBookCollection = () => {
+    setBookCollections(prev => [
+      ...prev, 
+      { 
+        id: Date.now() + Math.random(), 
+        bookCategory: '', 
+        bookTitle: '', 
+        bookCount: 1, 
+        files: [],
+        itemFiles: {} 
+      }
+    ]);
+  };
+
+  const removeBookCollection = (index) => {
+    setBookCollections(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // ===== CRAFT COLLECTION HANDLERS =====
   const updateCraftCount = (index, delta) => {
     setCraftCollections(prev => {
       const newCols = [...prev];
-      newCols[index].craftCount = Math.max(1, Math.min(100, newCols[index].craftCount + delta));
+      const currentCount = newCols[index].craftCount || 1;
+      const newCount = Math.max(1, Math.min(100, currentCount + delta));
+      newCols[index].craftCount = newCount;
       return newCols;
     });
   };
@@ -184,8 +274,27 @@ const Donate = () => {
     });
   };
 
+  const updateCraftPoints = (index, value) => {
+    const val = parseInt(value) || 0;
+    setCraftCollections(prev => {
+      const newCols = [...prev];
+      newCols[index].pointsPrice = Math.max(0, val);
+      return newCols;
+    });
+  };
+
   const addCraftCollection = () => {
-    setCraftCollections(prev => [...prev, { craftType: '', craftCount: 1 }]);
+    setCraftCollections(prev => [
+      ...prev, 
+      { 
+        id: Date.now() + Math.random(), 
+        craftType: '', 
+        craftCount: 1, 
+        pointsPrice: 50, 
+        files: [],
+        itemFiles: {} 
+      }
+    ]);
   };
 
   const removeCraftCollection = (index) => {
@@ -194,8 +303,8 @@ const Donate = () => {
 
   const nextStep = () => {
     if (step === 1) {
-      if (donationCategory === 'books' && bookCollections.some(c => !c.bookCategory || !c.bookTitle.trim())) {
-        alert('Please select a category and enter a title for all book collections');
+      if (donationCategory === 'books' && bookCollections.some(c => !c.bookCategory)) {
+        alert('Please select a category for all book collections');
         return;
       }
       if (donationCategory === 'crafts' && craftCollections.some(c => !c.craftType)) {
@@ -223,6 +332,7 @@ const Donate = () => {
 
   const prevStep = () => setStep(step - 1);
 
+  // ===== FIXED: Combined Donation Submission - NO DUPLICATE IMAGES =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || !user.id) {
@@ -230,74 +340,104 @@ const Donate = () => {
       return;
     }
     
-    const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.totalCount, 0) : 0;
-    const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
-    const points = (totalBooks * pointsPerBook) + (totalCrafts * 10);
+    // Calculate totals
+    const totalBooks = donationCategory === 'books'
+      ? bookCollections.reduce((sum, col) => sum + col.bookCount, 0)
+      : 0;
+    const totalCrafts = donationCategory === 'crafts' 
+      ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) 
+      : 0;
+    
+    // Calculate points
+    const points = donationCategory === 'books' 
+      ? bookCollections.reduce((sum, col) => sum + (col.bookCount * pointsPerBook) + (col.bookCount > 1 ? Math.round((col.bookCount * pointsPerBook) * (collectionBonusPct / 100)) : 0), 0)
+      : (totalCrafts * 10);
     
     try {
+      const bodyData = new FormData();
+      bodyData.append('userId', user.id);
+      bodyData.append('type', donationCategory === 'books' ? 'SINGLE_BOOK' : 'COLLECTION');
+      bodyData.append('dropOffDate', formData.selectedDate);
+      bodyData.append('timeSlot', formData.timeSlot);
+      bodyData.append('notes', formData.notes || '');
+      
       if (donationCategory === 'books') {
-        for (const col of formData.collections) {
-          const bookTitles = col.books.filter(b => b.title.trim()).map(b => `${b.title} (${b.count})`).join(', ');
-          const bodyData = new FormData();
-          bodyData.append('userId', user.id);
-          bodyData.append('type', 'COLLECTION');
-          bodyData.append('collectionName', bookTitles || col.bookType);
-          bodyData.append('category', col.bookType);
-          bodyData.append('requestedCount', col.totalCount);
-          bodyData.append('notes', formData.notes || '');
-          bodyData.append('dropOffDate', formData.selectedDate);
-          
+        // Combine all book collection details
+        const collectionDetails = bookCollections.map(col => 
+          `${col.bookCategory}: ${col.bookCount} book${col.bookCount > 1 ? 's' : ''}`
+        ).join(' | ');
+        
+        bodyData.append('collectionName', collectionDetails || 'Books');
+        bodyData.append('category', collectionDetails || 'Books');
+        bodyData.append('requestedCount', totalBooks);
+        
+        // ===== FIX: Collect images - ONE PER BOOK, NO DUPLICATES =====
+        const allFiles = [];
+        for (const col of bookCollections) {
           if (col.files && col.files.length > 0) {
-            for (let i = 0; i < col.files.length; i++) {
-              bodyData.append('images', col.files[i]);
+            // Only take files up to the number of books
+            const filesToAdd = col.files.slice(0, col.bookCount);
+            for (const file of filesToAdd) {
+              // Check if file already exists (by name + size)
+              const isDuplicate = allFiles.some(f => f.name === file.name && f.size === file.size);
+              if (!isDuplicate) {
+                allFiles.push(file);
+              }
             }
-          } else if (donationFiles) {
-            for (let i = 0; i < donationFiles.length; i++) {
-                bodyData.append('images', donationFiles[i]);
-            }
-          }
-
-          const response = await fetch(`${API_BASE}/donations`, {
-            method: 'POST',
-            body: bodyData
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to save book donation');
           }
         }
+        
+        // Add each unique image to FormData (max one per book)
+        if (allFiles.length > 0) {
+          for (let i = 0; i < Math.min(allFiles.length, totalBooks); i++) {
+            bodyData.append('images', allFiles[i]);
+          }
+        }
+        
+        console.log(`📸 Books: ${totalBooks}, Unique Images: ${Math.min(allFiles.length, totalBooks)}`);
+        
       } else {
+        // Crafts
+        const collectionDetails = craftCollections.map(col => 
+          `${col.craftType}: ${col.craftCount} item${col.craftCount > 1 ? 's' : ''}`
+        ).join(' | ');
+        
+        bodyData.append('category', 'Craft: ' + collectionDetails);
+        bodyData.append('requestedCount', totalCrafts);
+        bodyData.append('collectionName', collectionDetails);
+        
+        // Collect images - ONE PER CRAFT, NO DUPLICATES
+        const allFiles = [];
         for (const col of craftCollections) {
-          const bodyData = new FormData();
-          bodyData.append('userId', user.id);
-          bodyData.append('type', 'COLLECTION');
-          bodyData.append('category', 'Craft: ' + col.craftType);
-          bodyData.append('requestedCount', col.craftCount);
-          bodyData.append('notes', (formData.notes ? `${formData.notes} | ` : '') + `Expected Points: ${col.pointsPrice || 50}`);
-          bodyData.append('dropOffDate', formData.selectedDate);
-          
           if (col.files && col.files.length > 0) {
-            for (let i = 0; i < col.files.length; i++) {
-              bodyData.append('images', col.files[i]);
-            }
-          } else if (donationFiles) {
-            for (let i = 0; i < donationFiles.length; i++) {
-              bodyData.append('images', donationFiles[i]);
+            const filesToAdd = col.files.slice(0, col.craftCount);
+            for (const file of filesToAdd) {
+              const isDuplicate = allFiles.some(f => f.name === file.name && f.size === file.size);
+              if (!isDuplicate) {
+                allFiles.push(file);
+              }
             }
           }
-
-          const response = await fetch(`${API_BASE}/donations`, {
-            method: 'POST',
-            body: bodyData
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to save craft donation');
+        }
+        if (allFiles.length > 0) {
+          for (let i = 0; i < Math.min(allFiles.length, totalCrafts); i++) {
+            bodyData.append('images', allFiles[i]);
           }
         }
       }
+
+      const response = await fetch(`${API_BASE}/donations`, {
+        method: 'POST',
+        body: bodyData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save donation');
+      }
+
+      const result = await response.json();
+      console.log('Donation created with images:', result);
 
       // Re-fetch donations to update UI
       fetch(`${API_BASE}/donations?userId=${user.id}`)
@@ -327,8 +467,8 @@ const Donate = () => {
       document.getElementById('successModal').style.display = 'flex';
       document.getElementById('finalPoints').innerText = points;
     } catch (error) {
-      console.error('Error creating donations:', error);
-      alert('Failed to submit donations. Please try again.');
+      console.error('Error creating donation:', error);
+      alert('Failed to submit donation. Please try again.');
     }
   };
 
@@ -342,12 +482,10 @@ const Donate = () => {
       
       const result = await res.json();
       
-      // Update local storage user points
       const updatedUser = { ...user, points: result.updatedUser.points };
       setUser(updatedUser);
       localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
       
-      // Update local state for donations
       setMyDonations(prev => prev.map(d => d.fullId === fullId ? { ...d, status: 'Completed' } : d));
       
       alert('Donation completed and points awarded!');
@@ -390,13 +528,15 @@ const Donate = () => {
     statusCompleted: { backgroundColor: '#D4EDDA', color: '#155724' }
   };
 
-  const totalBooks = donationCategory === 'books' ? formData.collections.reduce((sum, col) => sum + col.books.reduce((bSum, book) => bSum + book.count, 0), 0) : 0;
+  const totalBooks = donationCategory === 'books' ? bookCollections.reduce((sum, col) => sum + col.bookCount, 0) : 0;
   const totalCrafts = donationCategory === 'crafts' ? craftCollections.reduce((sum, col) => sum + col.craftCount, 0) : 0;
-  const points = (totalBooks * pointsPerBook) + (totalCrafts * 10);
+  const points = donationCategory === 'books' 
+    ? bookCollections.reduce((sum, col) => sum + (col.bookCount * pointsPerBook) + (col.bookCount > 1 ? Math.round((col.bookCount * pointsPerBook) * (collectionBonusPct / 100)) : 0), 0)
+    : (totalCrafts * 10);
 
   return (
     <div style={styles.body}>
-      <Navbar variant="user" user={user} />
+      <Navbar variant="user" user={user} cartCount={cartCount} />
 
       <main style={styles.mainContent}>
         <div style={styles.pageHeader}>
@@ -428,7 +568,7 @@ const Donate = () => {
                 {donationCategory === 'books' && (
                   <>
                     {bookCollections.map((col, idx) => (
-                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                      <div key={col.id || idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
                         {bookCollections.length > 1 && (
                           <button type="button" onClick={() => removeBookCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
                             <i className="fa-solid fa-trash"></i>
@@ -447,88 +587,39 @@ const Donate = () => {
                           </select>
                         </div>
 
-                        <div style={{ marginBottom: 16 }}>
-                          <label style={styles.label}>Total Number of Books in This Collection</label>
-                          <input
-                            type="number"
-                            style={{ ...styles.formControl, width: 120, textAlign: 'center' }}
-                            value={col.totalCount}
-                            onChange={(e) => updateTotalCount(idx, e.target.value)}
-                            min="1"
-                            max="200"
-                            required
-                          />
-                          <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>
-                            How many books are you donating in this category?
-                          </small>
-                        </div>
-
-                        <div style={{ marginBottom: 16 }}>
-                          <label style={styles.label}>Book Titles</label>
-                          {col.books.map((book, bIdx) => (
-                            <div key={bIdx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                              <input
-                                type="text"
-                                style={{ ...styles.formControl, flex: 1 }}
-                                value={book.title}
-                                onChange={(e) => updateBookTitle(idx, bIdx, e.target.value)}
-                                placeholder={`e.g. Book title ${bIdx + 1}`}
-                                required
-                              />
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', border: '2px solid #DEE2E6', borderRadius: 8, padding: '0 4px' }}>
-                                <button type="button" onClick={() => updateBookCount(idx, bIdx, -1)} style={{ width: 28, height: 28, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>-</button>
-                                <input type="number" style={{ width: 40, textAlign: 'center', border: 'none', outline: 'none', fontSize: 14, fontWeight: 600 }} value={book.count} onChange={(e) => setExactBookCount(idx, bIdx, e.target.value)} />
-                                <button type="button" onClick={() => updateBookCount(idx, bIdx, 1)} style={{ width: 28, height: 28, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>+</button>
-                              </div>
-                              {col.books.length > 1 && (
-                                <button type="button" onClick={() => removeBookTitle(idx, bIdx)} style={{ width: 28, height: 28, border: 'none', background: 'none', color: '#E63946', cursor: 'pointer', fontSize: 14 }}>
-                                  <i className="fa-solid fa-xmark"></i>
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          {col.books.reduce((s, b) => s + b.count, 0) < col.totalCount && (
-                            <button type="button" onClick={() => addBookTitle(idx)} style={{ background: 'none', border: '1px dashed #1E4D4B', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', color: '#1E4D4B', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
-                              <i className="fa-solid fa-plus" style={{ marginRight: 4 }}></i> Add Another Title
-                            </button>
-                          )}
-                          <p style={{ fontSize: 12, color: col.books.reduce((s, b) => s + b.count, 0) === col.totalCount ? '#2E7D32' : '#6C757D', marginTop: 6, fontWeight: col.books.reduce((s, b) => s + b.count, 0) === col.totalCount ? 600 : 400 }}>
-                            {col.books.reduce((s, b) => s + b.count, 0)}/{col.totalCount} book(s) assigned
-                            {col.books.reduce((s, b) => s + b.count, 0) === col.totalCount && ' ✓'}
-                          </p>
-                        </div>
-
-                        <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Photos for this Collection (Optional)</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => updateCollectionFiles(idx, Array.from(e.target.files))}
-                            style={{ ...styles.formControl, padding: '8px' }}
-                          />
-                          {col.files && col.files.length > 0 && (
-                            <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4, fontWeight: 600 }}>
-                              ✓ {col.files.length} photo(s) attached
-                            </p>
-                          )}
-                        </div>
-
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Number of Copies Donating</label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <button type="button" onClick={() => setFormData(prev => ({ ...prev, bookCount: Math.max(1, prev.bookCount - 1) }))} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>-</button>
-                                <input
-                                    type="number"
-                                    style={{ ...styles.formControl, width: 80, textAlign: 'center', fontWeight: 600 }}
-                                    value={formData.bookCount}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, bookCount: Math.max(1, Math.min(100, parseInt(e.target.value) || 1)) }))}
-                                    min="1"
-                                    max="100"
-                                />
-                                <button type="button" onClick={() => setFormData(prev => ({ ...prev, bookCount: Math.min(100, prev.bookCount + 1) }))} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>+</button>
-                            </div>
+                          <label style={styles.label}>Number of Copies Donating</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button type="button" onClick={() => updateBookCount(idx, -1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>-</button>
+                            <input
+                              type="number"
+                              style={{ ...styles.formControl, width: 80, textAlign: 'center', fontWeight: 600 }}
+                              value={col.bookCount}
+                              onChange={(e) => setExactBookCount(idx, e.target.value)}
+                              min="1"
+                              max="100"
+                            />
+                            <button type="button" onClick={() => updateBookCount(idx, 1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>+</button>
+                          </div>
                         </div>
+
+                        {/* ===== DYNAMIC FILE INPUTS FOR BOOKS ===== */}
+                        {col.bookCount > 0 && (
+                          <div style={{ marginTop: 16 }}>
+                            <label style={styles.label}>📸 Upload Photos for Each Book ({col.bookCount} book{col.bookCount > 1 ? 's' : ''})</label>
+                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                              {generateFileInputs(col.bookCount, 'book', idx)}
+                            </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                                <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                  ✓ {col.files.length} photo(s) attached
+                                </p>
+                                <button type="button" onClick={() => clearBookFilesForIndex(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear all photos</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <div style={{ background: '#E8F5E9', padding: 12, borderRadius: 8, marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: '#2E7D32' }}>
@@ -541,22 +632,6 @@ const Donate = () => {
                         <p style={{ fontSize: 11, color: '#6C757D', marginTop: 4 }}>
                           Based on {pointsPerBook} pts/book {col.bookCount > 1 ? `+ ${collectionBonusPct}% collection bonus` : ''}
                         </p>
-
-                        <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Photos of the Book (Optional)</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => updateBookFiles(idx, Array.from(e.target.files))}
-                            style={{ ...styles.formControl, padding: '8px' }}
-                          />
-                          {col.files && col.files.length > 0 && (
-                            <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4, fontWeight: 600 }}>
-                              ✓ {col.files.length} photo(s) attached
-                            </p>
-                          )}
-                        </div>
                       </div>
                     ))}
 
@@ -582,7 +657,7 @@ const Donate = () => {
                 {donationCategory === 'crafts' && (
                   <>
                     {craftCollections.map((col, idx) => (
-                      <div key={idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
+                      <div key={col.id || idx} style={{ background: '#F8F9FA', padding: 20, borderRadius: 12, marginBottom: 20, position: 'relative', border: '1px solid #DEE2E6' }}>
                         {craftCollections.length > 1 && (
                           <button type="button" onClick={() => removeCraftCollection(idx)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontSize: 16 }}>
                             <i className="fa-solid fa-trash"></i>
@@ -599,43 +674,51 @@ const Donate = () => {
                             <option value="Mixed Media">Mixed Media / Other</option>
                           </select>
                         </div>
-                        <div style={{ marginBottom: 16 }}>
+                        
+                        <div style={styles.formGroup}>
                           <label style={styles.label}>Number of Items</label>
-                          <div style={styles.numberInput}>
-                            <input type="number" style={{ ...styles.formControl, textAlign: 'center', width: 100 }} value={col.craftCount} onChange={(e) => setExactCraftCount(idx, e.target.value)} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button type="button" onClick={() => updateCraftCount(idx, -1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>-</button>
+                            <input
+                              type="number"
+                              style={{ ...styles.formControl, width: 80, textAlign: 'center', fontWeight: 600 }}
+                              value={col.craftCount}
+                              onChange={(e) => setExactCraftCount(idx, e.target.value)}
+                              min="1"
+                              max="100"
+                            />
+                            <button type="button" onClick={() => updateCraftCount(idx, 1)} style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>+</button>
                           </div>
                         </div>
 
-                        <div style={styles.formGroup}>
-                          <label style={styles.label}>Enter Points Value / Price (Points)</label>
-                          <input
-                            type="number"
-                            style={styles.formControl}
-                            value={col.pointsPrice || ''}
-                            onChange={(e) => updateCraftPoints(idx, e.target.value)}
-                            placeholder="e.g. 50"
-                            min="1"
-                            required
-                          />
-                          <small style={{ color: '#6C757D', display: 'block', marginTop: 4 }}>
-                            Enter the amount of points for this craft item.
-                          </small>
-                        </div>
+                        {/* ===== DYNAMIC FILE INPUTS FOR CRAFTS ===== */}
+                        {col.craftCount > 0 && (
+                          <div style={{ marginTop: 16 }}>
+                            <label style={styles.label}>📸 Upload Photos for Each Craft ({col.craftCount} craft{col.craftCount > 1 ? 's' : ''})</label>
+                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                              {generateFileInputs(col.craftCount, 'craft', idx)}
+                            </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                                <p style={{ fontSize: 12, color: '#2E7D32', margin: 0, fontWeight: 600 }}>
+                                  ✓ {col.files.length} photo(s) attached
+                                </p>
+                                <button type="button" onClick={() => clearCraftFilesForIndex(idx)} style={{ background: 'none', border: 'none', color: '#E63946', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear all photos</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <div style={{ marginTop: 16 }}>
-                          <label style={styles.label}>Photos for this Craft Item (Optional)</label>
+                          <label style={styles.label}>Price per Craft (Points)</label>
                           <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => updateCraftCollectionFiles(idx, Array.from(e.target.files))}
-                            style={{ ...styles.formControl, padding: '8px' }}
+                            type="number"
+                            style={{ ...styles.formControl, width: '100%' }}
+                            value={col.pointsPrice || 50}
+                            onChange={(e) => updateCraftPoints(idx, e.target.value)}
+                            min="0"
+                            step="10"
                           />
-                          {col.files && col.files.length > 0 && (
-                            <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4, fontWeight: 600 }}>
-                              ✓ {col.files.length} photo(s) attached
-                            </p>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -677,22 +760,25 @@ const Donate = () => {
                 <div style={{ background: '#F1F3F5', padding: 20, borderRadius: 12 }}>
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ color: '#6C757D', display: 'block', marginBottom: 4 }}>Collections:</span>
-                    {donationCategory === 'books' ? formData.collections.map((col, idx) => (
-                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <strong>{col.bookType || 'Not Selected'}</strong>
-                          <span>{col.totalCount} Books</span>
+                    {donationCategory === 'books' ? bookCollections.map((col, idx) => (
+                        <div key={col.id || idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <strong>{col.bookCategory || 'Not Selected'}</strong>
+                                <span>{col.bookCount} Book(s)</span>
+                            </div>
+                            {col.files && col.files.length > 0 && (
+                              <div style={{ fontSize: 12, color: '#2E7D32' }}>✓ {col.files.length} photo(s) attached</div>
+                            )}
                         </div>
-                        <div style={{ fontSize: 12, color: '#6C757D' }}>
-                          {col.books.map((b, bi) => (
-                            <span key={bi}>{b.title || 'Untitled'} ({b.count}){bi < col.books.length - 1 ? ', ' : ''}</span>
-                          ))}
-                        </div>
-                      </div>
                     )) : craftCollections.map((col, idx) => (
-                      <div key={idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', border: '1px solid #DEE2E6' }}>
-                        <strong>{col.craftType || 'Not Selected'}</strong>
-                        <span>{col.craftCount} Items</span>
+                      <div key={col.id || idx} style={{ padding: '8px 12px', background: 'white', borderRadius: 8, marginBottom: 8, border: '1px solid #DEE2E6' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>{col.craftType || 'Not Selected'}</strong>
+                          <span>{col.craftCount} Items</span>
+                        </div>
+                        {col.files && col.files.length > 0 && (
+                          <div style={{ fontSize: 12, color: '#2E7D32' }}>✓ {col.files.length} photo(s) attached</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -701,7 +787,7 @@ const Donate = () => {
                     <strong>{donationCategory === 'books' ? totalBooks + ' Books' : totalCrafts + ' Crafts'}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><span style={{ color: '#6C757D' }}>Drop-off Date:</span><strong>{formData.selectedDate || '-'}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6C757D' }}>Estimated Points:</span><strong style={{ color: '#2A9D8F' }}>~{donationCategory === 'books' ? formData.bookCount * pointsPerBook : totalCrafts * 10} pts</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6C757D' }}>Estimated Points:</span><strong style={{ color: '#2A9D8F' }}>~{points} pts</strong></div>
                 </div>
                 <p style={{ fontSize: 13, color: '#6C757D', marginTop: 16 }}><i className="fa-solid fa-circle-info"></i> Points will be credited to your account after our staff verifies the condition and count of your items at the collection center.</p>
               </div>

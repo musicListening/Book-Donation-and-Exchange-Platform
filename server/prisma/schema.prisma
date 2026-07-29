@@ -26,6 +26,7 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
+  loginLogs                                       LoginLog[]
   Cart                                            Cart?
   craftListings                                   CraftListing[]
   Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
@@ -75,6 +76,7 @@ model DonationRequest {
   requestedCount       Int
   verifiedCount        Int
   dropOffDate          DateTime?
+  timeSlot             String? 
   verifiedDate         DateTime?
   verifiedBy           String?
   pointsAwarded        Int                @default(0)

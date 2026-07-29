@@ -37,6 +37,22 @@ export const adminAPI = {
   },
 };
 
+// ===== AUTH API =====
+export const authAPI = {
+  logout: async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  },
+};
+
 // ===== TASK API (Staff Dashboard) =====
 export const taskAPI = {
     // GET all tasks

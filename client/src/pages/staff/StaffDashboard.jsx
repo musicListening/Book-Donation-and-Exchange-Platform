@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import StaffLayout from '../../components/StaffLayout';
 import { API_BASE } from '../../services/api';
+import '../../styles/StaffDashboard.css';
 
 function StaffDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', role: '', id: '' });
@@ -60,7 +61,6 @@ function StaffDashboard() {
       const data = await response.json();
       console.log('📦 Donations loaded:', data.length);
 
-      // Process donations
       const pending = data.filter(d => d.status === 'PENDING');
       const verified = data.filter(d => d.status === 'VERIFIED');
       const rejected = data.filter(d => d.status === 'REJECTED');
@@ -72,7 +72,6 @@ function StaffDashboard() {
         total: data.length
       });
 
-      // Get verified donations eligible for mystery box (not yet awarded)
       const eligibleForBox = data.filter(d => 
         d.status === 'VERIFIED' && 
         d.awardedMysteryBox !== true &&
@@ -84,7 +83,6 @@ function StaffDashboard() {
 
     } catch (error) {
       console.error('❌ Error loading donations:', error);
-      // Fallback mock data
       const mockDonations = [
         { id: '1', donor: 'Kasun Kalhara', status: 'PENDING', bookCount: 15, createdAt: new Date().toISOString() },
         { id: '2', donor: 'Savinthi Minaya', status: 'VERIFIED', bookCount: 3, createdAt: new Date().toISOString() },
@@ -143,12 +141,9 @@ function StaffDashboard() {
 
       alert(`🎁 Mystery Box awarded to ${selectedDonation.donor}!`);
       
-      // Remove from list
       setMysteryBoxDonations(mysteryBoxDonations.filter(d => d.id !== selectedDonation.id));
       setShowMysteryBoxModal(false);
       setSelectedDonation(null);
-      
-      // Refresh data
       loadDonations();
       
     } catch (error) {
@@ -178,7 +173,6 @@ function StaffDashboard() {
     return 'Staff';
   };
 
-  // ===== GET STATUS BADGE =====
   const getStatusBadge = (status) => {
     switch(status) {
       case 'PENDING': return 'draft';
@@ -201,47 +195,42 @@ function StaffDashboard() {
           <h1>Operations Dashboard</h1>
           <p className="page-subtitle">Welcome back, {getFirstName()}! Here's your donation overview.</p>
         </div>
-        <div className="user-info">
-          <span className="user-role">{currentUser.name}</span>
-          <span className="user-title">{currentUser.role}</span>
-          <div className="user-avatar">{getUserInitials()}</div>
-        </div>
       </div>
 
       {/* ===== STATS CARDS ===== */}
       <div className="stats-grid">
         <div className="stat-card">
           <h3>📥 PENDING</h3>
-          <div className="stat-value" style={{ color: '#ffc107' }}>{stats.pending}</div>
+          <div className="stat-value warning">{stats.pending}</div>
           <div className="stat-trend">Awaiting verification</div>
           <div className="stat-sub">Donations need review</div>
         </div>
 
         <div className="stat-card">
           <h3>✅ VERIFIED</h3>
-          <div className="stat-value" style={{ color: '#28a745' }}>{stats.verified}</div>
+          <div className="stat-value success">{stats.verified}</div>
           <div className="stat-trend">Points awarded</div>
           <div className="stat-sub">Completed donations</div>
         </div>
 
         <div className="stat-card">
           <h3>❌ REJECTED</h3>
-          <div className="stat-value" style={{ color: '#dc3545' }}>{stats.rejected}</div>
+          <div className="stat-value danger">{stats.rejected}</div>
           <div className="stat-trend">Not accepted</div>
           <div className="stat-sub">Rejected donations</div>
         </div>
 
-        <div className="stat-card" style={{ border: '2px solid #9c27b0' }}>
+        <div className="stat-card mystery-box-card">
           <h3>🎁 MYSTERY BOX</h3>
-          <div className="stat-value" style={{ color: '#9c27b0' }}>{mysteryBoxDonations.length}</div>
+          <div className="stat-value mystery">{mysteryBoxDonations.length}</div>
           <div className="stat-trend">Eligible donors</div>
           <div className="stat-sub">10+ books verified</div>
         </div>
       </div>
 
       {/* ===== TWO COLUMN LAYOUT ===== */}
-      <div className="two-column">
-        {/* LEFT: Recent Donations - NO VERIFY BUTTON */}
+      <div className="dashboard-two-column">
+        {/* LEFT: Recent Donations */}
         <div className="card-panel">
           <div className="panel-header">
             <h3>📋 Recent Donations</h3>
@@ -249,33 +238,22 @@ function StaffDashboard() {
           </div>
 
           {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
+            <div className="loading-container">Loading...</div>
           ) : donations.length === 0 ? (
             <p className="empty-state">No donations yet</p>
           ) : (
             donations.slice(0, 10).map((donation) => (
-              <div 
-                key={donation.id} 
-                className="donation-item"
-                style={{ 
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f0f0f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
+              <div key={donation.id} className="donation-item">
                 <div>
-                  <div style={{ fontWeight: '500' }}>{donation.donor || donation.user?.name || 'Unknown'}</div>
-                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  <div className="donor-name">{donation.donor || donation.user?.name || 'Unknown'}</div>
+                  <div className="donation-meta">
                     {donation.bookCount || donation.verifiedCount || 0} books • {formatDate(donation.createdAt)}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="donation-actions">
                   <span className={`status-badge ${getStatusBadge(donation.status)}`}>
                     {donation.status || 'PENDING'}
                   </span>
-                  {/* ✅ VERIFY BUTTON REMOVED - Only status badge remains */}
                 </div>
               </div>
             ))
@@ -284,9 +262,8 @@ function StaffDashboard() {
           <div className="table-footer">
             <span>Showing last {Math.min(10, donations.length)} of {stats.total} donations</span>
             <button 
-              className="btn-small" 
+              className="btn-small-outline" 
               onClick={() => window.location.href = '/staff/donation-schedule'}
-              style={{ background: 'transparent', border: '1px solid #1E4D4B', color: '#1E4D4B', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }}
             >
               View All →
             </button>
@@ -294,77 +271,31 @@ function StaffDashboard() {
         </div>
 
         {/* RIGHT: Mystery Box Eligible Donors */}
-        <div className="card-panel" style={{ border: '2px solid #9c27b0' }}>
+        <div className="card-panel mystery-box-panel">
           <div className="panel-header">
             <h3>🎁 Mystery Box Eligible</h3>
-            <span style={{ 
-              padding: '2px 12px', 
-              borderRadius: '20px', 
-              background: '#f3e5f5', 
-              color: '#9c27b0',
-              fontSize: '12px',
-              fontWeight: '600'
-            }}>
+            <span className="mystery-box-count">
               {mysteryBoxDonations.length} donors
             </span>
           </div>
 
           {mysteryBoxDonations.length === 0 ? (
-            <div style={{ 
-              padding: '30px 20px', 
-              textAlign: 'center', 
-              color: '#64748b'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎁</div>
+            <div className="mystery-box-empty">
+              <div className="empty-icon">🎁</div>
               <p>No eligible donors yet</p>
-              <p style={{ fontSize: '13px', marginTop: '4px' }}>
-                Donors with 10+ verified books qualify
-              </p>
+              <p className="empty-sub">Donors with 10+ verified books qualify</p>
             </div>
           ) : (
             mysteryBoxDonations.map((donation) => (
-              <div 
-                key={donation.id} 
-                style={{ 
-                  padding: '14px 16px',
-                  marginBottom: '10px',
-                  borderRadius: '8px',
-                  background: '#faf5ff',
-                  border: '1px solid #e8d5f5',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
+              <div key={donation.id} className="mystery-box-item">
                 <div>
-                  <div style={{ fontWeight: '600', color: '#1E4D4B' }}>
-                    {donation.donor || donation.user?.name || 'Unknown'}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>
-                    📚 {donation.verifiedCount || donation.bookCount || 0} books verified
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#9c27b0',
-                    marginTop: '2px',
-                    fontWeight: '500'
-                  }}>
-                    ⭐ Eligible for Mystery Box!
-                  </div>
+                  <div className="donor-name">{donation.donor || donation.user?.name || 'Unknown'}</div>
+                  <div className="book-count">📚 {donation.verifiedCount || donation.bookCount || 0} books verified</div>
+                  <div className="eligible-badge">⭐ Eligible for Mystery Box!</div>
                 </div>
                 <button 
-                  className="btn-small" 
+                  className="btn-award-mystery"
                   onClick={() => handleAwardMysteryBox(donation)}
-                  style={{ 
-                    background: '#9c27b0', 
-                    color: 'white', 
-                    border: 'none', 
-                    padding: '6px 16px', 
-                    borderRadius: '6px', 
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '13px'
-                  }}
                 >
                   🎁 Award
                 </button>
@@ -372,14 +303,7 @@ function StaffDashboard() {
             ))
           )}
 
-          <div style={{ 
-            marginTop: '12px', 
-            padding: '10px 16px', 
-            background: '#fff3e0', 
-            borderRadius: '6px',
-            fontSize: '13px',
-            color: '#e65100'
-          }}>
+          <div className="mystery-box-info">
             💡 Donors with 10+ verified books qualify for a Mystery Box
           </div>
         </div>
@@ -388,81 +312,40 @@ function StaffDashboard() {
       {/* ===== MYSTERY BOX AWARD MODAL ===== */}
       {showMysteryBoxModal && selectedDonation && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
-            <h2 style={{ color: '#9c27b0' }}>🎁 Award Mystery Box</h2>
+          <div className="modal-content mystery-box-modal">
+            <h2>🎁 Award Mystery Box</h2>
             <p className="modal-subtitle">
               Award a mystery box to <strong>{selectedDonation.donor || selectedDonation.user?.name || 'Unknown'}</strong>
             </p>
 
-            <div style={{ 
-              padding: '20px', 
-              background: '#faf5ff', 
-              borderRadius: '12px',
-              marginBottom: '20px',
-              border: '2px dashed #9c27b0'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '56px', marginBottom: '8px' }}>📦</div>
-                <h3 style={{ margin: '0', color: '#1E4D4B' }}>Mystery Box</h3>
-                <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
-                  Contains random selection of books + bonus points
-                </p>
-              </div>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: '8px',
-                marginTop: '12px',
-                padding: '12px',
-                background: 'white',
-                borderRadius: '8px'
-              }}>
-                <div style={{ fontSize: '13px' }}>
-                  <strong>Donor:</strong> {selectedDonation.donor || selectedDonation.user?.name || 'Unknown'}
-                </div>
-                <div style={{ fontSize: '13px' }}>
-                  <strong>Books:</strong> {selectedDonation.verifiedCount || selectedDonation.bookCount || 0}
-                </div>
-                <div style={{ fontSize: '13px' }}>
-                  <strong>Bonus Points:</strong> +50
-                </div>
-                <div style={{ fontSize: '13px' }}>
-                  <strong>Random Books:</strong> 3-5
-                </div>
+            <div className="mystery-box-preview">
+              <div className="mystery-box-icon">📦</div>
+              <h3>Mystery Box</h3>
+              <p className="mystery-box-desc">Contains random selection of books + bonus points</p>
+              
+              <div className="mystery-box-details">
+                <div><strong>Donor:</strong> {selectedDonation.donor || selectedDonation.user?.name || 'Unknown'}</div>
+                <div><strong>Books:</strong> {selectedDonation.verifiedCount || selectedDonation.bookCount || 0}</div>
+                <div><strong>Bonus Points:</strong> +50</div>
+                <div><strong>Random Books:</strong> 3-5</div>
               </div>
             </div>
 
-            <div style={{ 
-              padding: '12px', 
-              background: '#fff3e0', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              fontSize: '13px'
-            }}>
+            <div className="mystery-box-warning">
               ⚠️ This action will award a mystery box and cannot be undone.
             </div>
 
             <div className="modal-actions">
               <button 
-                className="btn-secondary" 
+                className="btn-cancel" 
                 onClick={() => { setShowMysteryBoxModal(false); setSelectedDonation(null); }}
-                style={{ padding: '10px 24px', borderRadius: '8px', border: '1px solid #e5e5e5', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button 
-                className="btn-primary"
+                className="btn-award"
                 onClick={handleConfirmMysteryBox}
                 disabled={awardingBox}
-                style={{ 
-                  padding: '10px 24px', 
-                  borderRadius: '8px', 
-                  border: 'none', 
-                  cursor: 'pointer', 
-                  background: '#9c27b0', 
-                  color: 'white',
-                  fontWeight: '600'
-                }}
               >
                 {awardingBox ? 'Awarding...' : '🎁 Award Mystery Box'}
               </button>

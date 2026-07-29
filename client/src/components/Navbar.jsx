@@ -38,6 +38,8 @@ export default function Navbar({
   }, [location.pathname]);
 
   const handleLogout = () => {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
