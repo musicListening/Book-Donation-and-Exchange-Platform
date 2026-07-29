@@ -4,6 +4,13 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
+// Podium styling for the top three donors
+const MEDALS = {
+  1: { color: '#E9C46A', gradient: 'linear-gradient(135deg, #E9C46A, #F2D98A)', glow: 'rgba(233,196,106,0.30)' },
+  2: { color: '#C0C0C0', gradient: 'linear-gradient(135deg, #B8B8B8, #E8E8E8)', glow: 'rgba(184,184,184,0.30)' },
+  3: { color: '#CD7F32', gradient: 'linear-gradient(135deg, #CD7F32, #E3A76B)', glow: 'rgba(205,127,50,0.30)' },
+};
+
 // Stable fallback colour per donor so the initial badge doesn't change between renders
 const avatarColor = (name = '') => {
   let hash = 0;
@@ -393,6 +400,12 @@ const Home = () => {
     wishlistBtn: { background: 'none', border: 'none', color: '#DEE2E6', fontSize: 20, cursor: 'pointer' },
     
     leaderboard: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
+    podium: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, alignItems: 'end', marginBottom: 40 },
+    podiumCard: { background: 'white', borderRadius: 24, padding: '32px 24px', textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', position: 'relative', transition: 'all 0.35s ease' },
+    podiumMedal: { position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' },
+    podiumAvatar: { width: 84, height: 84, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'white', margin: '18px auto 16px', fontWeight: 'bold', objectFit: 'cover' },
+    donorBooks: { fontSize: 34, fontWeight: 800, color: '#1E4D4B', lineHeight: 1.1, marginTop: 16 },
+    donorPoints: { marginTop: 12, fontSize: 13, color: '#E76F51', fontWeight: 600 },
     rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
     rankRow: { display: 'grid', gridTemplateColumns: '56px 56px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 28px', borderTop: '1px solid #F1F3F5' },
     rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
