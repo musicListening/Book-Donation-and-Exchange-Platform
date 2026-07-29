@@ -262,6 +262,13 @@ router.patch('/:id/verify', async (req, res) => {
 
         // Determine the category to use
         const finalCategory = category || donation.category || 'General';
+        console.log(`📚 Final category: ${finalCategory}`);
+
+        // ===== FIND OR CREATE BUNDLE (Using BookCollection model) =====
+        let targetBundleId = bundleId;
+
+        // If no bundleId provided, try to find or create one
+        if (!targetBundleId && !donation.category?.startsWith('Craft:')) {
         const isCraft = finalCategory.startsWith('Craft:');
         console.log(`📚 Final category: ${finalCategory} (${isCraft ? 'Craft' : 'Book'})`);
 
@@ -281,6 +288,11 @@ router.patch('/:id/verify', async (req, res) => {
             } else {
                 // Create a new collection for this category
                 try {
+                    const slug = `${finalCategory.toLowerCase().replace(/\s+/g, '-')}-collection-${Date.now()}`;
+                    const newCollection = await prisma.bookCollection.create({
+                        data: {
+                            title: `${finalCategory} Collection`,
+                            description: `Collection of ${finalCategory} books from donations`,
                     const cleanCategory = finalCategory.replace('Craft: ', '');
                     const slug = `${finalCategory.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
                     const newCollection = await prisma.bookCollection.create({
@@ -293,6 +305,7 @@ router.patch('/:id/verify', async (req, res) => {
                             pointsRequired: 0,
                             cashPrice: 0,
                             isRare: false,
+                            type: 'STANDARD',
                             type: 'STANDARD',  // FIXED: Use STANDARD for all bundles
                             minLevelRequired: 1
                         }
@@ -430,6 +443,10 @@ router.patch('/:id/verify', async (req, res) => {
             }
         }
 
+        // ===== CREATE BOOK ITEMS AND ADD TO BUNDLE =====
+        const isCraft = donation.category && donation.category.startsWith('Craft:');
+        const bookItems = [];
+        const craftListings = [];
         // ===== CREATE ITEMS (BOTH BOOKS AND CRAFTS) AS BOOKITEM =====
         const bookItems = [];
         const verifiedCountNum = parseInt(verifiedCount) || 0;
@@ -449,6 +466,76 @@ router.patch('/:id/verify', async (req, res) => {
                                    (condition === 'GOOD') ? 30 : 
                                    (condition === 'FAIR' || condition === 'fair') ? 20 : 10;
 
+        if (isCraft) {
+            // Handle crafts
+            for (let i = 0; i < (parseInt(verifiedCount) || 0); i++) {
+                const craftTitle = donation.collectionName || (donation.category.replace(/^Craft:\s*/, '') + (parseInt(verifiedCount) > 1 ? ` #${i + 1}` : ''));
+                const craft = await prisma.craftListing.create({
+                    data: {
+                        userId: donation.userId,
+                        title: craftTitle,
+                        description: `Donated craft item: ${donation.category} in ${condition || 'GOOD'} condition.`,
+                        pointsPrice: initialPointsPrice,
+                        imageUrl: donation.donationImages && donation.donationImages.length > 0 ? donation.donationImages[0] : '',
+                        additionalImages: donation.donationImages || [],
+                        status: addToMarketplace === true || addToMarketplace === 'true' ? 'LISTED' : 'DRAFT',
+                        donationRequestId: donation.id
+                    }
+                });
+                craftListings.push(craft);
+            }
+        } else {
+            // ===== CREATE BOOK ITEMS =====
+            const verifiedCountNum = parseInt(verifiedCount) || 0;
+            
+            for (let i = 0; i < verifiedCountNum; i++) {
+                const bookTitle = (donation.collectionName || donation.category || 'Donated Book')
+                    .replace(/\s*#\d+$/i, '')
+                    .trim();
+                
+                // Use the specific book title if it's a single book donation
+                const finalTitle = verifiedCountNum === 1 && donation.collectionName 
+                    ? donation.collectionName 
+                    : `${bookTitle}${verifiedCountNum > 1 ? ` #${i + 1}` : ''}`;
+
+                // Use the donation image for this book if available
+                const bookImage = donation.donationImages && donation.donationImages.length > 0 
+                    ? donation.donationImages[i % donation.donationImages.length] 
+                    : null;
+
+                const bookItem = await prisma.bookItem.create({
+                    data: {
+                        title: finalTitle,
+                        category: finalCategory,
+                        condition: dbCondition,
+                        isDonated: true,
+                        donationRequestId: donation.id,
+                        collectionId: targetBundleId,
+                        isAvailable: addToMarketplace === true || addToMarketplace === 'true',
+                        addedToMarketplaceAt: addToMarketplace === true || addToMarketplace === 'true' ? new Date() : null,
+                        pointsPrice: initialPointsPrice,
+                        imageUrl: bookImage,
+                    },
+                });
+                bookItems.push(bookItem);
+                console.log(`📚 Created book: ${finalTitle} in bundle ${targetBundleId}`);
+            }
+        }
+
+        // ===== UPDATE BUNDLE STOCK =====
+        if (targetBundleId && bookItems.length > 0) {
+            try {
+                await prisma.bookCollection.update({
+                    where: { id: targetBundleId },
+                    data: { 
+                        stock: { increment: bookItems.length }
+                    }
+                });
+                console.log(`📊 Updated bundle stock: +${bookItems.length} books`);
+            } catch (stockError) {
+                console.error('Error updating bundle stock:', stockError);
+            }
+        }
         for (let i = 0; i < verifiedCountNum; i++) {
             let itemTitle;
             
@@ -507,6 +594,9 @@ router.patch('/:id/verify', async (req, res) => {
         // ===== LOG SUMMARY =====
         console.log(`✅ Verification complete: ${bookItems.length} ${isCraft ? 'crafts' : 'books'} added to bundle ${targetBundleId}`);
 
+        // ===== LOG SUMMARY =====
+        console.log(`✅ Verification complete: ${bookItems.length} books added to bundle ${targetBundleId}`);
+
         res.json({
             donation: updated,
             bookItems,
@@ -516,6 +606,7 @@ router.patch('/:id/verify', async (req, res) => {
             newPoints,
             newBooksDonated,
             bundleId: targetBundleId,
+            booksAdded: bookItems.length
             itemsAdded: bookItems.length,
             isCraft: isCraft
         });
