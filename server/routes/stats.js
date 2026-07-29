@@ -58,7 +58,18 @@ router.get('/leaderboard', async (req, res) => {
     },
   });
 
-  res.json(donors.map((u, idx) => ({ rank: idx + 1, ...u })));
+  // Map the numeric level onto its configured tier name, e.g. 3 -> "Literary Elite"
+  const levels = await prisma.level.findMany({ orderBy: { level: 'asc' } });
+  const levelNames = new Map(levels.map(l => [l.level, l.name.trim()]));
+
+  res.json(
+    donors.map((u, idx) => ({
+      rank: idx + 1,
+      ...u,
+      name: u.name.trim(),
+      levelName: levelNames.get(u.level) || 'New Donor',
+    }))
+  );
 });
 
 module.exports = router;
