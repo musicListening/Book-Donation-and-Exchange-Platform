@@ -4,31 +4,29 @@ import { communityAPI } from '../../services/api';
 import { colors, space, radius, elevation, motion, Icon, Button, Chip, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
-  const [hovered, setHovered] = useState(false);
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="lift-card"
       style={{
         background: colors.surfaceContainerLowest,
         border: `1px solid ${colors.outlineVariant}`,
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: radius.md,
+        padding: space.lg,
         display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none',
+        alignItems: 'flex-start',
+        gap: space.md,
       }}
     >
       <div style={{ padding: 12, borderRadius: '50%', background: bg, color: fg, flexShrink: 0, display: 'flex' }}>
         <Icon name={icon} size={24} />
       </div>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: 12, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</p>
-        <p style={{ fontSize: 32, fontWeight: 700, lineHeight: '40px', color: colors.primary, fontFamily: "'Playfair Display', serif" }}>{value.toLocaleString()}</p>
-        <span style={{ fontSize: 12, color: colors.secondary, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 11.5, fontWeight: 600, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
+        {/* Tabular figures stop the numbers jittering as they change */}
+        <p style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.15, marginTop: 4, color: colors.primary, fontFamily: "'Playfair Display', serif", fontVariantNumeric: 'tabular-nums' }}>
+          {value.toLocaleString()}
+        </p>
+        <span style={{ fontSize: 12, color: colors.secondary, display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: space.xs }}>
           <Icon name={subIcon} size={14} />
           {sub}
         </span>
@@ -38,31 +36,26 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
 }
 
 function EventCard({ event, isLatest }) {
-  const [hovered, setHovered] = useState(false);
   const participants = event.participants || [];
   const participantCount = event.participantCount ?? participants.length;
   const shownNames = participants.slice(0, 3).map((participant) => participant.name);
   const extraCount = participants.length - shownNames.length;
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <article
+      className="lift-card"
       style={{
         background: colors.surfaceContainerLowest,
         border: isLatest ? `2px solid ${colors.primary}` : `1px solid ${colors.outlineVariant}`,
-        borderRadius: 12,
+        borderRadius: radius.md,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05)' : 'none',
         position: 'relative',
       }}
     >
       {isLatest && (
-        <div style={{ position: 'absolute', top: 12, right: 12, background: colors.primary, color: colors.onPrimary, padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, zIndex: 2, letterSpacing: '0.5px' }}>LATEST</div>
+        <Chip tone="primary" style={{ position: 'absolute', top: 12, right: 12, zIndex: 2 }}>Latest</Chip>
       )}
       <div style={{ height: 128, position: 'relative' }}>
         <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -85,7 +78,7 @@ function EventCard({ event, isLatest }) {
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 

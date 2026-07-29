@@ -284,6 +284,14 @@ export function CommunityAdminFonts() {
           color: ${colors.primaryDeep};
           font-family: 'Playfair Display', serif;
         }
+        /* Hover lift handled in CSS so cards do not re-render on mouse move */
+        .lift-card {
+          transition: transform ${motion.base}, box-shadow ${motion.base}, border-color ${motion.base};
+          box-shadow: ${elevation.rest};
+        }
+        .lift-card:hover { transform: translateY(-3px); box-shadow: ${elevation.raised}; }
+        .lift-card:focus-within { box-shadow: ${elevation.raised}; }
+
         .community-skeleton {
           background: linear-gradient(100deg, ${colors.surfaceContainerHigh} 28%, ${colors.surfaceContainerLow} 48%, ${colors.surfaceContainerHigh} 68%);
           background-size: 220% 100%;
