@@ -28,16 +28,22 @@ const UserDashboard = () => {
     // Fetch fresh user data and level config
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('token');
         try {
           await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({ userId: storedUser.id })
           });
         } catch (autoErr) {}
 
         const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
+          fetch(`${API_BASE}/users`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          }).then(r => r.ok ? r.json() : []),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
           systemConfigAPI.getAll()
         ]);
@@ -270,9 +276,9 @@ const UserDashboard = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} />
 
-      <main style={styles.mainContent}>
+      <main className="user-dashboard-main" style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="welcome-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
               <p>Here's what's happening with your library today.</p>
@@ -308,7 +314,7 @@ const UserDashboard = () => {
 
         <div style={styles.dashboardGrid}>
           <div>
-            <div style={styles.pointsCard}>
+            <div className="points-card" style={styles.pointsCard}>
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
@@ -326,18 +332,18 @@ const UserDashboard = () => {
                 </div>
               </div>
             </div>
-            <div style={styles.actionsGrid}>
+            <div className="actions-grid" style={styles.actionsGrid}>
               <Link to="/donate" style={styles.actionBtn}>
                 <i className="fa-solid fa-hand-holding-heart" style={{ ...styles.actionIcon, color: '#2A9D8F' }}></i>
                 <span>Donate Books</span>
               </Link>
               <Link to="/marketplace" style={styles.actionBtn}>
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
-                <span>Browse Books</span>
+                <span>Explore Marketplace</span>
               </Link>
-              <Link to="/orders" style={styles.actionBtn}>
-                <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
-                <span>My Orders</span>
+              <Link to="/mystery-boxes" style={styles.actionBtn}>
+                <i className="fa-solid fa-box-open" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
+                <span>Mystery Boxes</span>
               </Link>
               <Link to="/profile" style={styles.actionBtn}>
                 <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>
