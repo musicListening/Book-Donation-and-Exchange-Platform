@@ -4,6 +4,30 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
+// Podium styling for the top three donors
+const MEDALS = {
+  1: { color: '#E9C46A', gradient: 'linear-gradient(135deg, #E9C46A, #F2D98A)', glow: 'rgba(233,196,106,0.30)' },
+  2: { color: '#C0C0C0', gradient: 'linear-gradient(135deg, #B8B8B8, #E8E8E8)', glow: 'rgba(184,184,184,0.30)' },
+  3: { color: '#CD7F32', gradient: 'linear-gradient(135deg, #CD7F32, #E3A76B)', glow: 'rgba(205,127,50,0.30)' },
+};
+
+const PODIUM_ORDER = { 1: 2, 2: 1, 3: 3 };
+
+const avatarColor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360}, 62%, 46%)`;
+};
+
+const Avatar = ({ donor, style }) =>
+  donor.profileImage ? (
+    <img src={donor.profileImage} alt={donor.name} style={style} />
+  ) : (
+    <div style={{ ...style, background: avatarColor(donor.name) }}>
+      {donor.name?.charAt(0)?.toUpperCase() || 'U'}
+    </div>
+  );
+
 const Home = () => {
   const pageRef = useRef(null);
   const navigate = useNavigate();
@@ -12,6 +36,8 @@ const Home = () => {
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
   const [topReviews, setTopReviews] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [boardLoading, setBoardLoading] = useState(true);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -46,7 +72,13 @@ const Home = () => {
       .then(res => res.json())
       .then(data => setStats(data))
       .catch(() => {});
-      
+
+    fetch(`${API_URL}/stats/leaderboard?limit=10`)
+      .then(res => res.json())
+      .then(data => setLeaderboard(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setBoardLoading(false));
+
     fetch(`${API_URL}/reviews/top`)
       .then(res => res.json())
       .then(data => setTopReviews(data))
@@ -376,6 +408,24 @@ const Home = () => {
     craftDetails: { padding: '20px 20px 16px' },
     wishlistBtn: { background: 'none', border: 'none', color: '#DEE2E6', fontSize: 20, cursor: 'pointer' },
     
+    leaderboard: { maxWidth: 1440, margin: '0 auto' },
+    podium: { display: 'grid', gap: 28, alignItems: 'end', marginBottom: 40 },
+    podiumCard: { background: 'white', borderRadius: 24, padding: '32px 24px', textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', position: 'relative', transition: 'all 0.35s ease' },
+    podiumMedal: { position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' },
+    podiumAvatar: { width: 84, height: 84, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'white', margin: '18px auto 16px', fontWeight: 'bold', objectFit: 'cover' },
+    donorBooks: { fontSize: 34, fontWeight: 800, color: '#1E4D4B', lineHeight: 1.1, marginTop: 16 },
+    donorPoints: { marginTop: 12, fontSize: 13, color: '#E76F51', fontWeight: 600 },
+    rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
+    rankRow: { display: 'grid', alignItems: 'center', gap: 16, borderTop: '1px solid #F1F3F5' },
+    rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
+    rankAvatar: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
+    donorName: { margin: 0, fontSize: 17, color: '#343A40', fontWeight: 700 },
+    donorTier: { fontSize: 13, color: '#6C757D', marginTop: 4, display: 'inline-block' },
+    donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
+    rankBooks: { fontSize: 18, fontWeight: 800, color: '#1E4D4B', whiteSpace: 'nowrap' },
+    emptyBoard: { textAlign: 'center', padding: '48px 0', color: '#6C757D' },
+    boardSkeleton: { background: 'linear-gradient(100deg, #F1F3F5 30%, #F8F9FA 50%, #F1F3F5 70%)', backgroundSize: '200% 100%', animation: 'boardShimmer 1.4s ease-in-out infinite', boxShadow: 'none' },
+    
     testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
     testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
     testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
@@ -433,20 +483,20 @@ const Home = () => {
           </div>
         </div>
 
-        <div style={styles.hero}>
-          <div style={styles.heroContent}>
-            <div className="hero-badge-shimmer hero-enter hero-enter--delay-1" style={styles.heroBadge}>
+        <div className="hero" style={styles.hero}>
+          <div className="hero-content" style={styles.heroContent}>
+            <div className="hero-badge-shimmer hero-enter hero-enter--delay-1 hero-badge" style={styles.heroBadge}>
               <i className="fa-solid fa-book"></i> ShareShelf Book Exchange
             </div>
-            <h1 className="hero-enter hero-enter--delay-2" style={styles.heroTitle}>
+            <h1 className="hero-enter hero-enter--delay-2 hero-title" style={styles.heroTitle}>
               Turn Your Shelves Into Points.<br /><span style={styles.heroTitleSpan}>Turn Points Into Treasures.</span>
             </h1>
-            <p className="hero-enter hero-enter--delay-3" style={styles.heroDescription}>
+            <p className="hero-enter hero-enter--delay-3 hero-description" style={styles.heroDescription}>
               Donate any genre of books, earn points instantly, and browse thousands 
               of curated book bundles or handmade paper crafts. Join our sustainable 
               reading revolution.
             </p>
-            <div className="hero-enter hero-enter--delay-4" style={styles.heroButtons}>
+            <div className="hero-enter hero-enter--delay-4 hero-buttons" style={styles.heroButtons}>
               <button
                 type="button"
                 className="hero-btn-primary"
@@ -464,13 +514,13 @@ const Home = () => {
                 <i className="fa-solid fa-store"></i> Explore Marketplace
               </button>
             </div>
-            <div className="hero-enter hero-enter--delay-5" style={styles.heroTrust}>
+            <div className="hero-enter hero-enter--delay-5 hero-trust" style={styles.heroTrust}>
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> Free to join</span>
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> 12,450+ books donated</span>
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> Instant points</span>
             </div>
           </div>
-          <div className="hero-visual-enter" style={styles.heroVisual}>
+          <div className="hero-visual-enter hero-visual" style={styles.heroVisual}>
             <div style={styles.heroCollage}>
               <div className="hexagon-wrapper-1" style={styles.hexagonWrapper1}>
                 <div style={styles.hexagonInner}>
@@ -493,10 +543,10 @@ const Home = () => {
       </section>
 
       {/* ============ HOW IT WORKS ============ */}
-      <section id="how-it-works" style={styles.howItWorks}>
-        <h2 className="reveal" style={styles.sectionTitle}>How ShareShelf Works</h2>
-        <p className="reveal" style={styles.sectionSubtitle}>Four simple steps to turn your books into new adventures.</p>
-        <div className="reveal-stagger" style={styles.stepsGrid}>
+      <section id="how-it-works" className="how-it-works" style={styles.howItWorks}>
+        <h2 className="reveal section-title" style={styles.sectionTitle}>How ShareShelf Works</h2>
+        <p className="reveal section-subtitle" style={styles.sectionSubtitle}>Four simple steps to turn your books into new adventures.</p>
+        <div className="reveal-stagger steps-grid" style={styles.stepsGrid}>
           <div className="card-hover-lift" style={styles.stepCard}>
             <div className="step-icon-hover" style={styles.stepIcon}>
               <i className="fa-solid fa-calendar-plus"></i>
@@ -533,8 +583,8 @@ const Home = () => {
       </section>
 
       {/* ============ STATS BAR ============ */}
-      <section style={styles.statsBar}>
-        <div ref={statsRef} className="reveal-stagger" style={styles.statsGrid}>
+      <section className="stats-bar" style={styles.statsBar}>
+        <div ref={statsRef} className="reveal-stagger stats-grid" style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
             <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
@@ -551,12 +601,12 @@ const Home = () => {
       </section>
 
       {/* ============ CATEGORIES ============ */}
-      <section id="marketplace" style={styles.categories}>
-        <div style={styles.categoriesHeader}>
-          <h2 className="reveal" style={styles.sectionTitle}>Find Your Genre</h2>
-          <p className="reveal" style={styles.sectionSubtitle}>Browse thousands of books across every category imaginable.</p>
+      <section id="marketplace" className="categories" style={styles.categories}>
+        <div className="categories-header" style={styles.categoriesHeader}>
+          <h2 className="reveal section-title" style={styles.sectionTitle}>Find Your Genre</h2>
+          <p className="reveal section-subtitle" style={styles.sectionSubtitle}>Browse thousands of books across every category imaginable.</p>
         </div>
-        <div className="reveal-stagger" style={styles.categoryGrid}>
+        <div className="reveal-stagger category-grid" style={styles.categoryGrid}>
           <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Fiction')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(231,111,81,0.15)', color: '#E76F51' }}><i className="fa-solid fa-dragon"></i></div>
             <div><h4>Fiction</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Novels, Fantasy & more</span></div>
@@ -590,14 +640,95 @@ const Home = () => {
         </div>
       </section>
 
+      {/* ============ LEADERBOARD ============ */}
+      <section className="leaderboard-section" style={styles.leaderboard} aria-labelledby="leaderboard-heading">
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <h2 id="leaderboard-heading" className="reveal section-title" style={styles.sectionTitle}>Top Book Donors</h2>
+          <p className="reveal section-subtitle" style={styles.sectionSubtitle}>
+            The readers giving the most books back to the community.
+          </p>
+        </div>
+
+        {boardLoading ? (
+          <div className="leaderboard-podium" style={styles.podium} aria-hidden="true">
+            {[2, 1, 3].map((n) => (
+              <div key={n} style={{ ...styles.podiumCard, ...styles.boardSkeleton, height: n === 1 ? 300 : 268 }} />
+            ))}
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div style={styles.emptyBoard}>
+            No donations yet — be the first to get on the board!
+          </div>
+        ) : (
+        <>
+        <ol className="leaderboard-podium" style={styles.podium}>
+          {leaderboard.slice(0, 3).map((donor) => {
+            const isWinner = donor.rank === 1;
+            const medal = MEDALS[donor.rank];
+            return (
+              <li
+                key={donor.id}
+                className="card-hover-lift"
+                style={{
+                  ...styles.podiumCard,
+                  order: PODIUM_ORDER[donor.rank],
+                  borderTop: `4px solid ${medal.color}`,
+                  ...(isWinner
+                    ? {
+                        padding: '44px 24px 40px',
+                        marginBottom: 12,
+                        boxShadow: `0 16px 45px ${medal.glow}`,
+                        border: `1px solid ${medal.color}`,
+                      }
+                    : {}),
+                }}
+              >
+                <div style={{ ...styles.podiumMedal, background: medal.gradient }} aria-hidden="true">
+                  {donor.rank}
+                </div>
+                <Avatar donor={donor} style={styles.podiumAvatar} />
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>
+                  <i className="fa-solid fa-award" style={{ color: medal.color, marginRight: 6 }} aria-hidden="true"></i>
+                  {donor.levelName}
+                </span>
+                <div style={styles.donorBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>Books Donated</div>
+                <div style={styles.donorPoints}>{formatNumber(donor.points)} points earned</div>
+              </li>
+            );
+          })}
+        </ol>
+
+        {leaderboard.length > 3 && (
+        <ol start={4} style={styles.rankList}>
+          {leaderboard.slice(3).map((donor) => (
+            <li key={donor.id} className="leaderboard-row" style={styles.rankRow}>
+              <span style={styles.rankNum} aria-hidden="true">{donor.rank}</span>
+              <Avatar donor={donor} style={styles.rankAvatar} />
+              <div>
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>{donor.levelName}</span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={styles.rankBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>books</div>
+              </div>
+            </li>
+          ))}
+        </ol>
+        )}
+        </>
+        )}
+      </section>
 
       {/* ============ TESTIMONIALS ============ */}
-      <section style={styles.testimonials}>
+      <section className="testimonials" style={styles.testimonials}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <h2 className="reveal" style={styles.sectionTitle}>What Our Readers Say</h2>
-          <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
+          <h2 className="reveal section-title" style={styles.sectionTitle}>What Our Readers Say</h2>
+          <p className="reveal section-subtitle" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
         </div>
-        <div className="reveal-stagger" style={styles.testimonialGrid}>
+        <div className="reveal-stagger testimonial-grid" style={styles.testimonialGrid}>
           {topReviews.length > 0 ? topReviews.map((review, idx) => (
             <div key={review.id || idx} className="card-hover-lift" style={styles.testimonialCard}>
               <div style={styles.testimonialStars}>
@@ -632,50 +763,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ============ LEVELS ============ */}
-      <section style={styles.levels}>
-        <h2 className="reveal" style={styles.sectionTitle}>Level Up Your Reading</h2>
-        <p className="reveal" style={styles.sectionSubtitle}>Earn more benefits as you donate and engage.</p>
-        <div className="reveal-stagger" style={styles.levelsGrid}>
-          <div className="level-hover" style={styles.levelCard}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666' }}>📚</div>
-            <h3>Book Lover</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>0 — 250 Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Early bundle access</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Profile badge</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Standard delivery</li>
-            </ul>
-          </div>
-          <div className="level-hover" style={{ ...styles.levelCard, ...styles.levelCardFeatured }}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', color: '#7A5C10', boxShadow: '0 0 20px rgba(233,196,106,0.5)' }}>🥇</div>
-            <h3>Bibliophile</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>251 — 750 Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> +10% bonus points on donations</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Priority support</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Exclusive bundles</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Free shipping on orders over 200 pts</li>
-            </ul>
-          </div>
-          <div className="level-hover" style={styles.levelCard}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #B8E6E4, #1E4D4B)', color: 'white', boxShadow: '0 0 20px rgba(30,77,75,0.5)' }}>💎</div>
-            <h3>Grand Librarian</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>751+ Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> +20% bonus points on donations</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Free delivery always</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Custom profile frame</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Early access to all new arrivals</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> VIP support line</li>
-            </ul>
-          </div>
-        </div>
-
-      </section>
-
       {/* ============ CTA BANNER ============ */}
-      <section className="cta-pulse" style={styles.ctaBanner}>
+      <section className="cta-pulse cta-banner" style={styles.ctaBanner}>
         <h2 className="reveal" style={{ color: 'white', fontSize: 36, marginBottom: 16, position: 'relative', zIndex: 1 }}>Ready to Give Your Books a New Story?</h2>
         <p className="reveal" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, marginBottom: 24, position: 'relative', zIndex: 1 }}>Join thousands of readers and crafters building a library without walls.</p>
         <button type="button" onClick={() => openAuthModal('signup', '/user-dashboard')} className="reveal" style={{ ...styles.btn, background: 'white', color: '#E76F51', borderColor: 'white', fontSize: 18, padding: '16px 36px', position: 'relative', zIndex: 1 }}>
@@ -685,8 +774,8 @@ const Home = () => {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer id="about" style={styles.footer}>
-        <div style={styles.footerGrid}>
+      <footer id="about" className="footer" style={styles.footer}>
+        <div className="footer-grid" style={styles.footerGrid}>
           <div>
             <div style={styles.footerLogo}>📚 ShareShelf</div>
             <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
@@ -718,7 +807,7 @@ const Home = () => {
             </ul>
           </div>
         </div>
-        <div style={styles.footerBottom}>
+        <div className="footer-bottom" style={styles.footerBottom}>
           <p>&copy; 2025 ShareShelf. Built with ❤️ for book lovers everywhere.</p>
         </div>
       </footer>

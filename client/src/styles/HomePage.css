@@ -1063,45 +1063,72 @@ h1, h2, h3 {
 }
 
 /* ============ RESPONSIVE ============ */
-@media (max-width: 1024px) {
-    .hero { grid-template-columns: 1fr; text-align: center; }
-    .hero-content { max-width: 100%; }
-    .hero-trust { justify-content: center; }
-    .hero-visual { order: -1; }
-    .steps-grid { grid-template-columns: repeat(2, 1fr); }
-    .category-grid { grid-template-columns: repeat(2, 1fr); }
-    .bundles-scroll { grid-template-columns: repeat(2, 1fr); }
-    .crafts-grid { grid-template-columns: repeat(2, 1fr); }
-    .footer-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1100px) {
+    .hero { grid-template-columns: 1fr !important; text-align: center; }
+    .hero-content { max-width: 100% !important; }
+    .hero-trust { justify-content: center !important; }
+    .hero-visual { order: -1 !important; }
+    .steps-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .category-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .testimonial-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .leaderboard-podium { grid-template-columns: repeat(2, 1fr) !important; }
+    .footer-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 @media (max-width: 768px) {
-    .nav-links { display: none; }
-    .mobile-menu-btn { display: block; }
-    .header { padding: 0 var(--space-sm); }
-    .nav-actions { display: none; }
-    .logo { font-size: 22px; }
-    .hero { padding: 100px var(--space-sm) var(--space-lg); }
-    .hero-title { font-size: 36px; }
-    .section-title { font-size: 28px; }
-    .steps-grid { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: 1fr; gap: var(--space-md); }
-    .category-grid { grid-template-columns: 1fr; }
-    .bundles-scroll { grid-template-columns: 1fr; }
-    .crafts-grid { grid-template-columns: 1fr; }
-    .levels-grid { grid-template-columns: 1fr; }
-    .level-card.featured { transform: none; }
-    .footer-grid { grid-template-columns: 1fr; }
-    .hero-visual { display: none; }
-    .btn-lg { padding: 14px 28px; font-size: 16px; }
+    .nav-links { display: none !important; }
+    .mobile-menu-btn { display: block !important; }
+    .header { padding: 0 var(--space-sm) !important; }
+    .nav-actions { display: none !important; }
+    .logo { font-size: 22px !important; }
+    .hero { padding: 100px var(--space-sm) var(--space-lg) !important; }
+    .hero-title { font-size: 32px !important; }
+    .hero-description { font-size: 15px !important; }
+    .hero-badge { font-size: 11px !important; padding: 6px 12px !important; }
+    .section-title { font-size: 26px !important; }
+    .section-subtitle { font-size: 15px !important; }
+    .steps-grid { grid-template-columns: 1fr !important; }
+    .stats-grid { grid-template-columns: 1fr !important; gap: var(--space-md) !important; }
+    .category-grid { grid-template-columns: 1fr !important; }
+    .testimonial-grid { grid-template-columns: 1fr !important; }
+    .leaderboard-podium { grid-template-columns: 1fr !important; }
+    .footer-grid { grid-template-columns: 1fr !important; }
+    .hero-visual { display: none !important; }
+    .hexagon-wrapper-4 { display: none !important; }
+    .hero-particle { display: none !important; }
+    .btn-lg { padding: 14px 28px !important; font-size: 16px !important; }
+    .how-it-works { padding: 48px var(--space-sm) !important; }
+    .stats-bar { padding: var(--space-xl) var(--space-sm) !important; }
+    .categories { padding: 48px var(--space-sm) !important; }
+    .leaderboard-section { padding: 48px var(--space-sm) !important; }
+    .testimonials { padding: 48px var(--space-sm) !important; }
+    .cta-banner { padding: 48px var(--space-sm) !important; }
+    .cta-banner h2 { font-size: 26px !important; }
+    .cta-banner p { font-size: 15px !important; }
+    .footer { padding: 48px var(--space-sm) 24px !important; }
+    .footer-grid { gap: var(--space-md) !important; }
+    .footer-bottom { margin-top: var(--space-md) !important; }
+    .section-subtitle { margin-bottom: var(--space-md) !important; }
+    .leaderboard-row { grid-template-columns: 32px 44px 1fr auto !important; gap: 12px !important; padding: 14px 18px !important; }
 }
 
 @media (max-width: 480px) {
-    .hero-title { font-size: 28px; }
-    .section-title { font-size: 24px; }
-    .btn { width: 100%; justify-content: center; }
-    .hero-buttons { flex-direction: column; }
-    .points-badge { display: none; }
+    .hero-title { font-size: 24px !important; }
+    .hero-content { padding: var(--space-md) !important; }
+    .hero-buttons { flex-direction: column !important; }
+    .hero-btn-primary,
+    .hero-btn-secondary,
+    .btn { width: 100% !important; justify-content: center !important; }
+    .section-title { font-size: 22px !important; }
+    .section-subtitle { font-size: 14px !important; }
+    .points-badge { display: none !important; }
+    .hero-trust-badge { font-size: 11px !important; padding: 4px 10px !important; }
+    .step-card { padding: var(--space-md) var(--space-sm) !important; }
+    .category-card { padding: var(--space-sm) !important; }
+    .cta-banner h2 { font-size: 22px !important; }
+    .footer-grid { gap: var(--space-md) !important; }
+    .leaderboard-row { grid-template-columns: 26px 1fr auto !important; gap: 10px !important; padding: 12px 14px !important; }
+    .leaderboard-row > :nth-child(2) { display: none !important; }
 }
 
 /* ============ HERO COLLAGE & PREMIUM ANIMATIONS ============ */
@@ -1508,19 +1535,4 @@ h1, h2, h3 {
     .leaderboard-podium > li { transition: none !important; }
 }
 
-@media (max-width: 1024px) {
-    .leaderboard-section { padding: 64px 40px; }
-}
-
-@media (max-width: 768px) {
-    .leaderboard-section { padding: 48px var(--space-sm); }
-    /* Stack the podium; the winner keeps its emphasis but not the extra height */
-    .leaderboard-podium { grid-template-columns: 1fr; }
-    .leaderboard-row { grid-template-columns: 32px 44px 1fr auto; gap: 12px; padding: 14px 18px; }
-}
-
-@media (max-width: 480px) {
-    .leaderboard-row { grid-template-columns: 26px 1fr auto; gap: 10px; padding: 12px 14px; }
-    /* Avatar is the second cell; hide it rather than squeeze the name */
-    .leaderboard-row > :nth-child(2) { display: none; }
-}
+/* Leaderboard responsive rules are now in the main RESPONSIVE section above */
