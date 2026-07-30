@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { systemConfigAPI, mysteryBoxAPI } from '../../services/api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 
-  (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
@@ -16,26 +15,18 @@ const UserDashboard = () => {
   const [userReview, setUserReview] = useState({ rating: 0, comment: '' });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [claimError, setClaimError] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // ===== FETCH ALL DATA =====
-  const fetchAllData = async () => {
+  useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser) {
       navigate('/login');
       return;
     }
+    setUser(storedUser);
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const token = localStorage.getItem('token');
-      console.log('📦 Fetching data for user:', storedUser.id);
-
-      // 1. Try to auto-assign mystery boxes
+    // Fetch fresh user data and level config
+    const fetchData = async () => {
       try {
         try {
           await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
@@ -63,9 +54,6 @@ const UserDashboard = () => {
         if (config && config.MYSTERY_BOX_POINTS_COST) {
           setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
         }
-      } catch (err) {
-        console.error('Error fetching config:', err);
-      }
 
         if (freshUser && freshUser.id) {
           setUser(freshUser);
@@ -82,34 +70,21 @@ const UserDashboard = () => {
               setUserReview({ rating: data.rating, comment: data.comment || '' });
             }
           }
+        } catch (err) {
+          console.error("Error fetching review", err);
         }
-      } catch (err) {
-        console.error("Error fetching review", err);
-      }
 
-    } catch (err) {
-      console.error('❌ Error fetching data:', err);
-      setError('Failed to load dashboard. Please refresh.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load data on mount
-  useEffect(() => {
-    fetchAllData();
-
-    // Refresh every 15 seconds
-    const interval = setInterval(() => {
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      if (storedUser) {
-        console.log('🔄 Auto-refreshing...');
-        fetchAllData();
-      }
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, []);
+        const seen = new Set();
+        const uniqueBoxes = (boxes || []).filter(b => {
+          if (seen.has(b.id)) return false;
+          seen.add(b.id);
+          return true;
+        });
+        setMysteryBoxes(uniqueBoxes);
+      } catch (err) {}
+    };
+    fetchData();
+  }, [navigate]);
 
   const logout = () => {
     localStorage.removeItem('user');
@@ -129,10 +104,12 @@ const UserDashboard = () => {
     setClaiming(boxId);
     setClaimError(null);
     try {
+      // Make the claim API call (only once!)
       const response = await mysteryBoxAPI.claim(boxId);
       const updatedBox = response.box || response;
       const cost = getPointsCostForLevel(updatedBox?.level || 0);
       
+      // Update user's points
       const updatedUser = { 
         ...user, 
         points: Math.max(0, (user.points || 0) - cost) 
@@ -141,12 +118,17 @@ const UserDashboard = () => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
       
+      // Update mystery boxes - move from unclaimed to claimed
       setMysteryBoxes(prev => prev.map(b => 
         b.id === boxId ? { ...updatedBox, status: 'CLAIMED' } : b
       ));
       
-      alert('🎁 Mystery box claimed successfully!');
-      await fetchAllData();
+      alert('🎁 Mystery box claimed successfully! Check the contents.');
+      
+      // Reload after a short delay to refresh data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
       
     } catch (error) {
       console.error('Error claiming:', error);
@@ -181,7 +163,7 @@ const UserDashboard = () => {
     }
   };
 
-  // Build level info
+  // Build level info from dynamic thresholds (based on books donated)
   const getLevelInfo = () => {
     const booksDonated = Number(user?.booksDonated) || 0;
     
@@ -198,6 +180,7 @@ const UserDashboard = () => {
     const firstLevel = sorted[0] || { level: 1, minBooks: 10, name: 'Book Lover' };
     const firstMin = Number(firstLevel.minBooks || firstLevel.minPoints) || 10;
 
+    // Level 0: User has not reached Level 1 threshold (10 books)
     if (booksDonated < firstMin) {
       return {
         name: 'New Reader (Level 0)',
@@ -246,8 +229,8 @@ const UserDashboard = () => {
   const currentLevelInfo = getLevelInfo();
   const progress = currentLevelInfo.progress;
 
-  const unclaimed = mysteryBoxes.filter(b => b?.status === 'UNCLAIMED');
-  const claimed = mysteryBoxes.filter(b => b?.status === 'CLAIMED');
+  const unclaimed = mysteryBoxes.filter(b => b.status === 'UNCLAIMED');
+  const claimed = mysteryBoxes.filter(b => b.status === 'CLAIMED');
 
   const styles = {
     body: { fontFamily: 'Inter, sans-serif', backgroundColor: '#F1F3F5', color: '#343A40', margin: 0 },
@@ -286,40 +269,7 @@ const UserDashboard = () => {
     }
   };
 
-  if (loading && !user) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px'
-      }}>
-        <div style={{ fontSize: '48px' }}>📚</div>
-        <div style={{ fontSize: '18px', color: '#666' }}>Loading your dashboard...</div>
-        <div><i className="fa-solid fa-spinner fa-spin"></i></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <h2>Please log in</h2>
-        <button onClick={() => navigate('/login')} style={{
-          padding: '10px 24px',
-          background: '#1E4D4B',
-          color: 'white',
-          border: 'none',
-          borderRadius: 8,
-          cursor: 'pointer'
-        }}>
-          Go to Login
-        </button>
-      </div>
-    );
-  }
+  if (!user) return <div>Loading...</div>;
 
   return (
     <div style={styles.body}>
@@ -332,6 +282,7 @@ const UserDashboard = () => {
               <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
               <p>Here's what's happening with your library today.</p>
             </div>
+            {/* Community Button */}
             <Link to="/community-home" style={styles.communityBtn}>
               <i className="fa-solid fa-users"></i> Community
             </Link>
@@ -365,7 +316,7 @@ const UserDashboard = () => {
             <div style={styles.pointsCard}>
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
-                <div style={styles.pointsValue}>{user.points || 0}</div>
+                <div style={styles.pointsValue}>{user.points}</div>
                 <div>Current Level: <span style={styles.levelBadge}>{currentLevelInfo.name}</span></div>
               </div>
               <div style={{ width: '40%' }}>
@@ -398,157 +349,156 @@ const UserDashboard = () => {
                 <span>Profile</span>
               </Link>
             </div>
-
-            {/* MYSTERY BOX SECTION */}
+            {/* Unclaimed Boxes */}
             <div style={{ marginTop: 32 }}>
               <h2 style={{ color: '#1E4D4B', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 18 }}>
-                <span>🎁 Mystery Boxes</span>
+                Unclaimed Boxes
                 {unclaimed.length > 0 && (
                   <span style={{ background: '#9B59B6', color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: 13 }}>
                     {unclaimed.length}
                   </span>
                 )}
               </h2>
-
-              {unclaimed.length === 0 && claimed.length === 0 ? (
+              {unclaimed.length === 0 ? (
                 <div style={{ background: 'white', borderRadius: 12, padding: 30, textAlign: 'center', color: '#6C757D', border: '1px dashed #DEE2E6' }}>
                   <p style={{ fontSize: 13, margin: 0 }}>Keep donating books to earn mystery boxes!</p>
                 </div>
               ) : (
-                <>
-                  {unclaimed.length > 0 && (
-                    <div style={{ marginBottom: 24 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-                        {unclaimed.map(box => {
-                          const cost = getPointsCostForLevel(box.level);
-                          const canAfford = (user?.points || 0) >= cost || cost === 0;
-                          const isClaiming = claiming === box.id;
-                          return (
-                            <div key={box.id} style={{
-                              background: 'white',
-                              borderRadius: 12,
-                              border: '2px solid #9B59B6',
-                              padding: 16,
-                              position: 'relative',
-                              overflow: 'hidden'
-                            }}>
-                              {isClaiming && (
-                                <div style={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  right: 8,
-                                  background: '#F39C12',
-                                  color: 'white',
-                                  padding: '2px 8px',
-                                  borderRadius: 4,
-                                  fontSize: 10,
-                                  fontWeight: 600
-                                }}>
-                                  Claiming...
-                                </div>
-                              )}
-                              <div style={{ position: 'relative', zIndex: 1 }}>
-                                <h3 style={{ margin: '0 0 4px', color: '#1E4D4B', fontSize: 16 }}>
-                                  {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
-                                </h3>
-                                <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 12px' }}>
-                                  {box.description || `${box.books?.length || 0} books inside`}
-                                </p>
-                                <button
-                                  onClick={() => handleClaim(box.id)}
-                                  disabled={isClaiming || (cost > 0 && !canAfford)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    background: isClaiming ? '#F39C12' : (cost > 0 && !canAfford) ? '#f0e8f7' : '#9B59B6',
-                                    color: isClaiming ? 'white' : (cost > 0 && !canAfford) ? '#9B59B6' : 'white',
-                                    border: (cost > 0 && !canAfford) ? '1px solid #9B59B6' : 'none',
-                                    borderRadius: 8,
-                                    fontWeight: 600,
-                                    cursor: (isClaiming || (cost > 0 && !canAfford)) ? 'not-allowed' : 'pointer',
-                                    fontSize: 13,
-                                    transition: 'all 0.2s'
-                                  }}
-                                >
-                                  {isClaiming ? (
-                                    <><i className="fa-solid fa-spinner fa-spin"></i> Claiming...</>
-                                  ) : (cost > 0 && !canAfford) ? (
-                                    `Need ${cost} pts`
-                                  ) : (
-                                    `Claim (${cost > 0 ? cost + ' pts' : 'Free'})`
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {claimed.length > 0 && (
-                    <div>
-                      <h3 style={{ fontSize: 14, color: '#6C757D', marginBottom: 12 }}>✅ Claimed Boxes</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                        {claimed.map(box => (
-                          <div key={box.id} style={{ background: 'white', borderRadius: 12, border: '1px solid #DEE2E6', padding: 16 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                              <h3 style={{ margin: 0, color: '#1E4D4B', fontSize: 14 }}>
-                                {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
-                              </h3>
-                              <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: '#E8F5E9', color: '#2A9D8F' }}>
-                                ✓ Claimed
-                              </span>
-                            </div>
-                            {box.books && box.books.length > 0 && (
-                              <div style={{
-                                marginTop: 12,
-                                padding: 12,
-                                background: '#F8F9FA',
-                                borderRadius: 8,
-                                border: '1px solid #E9ECEF'
-                              }}>
-                                <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 8px', color: '#343A40' }}>
-                                  📚 Books inside ({box.books.length}):
-                                </p>
-                                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                                  {box.books.map((book, idx) => (
-                                    <li key={idx} style={{ 
-                                      padding: '4px 0', 
-                                      borderBottom: idx < box.books.length - 1 ? '1px solid #E9ECEF' : 'none',
-                                      fontSize: 13,
-                                      color: '#212529',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 8
-                                    }}>
-                                      <span style={{ 
-                                        display: 'inline-block',
-                                        width: 18,
-                                        height: 18,
-                                        borderRadius: '50%',
-                                        background: '#2A9D8F',
-                                        color: 'white',
-                                        fontSize: 10,
-                                        textAlign: 'center',
-                                        lineHeight: '18px',
-                                        fontWeight: 600,
-                                        flexShrink: 0
-                                      }}>
-                                        {idx + 1}
-                                      </span>
-                                      {book.title}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {unclaimed.map(box => {
+                    const cost = getPointsCostForLevel(box.level);
+                    const canAfford = (user?.points || 0) >= cost || cost === 0;
+                    const isClaiming = claiming === box.id;
+                    return (
+                      <div key={box.id} style={{
+                        background: 'white',
+                        borderRadius: 12,
+                        border: '2px solid #9B59B6',
+                        padding: 16,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        {isClaiming && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            background: '#F39C12',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 600
+                          }}>
+                            Claiming...
                           </div>
-                        ))}
+                        )}
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <h3 style={{ margin: '0 0 4px', color: '#1E4D4B', fontSize: 16 }}>
+                            {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#6C757D', margin: '0 0 12px' }}>
+                            {box.description || `${box.books?.length || 0} books inside`}
+                          </p>
+                          <button
+                            onClick={() => handleClaim(box.id)}
+                            disabled={isClaiming || (cost > 0 && !canAfford)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: isClaiming ? '#F39C12' : (cost > 0 && !canAfford) ? '#f0e8f7' : '#9B59B6',
+                              color: isClaiming ? 'white' : (cost > 0 && !canAfford) ? '#9B59B6' : 'white',
+                              border: (cost > 0 && !canAfford) ? '1px solid #9B59B6' : 'none',
+                              borderRadius: 8,
+                              fontWeight: 600,
+                              cursor: (isClaiming || (cost > 0 && !canAfford)) ? 'not-allowed' : 'pointer',
+                              fontSize: 13,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {isClaiming ? (
+                              <><i className="fa-solid fa-spinner fa-spin"></i> Claiming...</>
+                            ) : (cost > 0 && !canAfford) ? (
+                              `Need ${cost} pts`
+                            ) : (
+                              `Claim (${cost > 0 ? cost + ' pts' : 'Free'})`
+                            )}
+                          </button>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Claimed Boxes */}
+            <div style={{ marginTop: 32 }}>
+              <h2 style={{ color: '#1E4D4B', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 18 }}>
+                Claimed Boxes
+              </h2>
+              {claimed.length === 0 ? (
+                <div style={{ background: 'white', borderRadius: 12, padding: 30, textAlign: 'center', color: '#6C757D', border: '1px dashed #DEE2E6' }}>
+                  <p style={{ fontSize: 13, margin: 0 }}>No claimed boxes yet.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                  {claimed.map(box => (
+                    <div key={box.id} style={{ background: 'white', borderRadius: 12, border: '1px solid #DEE2E6', padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ margin: 0, color: '#1E4D4B', fontSize: 14 }}>
+                          {box.level === 0 ? 'Default Mystery Box' : `Level ${box.level} Mystery Box`}
+                        </h3>
+                        <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: '#E8F5E9', color: '#2A9D8F' }}>
+                          ✓ Claimed
+                        </span>
+                      </div>
+                      {box.books && box.books.length > 0 && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: 12,
+                          background: '#F8F9FA',
+                          borderRadius: 8,
+                          border: '1px solid #E9ECEF'
+                        }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 8px', color: '#343A40' }}>
+                            📚 Books inside ({box.books.length}):
+                          </p>
+                          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                            {box.books.map((book, idx) => (
+                              <li key={idx} style={{ 
+                                padding: '4px 0', 
+                                borderBottom: idx < box.books.length - 1 ? '1px solid #E9ECEF' : 'none',
+                                fontSize: 13,
+                                color: '#212529',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8
+                              }}>
+                                <span style={{ 
+                                  display: 'inline-block',
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '50%',
+                                  background: '#2A9D8F',
+                                  color: 'white',
+                                  fontSize: 10,
+                                  textAlign: 'center',
+                                  lineHeight: '18px',
+                                  fontWeight: 600,
+                                  flexShrink: 0
+                                }}>
+                                  {idx + 1}
+                                </span>
+                                {book.title}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -565,8 +515,7 @@ const UserDashboard = () => {
                 <p style={{ color: '#6C757D', fontSize: 14 }}>Trees Saved (Approx.)</p>
               </div>
             </div>
-
-            <div style={{...styles.card, marginTop: 32}}>
+            <div style={{...styles.featuredBundle, background: 'white', border: '1px solid #DEE2E6', color: '#343A40', marginTop: 32}}>
               <h4 style={{ marginBottom: 12, color: '#1E4D4B' }}>My Review</h4>
               <p style={{ fontSize: 13, marginBottom: 16, color: '#6C757D' }}>Leave a review of your experience with ShareShelf. Your review might be featured on the homepage!</p>
               
