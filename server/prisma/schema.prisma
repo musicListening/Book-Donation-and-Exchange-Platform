@@ -47,6 +47,12 @@ model User {
   Shipment                                        Shipment[]
   SystemConfig                                    SystemConfig[]
   Task                                            Task[]
+
+  @@index([createdAt])
+  @@index([isActive])
+  @@index([level, points])
+  @@index([role])
+  @@index([role, isActive])
 }
 
 model DeletedUser {
@@ -95,6 +101,11 @@ model DonationRequest {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
   PointTransaction     PointTransaction[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model BookCollection {
@@ -115,6 +126,11 @@ model BookCollection {
   books            BookItem[]
   CartItem         CartItem[]
   orderItems       OrderItem[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([stock])
+  @@index([type])
 }
 
 model BookItem {
@@ -188,6 +204,13 @@ model Order {
   items                     OrderItem[]
   Payment                   Payment[]
   PointTransaction          PointTransaction[]
+
+  @@index([createdAt])
+  @@index([driverId])
+  @@index([status, createdAt])
+  @@index([status])
+  @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model OrderItem {
@@ -204,6 +227,11 @@ model OrderItem {
   collection     BookCollection? @relation(fields: [collectionId], references: [id])
   craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([bookItemId])
+  @@index([collectionId])
+  @@index([craftListingId])
+  @@index([orderId])
 }
 
 model DeliveryUpdate {

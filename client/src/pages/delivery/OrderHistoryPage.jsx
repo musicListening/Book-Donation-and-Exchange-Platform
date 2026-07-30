@@ -19,13 +19,38 @@ const OrderHistoryPage = () => {
       }
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/orders/driver/${user.id}`);
-        if (!res.ok) throw new Error('Failed to fetch order history.');
+        const token = localStorage.getItem('token');
+        
+        const res = await fetch(`${API_BASE}/orders/driver/${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Response error:', errorText);
+          throw new Error(`Failed to fetch order history: ${res.status}`);
+        }
+        
         const data = await res.json();
-        setOrders(Array.isArray(data) ? data : (data.orders || []));
+        console.log('📦 Order history data:', data);
+        
+        // Extract orders from the response
+        let ordersList = [];
+        if (Array.isArray(data)) {
+          ordersList = data;
+        } else if (data.orders && Array.isArray(data.orders)) {
+          ordersList = data.orders;
+        } else {
+          ordersList = [];
+        }
+        
+        setOrders(ordersList);
         setError('');
       } catch (err) {
-        console.error(err);
+        console.error('❌ Fetch error:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -36,28 +61,34 @@ const OrderHistoryPage = () => {
 
   // Filter for completed/cancelled
   const historyOrders = orders.filter(
-    (o) => o.status === 'COMPLETED' || o.status === 'CANCELLED'
+    (o) => o.status === 'COMPLETED' || o.status === 'CANCELLED' || o.status === 'DELIVERED'
   );
 
   // Apply search & status filters
   const filteredOrders = historyOrders.filter((order) => {
     const matchesSearch = searchTerm === ''
-      || order.id.toLowerCase().includes(searchTerm.toLowerCase())
+      || (order.id || '').toLowerCase().includes(searchTerm.toLowerCase())
       || (order.shippingAddress || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All Statuses'
       || order.status === statusFilter.toUpperCase();
     return matchesSearch && matchesStatus;
   });
 
-  // Driver per-delivery payout calculation (Rs. 450 LKR standard payout per delivery)
+  // Driver per-delivery payout calculation
   const getOrderEarningsLkr = (o) => {
     if (o.cashAmount && o.cashAmount > 0) {
       return o.cashAmount <= 100 ? o.cashAmount * 300 : o.cashAmount;
     }
-    return 450; // Standard Rs. 450 LKR driver fee per completed delivery
+    return 450;
   };
-  const completedCount = historyOrders.filter(o => o.status === 'COMPLETED').length;
-  const totalEarningsLkr = historyOrders.reduce((sum, o) => sum + (o.status === 'COMPLETED' ? getOrderEarningsLkr(o) : 0), 0);
+  
+  const completedCount = historyOrders.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED').length;
+  const totalEarningsLkr = historyOrders.reduce((sum, o) => {
+    if (o.status === 'COMPLETED' || o.status === 'DELIVERED') {
+      return sum + getOrderEarningsLkr(o);
+    }
+    return sum;
+  }, 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -67,10 +98,25 @@ const OrderHistoryPage = () => {
       + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  if (loading) {
+    return (
+      <>
+        <div className="page-header">
+          <h1>Order History</h1>
+          <p>Loading your order history...</p>
+        </div>
+        <div className="loading-state">
+          <span className="loading-spinner">⏳</span>
+          <p>Loading your orders...</p>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="page-header">
-        <h1 style={{ fontSize: '28px' }}>Order History</h1>
+        <h1>Order History</h1>
         <p>Review your completed missions and performance metrics.</p>
       </div>
 
@@ -79,7 +125,7 @@ const OrderHistoryPage = () => {
         <div className="stat-card">
           <span className="bg-icon material-symbols-outlined">inventory_2</span>
           <div className="stat-label">Total Deliveries</div>
-          <div className="stat-value">{loading ? '...' : completedCount}</div>
+          <div className="stat-value">{completedCount}</div>
           <div className="stat-trend">
             <span className="material-symbols-outlined">trending_up</span>
             From order history
@@ -88,7 +134,7 @@ const OrderHistoryPage = () => {
         <div className="stat-card">
           <span className="bg-icon material-symbols-outlined">payments</span>
           <div className="stat-label">Total Earnings</div>
-          <div className="stat-value">{loading ? '...' : `Rs. ${totalEarningsLkr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</div>
+          <div className="stat-value">Rs. {totalEarningsLkr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           <div className="stat-trend">
             <span className="material-symbols-outlined">auto_graph</span>
             Based on order data
@@ -98,7 +144,7 @@ const OrderHistoryPage = () => {
           <span className="bg-icon material-symbols-outlined">star</span>
           <div className="stat-label">Total Orders</div>
           <div className="flex items-baseline gap-2">
-            <div className="stat-value" style={{ fontSize: '32px', display: 'inline' }}>{loading ? '...' : historyOrders.length}</div>
+            <div className="stat-value" style={{ fontSize: '32px', display: 'inline' }}>{historyOrders.length}</div>
           </div>
           <div className="stat-trend">
             <span className="material-symbols-outlined">format_list_numbered</span>
@@ -106,6 +152,16 @@ const OrderHistoryPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="error-message">
+          <span>⚠️ {error}</span>
+          <button onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="filters-bar">
@@ -134,12 +190,10 @@ const OrderHistoryPage = () => {
       {/* Table */}
       <div className="table-wrap">
         <div className="table-scroll no-scrollbar">
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--on-surface-variant)' }}>Loading order history...</div>
-          ) : error ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#dc3545' }}>{error}</div>
-          ) : filteredOrders.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--on-surface-variant)' }}>No orders found.</div>
+          {filteredOrders.length === 0 ? (
+            <div className="empty-state">
+              {historyOrders.length === 0 ? 'No completed or cancelled orders found.' : 'No orders match your filters.'}
+            </div>
           ) : (
             <table>
               <thead>
@@ -156,12 +210,12 @@ const OrderHistoryPage = () => {
                 {filteredOrders.map((order) => (
                   <tr key={order.id}>
                     <td><span className="order-id">#SS-{order.id.slice(0, 8).toUpperCase()}</span></td>
-                    <td>{formatDate(order.deliveredAt || order.createdAt)}</td>
+                    <td>{formatDate(order.deliveredAt || order.updatedAt || order.createdAt)}</td>
                     <td>{order.user?.name || 'N/A'}</td>
                     <td>{order.shippingAddress || 'N/A'}</td>
-                    <td><span className="earnings">Rs. {(order.status === 'COMPLETED' ? getOrderEarningsLkr(order) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
+                    <td><span className="earnings">Rs. {(order.status === 'COMPLETED' || order.status === 'DELIVERED' ? getOrderEarningsLkr(order) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                     <td>
-                      <span className={`status-badge ${order.status === 'COMPLETED' ? 'completed' : 'cancelled'}`}>
+                      <span className={`status-badge ${order.status === 'COMPLETED' || order.status === 'DELIVERED' ? 'completed' : 'cancelled'}`}>
                         {order.status}
                       </span>
                     </td>
