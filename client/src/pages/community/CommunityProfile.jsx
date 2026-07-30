@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { CommunityHeader } from '../../components/CommunityAdminUI';
+import { useState, useEffect } from 'react';
+import { colors, radius, space } from '../../components/communityTokens';
+import { CommunityHeader, CommunityAdminFonts, Button, Icon } from '../../components/CommunityAdminUI';
 import { API_BASE } from '../../services/api';
+
+// Field styling drawn from the shared community tokens so this page stops
+// using its own greys and matches the dashboard, events and messages screens.
+const profileLabel = { display: 'block', marginBottom: 7, fontWeight: 600, fontSize: 13.5, color: colors.onSurface };
+const profileInput = { width: '100%', padding: '12px 16px', borderRadius: radius.sm, border: `1px solid ${colors.outlineVariant}`, fontSize: 15, fontFamily: 'inherit', color: colors.onSurface, background: colors.surfaceContainerLowest };
+const readOnlyInput = { background: colors.surfaceContainerLow, color: colors.inkSoft, cursor: 'not-allowed' };
 
 export default function CommunityProfile() {
   const [user, setUser] = useState(null);
@@ -36,7 +43,12 @@ export default function CommunityProfile() {
       const formData = new FormData();
       formData.append('name', name.trim());
       if (profileFile) formData.append('profileImage', profileFile);
-      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, { method: 'PUT', body: formData });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/users/me/profile`, {
+        method: 'PUT',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData
+      });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
       const updated = await res.json();
       setUser(updated); setProfileImage(updated.profileImage || '');
@@ -54,73 +66,63 @@ export default function CommunityProfile() {
   const initials = name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'CA';
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f4f3' }}>
+    <div style={{ minHeight: '100vh', background: colors.surface }}>
+      <CommunityAdminFonts />
       <CommunityHeader title="My Profile" subtitle="Manage your account settings" />
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
-        <button onClick={() => window.location.href = '/community-admin/dashboard'}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginBottom: 20, color: '#006D5B' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span> Back to Dashboard
-        </button>
+        <Button variant="quiet" size="sm" icon="arrow_back" onClick={() => window.location.href = '/community-admin/dashboard'} style={{ marginBottom: space.lg, background: colors.surfaceContainerLowest }}>
+          Back to dashboard
+        </Button>
         {message && (
-          <div style={{ padding: '12px 20px', borderRadius: 8, marginBottom: 24, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: message.type === 'success' ? '#E8F5E9' : '#FFEBEE', color: message.type === 'success' ? '#2E7D32' : '#C62828' }}>
-            <span>{message.type === 'success' ? '✓' : '⚠'} {message.text}</span>
+          <div role={message.type === 'error' ? 'alert' : 'status'} style={{ padding: '13px 20px', borderRadius: radius.md, marginBottom: space.lg, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.sm,
+            background: message.type === 'success' ? colors.tertiaryFixed : colors.errorContainer, color: message.type === 'success' ? colors.tertiary : colors.onErrorContainer }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name={message.type === 'success' ? 'check_circle' : 'error'} size={19} /> {message.text}</span>
             {message.type === 'success' && (
-              <button onClick={() => window.location.href = '/community-admin/dashboard'}
-                style={{ background: '#2E7D32', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                Go to Dashboard
-              </button>
+              <Button size="sm" onClick={() => window.location.href = '/community-admin/dashboard'}>Go to dashboard</Button>
             )}
           </div>
         )}
-        <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-          <div style={{ height: 120, background: 'linear-gradient(135deg, #006D5B 0%, #0A3B32 100%)' }} />
+        <div style={{ background: colors.surfaceContainerLowest, borderRadius: radius.lg, boxShadow: '0 10px 26px rgba(10, 59, 50, 0.05)', border: `1px solid ${colors.outlineVariant}`, overflow: 'hidden' }}>
+          <div style={{ height: 120, background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDeep} 100%)` }} />
           <div style={{ padding: '0 40px 40px', marginTop: -48 }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginBottom: 32 }}>
               <div style={{
-                width: 120, height: 120, borderRadius: '50%', border: '4px solid white',
-                background: '#006D5B', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: 120, height: 120, borderRadius: '50%', border: `4px solid ${colors.surfaceContainerLowest}`,
+                background: colors.primary, overflow: 'hidden', boxShadow: '0 12px 28px -8px rgba(10, 59, 50, 0.16)',
                 flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'white', fontSize: 40, fontWeight: 700, position: 'relative',
               }}>
                 {displayImage ? (
                   <img src={displayImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : initials}
-                <label style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: 'white', textAlign: 'center', fontSize: 11, fontWeight: 600, padding: '4px 0', cursor: 'pointer' }}>
-                  <i className="fa-solid fa-camera" style={{ marginRight: 4 }}></i> Change
-                  <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                <label htmlFor="profile-image" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(10, 59, 50, 0.72)', color: '#fff', textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '5px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Icon name="photo_camera" size={14} /> Change
+                  <input id="profile-image" type="file" accept="image/*" onChange={handleFileChange} className="visually-hidden" />
                 </label>
               </div>
               <div style={{ paddingBottom: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{name}</h2>
-                <p style={{ margin: '4px 0 0', color: '#6C757D', fontSize: 14 }}>{email}</p>
+                <h2 style={{ margin: 0, fontSize: 23, fontWeight: 700, fontFamily: "'Playfair Display', serif", color: colors.onSurface }}>{name}</h2>
+                <p style={{ margin: '4px 0 0', color: colors.inkSoft, fontSize: 14 }}>{email}</p>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Full Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #DEE2E6', fontSize: 15, outline: 'none' }} />
+                <label htmlFor="profile-name" style={profileLabel}>Full name</label>
+                <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} style={profileInput} />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Email Address</label>
-                <input type="email" value={email} readOnly
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #DEE2E6', fontSize: 15, background: '#F8F9FA', color: '#6C757D', cursor: 'not-allowed' }} />
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#ADB5BD' }}>Email cannot be changed.</p>
+                <label htmlFor="profile-email" style={profileLabel}>Email address</label>
+                <input id="profile-email" type="email" value={email} readOnly aria-describedby="profile-email-hint" style={{ ...profileInput, ...readOnlyInput }} />
+                <p id="profile-email-hint" style={{ margin: '6px 0 0', fontSize: 12, color: colors.inkSoft }}>Email cannot be changed.</p>
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Role</label>
-                <input type="text" value="Community Admin" readOnly
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #DEE2E6', fontSize: 15, background: '#F8F9FA', color: '#6C757D', cursor: 'not-allowed' }} />
+                <label htmlFor="profile-role" style={profileLabel}>Role</label>
+                <input id="profile-role" type="text" value="Community Admin" readOnly style={{ ...profileInput, ...readOnlyInput }} />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32, borderTop: '1px solid #F1F3F5', paddingTop: 24 }}>
-              <button onClick={() => { setName(user?.name || ''); setProfileFile(null); setPreviewUrl(''); setMessage(null); }}
-                style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #DEE2E6', background: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving}
-                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#006D5B', color: 'white', fontWeight: 600, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                {saving ? 'Saving...' : <><i className="fa-solid fa-check"></i> Save Changes</>}
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32, borderTop: `1px solid ${colors.outlineVariant}`, paddingTop: 24 }}>
+              <Button variant="quiet" onClick={() => { setName(user?.name || ''); setProfileFile(null); setPreviewUrl(''); setMessage(null); }} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} loading={saving} icon="check">{saving ? 'Saving...' : 'Save changes'}</Button>
             </div>
           </div>
         </div>

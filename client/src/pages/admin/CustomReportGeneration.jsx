@@ -202,9 +202,8 @@ export default function CustomReportGeneration() {
                     className="styled-select"
                   >
                     <option>System Logs</option>
-                    <option>Total Points Provided</option>
                     <option>Total Deliveries</option>
-                    <option>Most Popular Collections</option>
+                    <option>Most Popular Bundles</option>
                     <option>Top Users Who Level Up</option>
                   </select>
                   <span className="select-arrow">▼</span>

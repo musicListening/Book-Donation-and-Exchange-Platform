@@ -1,63 +1,190 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-// ============================================================
-// SHARED DESIGN TOKENS — used by every Community Admin screen
-// (Dashboard, Events, Messages) so they look and behave the same.
-// ============================================================
-export const colors = {
-  primary: "#006D5B",
-  primaryDeep: "#0A3B32",
-  accent: "#E4B93A",
-  accentSoft: "#FFF4CC",
-  accentBorder: "#F1D980",
-  primaryContainer: "#1B8C78",
-  primaryFixed: "#C8F0EA",
-  onPrimaryContainer: "#E8F5F2",
-  onPrimary: "#FFFFFF",
-  secondary: "#8B5E3C",
-  secondaryContainer: "#FFD5B8",
-  onSecondaryContainer: "#6B472A",
-  tertiaryFixed: "#E6F4F0",
-  tertiaryContainer: "#2D6A4F",
-  onTertiaryContainer: "#B2DFCC",
-  tertiary: "#1B4D3E",
-  surface: "#F8FDFB",
-  surfaceContainerLowest: "#FFFFFF",
-  surfaceContainerLow: "#F2F9F6",
-  surfaceContainerHigh: "#E8F2EF",
-  surfaceContainer: "#EEF6F3",
-  onSurface: "#1A2E28",
-  onSurfaceVariant: "#3D5A52",
-  inkSoft: "#587169",
-  outlineVariant: "#C5D9D3",
-  error: "#BA1A1A",
-  errorContainer: "#FFDAD6",
-  onErrorContainer: "#93000A",
-};
-
-export const sidebarColors = {
-  background: "#0A3B32",
-  text: "#FFFFFF",
-  textHover: "#E8F5F2",
-  border: "rgba(255, 255, 255, 0.15)",
-  activeBackground: "rgba(255, 255, 255, 0.12)",
-  hoverBackground: "rgba(255, 255, 255, 0.08)",
-  icon: "#FFFFFF",
-  iconHover: "#C8F0EA",
-};
-
-export const NAV_LINKS = [
-  { key: "dashboard", icon: "dashboard", label: "Dashboard", path: "/community-admin/dashboard" },
-  { key: "events", icon: "calendar_today", label: "Events", path: "/community-admin/events" },
-  { key: "messages", icon: "forum", label: "Messages", path: "/community-admin/messages" },
-];
+import { colors, sidebarColors, space, radius, elevation, motion, layer, NAV_LINKS } from "./communityTokens";
 
 export function Icon({ name, size = 24, style = {} }) {
   return (
     <span className="material-symbols-outlined" style={{ fontSize: size, lineHeight: 1, ...style }}>
       {name}
     </span>
+  );
+}
+
+// ============================================================
+// SHARED PRIMITIVES
+// Every page was rebuilding the same pill button and status chip inline
+// with slightly different padding each time. These keep them identical.
+// ============================================================
+
+const BUTTON_VARIANTS = {
+  primary: { background: colors.primary, color: colors.onPrimary, border: `1px solid ${colors.primary}` },
+  accent: { background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}` },
+  quiet: { background: 'transparent', color: colors.primary, border: `1px solid ${colors.outlineVariant}` },
+  danger: { background: 'transparent', color: colors.error, border: `1px solid ${colors.outlineVariant}` },
+};
+
+const BUTTON_SIZES = {
+  sm: { padding: '8px 14px', fontSize: 12.5 },
+  md: { padding: '11px 18px', fontSize: 14 },
+};
+
+export function Button({ children, variant = 'primary', size = 'md', icon, as = 'button', loading = false, disabled, style = {}, ...rest }) {
+  const Tag = as;
+  return (
+    <Tag
+      className="community-btn"
+      disabled={Tag === 'button' ? disabled || loading : undefined}
+      aria-busy={loading || undefined}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderRadius: radius.pill,
+        fontWeight: 700,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        transition: `transform ${motion.fast}, box-shadow ${motion.fast}, background ${motion.fast}`,
+        ...BUTTON_SIZES[size],
+        ...BUTTON_VARIANTS[variant],
+        ...style,
+      }}
+      {...rest}
+    >
+      {loading ? <span className="community-spinner" aria-hidden="true" /> : icon ? <Icon name={icon} size={size === 'sm' ? 16 : 18} /> : null}
+      {children}
+    </Tag>
+  );
+}
+
+// Small status/label chip — e.g. "LATEST", "Newest first".
+export function Chip({ children, tone = 'accent', style = {} }) {
+  const tones = {
+    accent: { background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}` },
+    primary: { background: colors.primary, color: colors.onPrimary, border: `1px solid ${colors.primary}` },
+    soft: { background: colors.tertiaryFixed, color: colors.tertiary, border: `1px solid ${colors.outlineVariant}` },
+  };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: radius.pill, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', ...tones[tone], ...style }}>
+      {children}
+    </span>
+  );
+}
+
+// Confirmation dialog styled with the community tokens. The shared
+// ConfirmDialog relies on modal CSS these pages do not import, and
+// window.confirm() blocks the tab and cannot be styled at all.
+export function CommunityConfirm({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', destructive = false, busy = false, onConfirm, onCancel }) {
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // Focus the safe option first so Enter never destroys anything by accident
+    cancelRef.current?.focus();
+    const onKeyDown = (e) => { if (e.key === 'Escape' && !busy) onCancel?.(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, busy, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      onClick={() => !busy && onCancel?.()}
+      style={{ position: 'fixed', inset: 0, zIndex: layer.menu + 10, background: 'rgba(10, 59, 50, 0.55)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space.lg, animation: `communityFadeIn ${motion.fast} both` }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="community-confirm-title"
+        aria-describedby="community-confirm-message"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 430, background: colors.surfaceContainerLowest, borderRadius: radius.xl, padding: space.xl, boxShadow: elevation.float, animation: `communityMenuIn ${motion.base} both` }}
+      >
+        <div style={{ width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: destructive ? colors.errorContainer : colors.tertiaryFixed, color: destructive ? colors.onErrorContainer : colors.tertiary }}>
+          <Icon name={destructive ? 'delete' : 'help'} size={24} />
+        </div>
+        <h3 id="community-confirm-title" style={{ marginTop: space.md, fontFamily: "'Playfair Display', serif", fontSize: 21, color: colors.onSurface }}>{title}</h3>
+        <p id="community-confirm-message" style={{ marginTop: space.xs, fontSize: 14, lineHeight: 1.7, color: colors.inkSoft }}>{message}</p>
+        <div style={{ display: 'flex', gap: space.sm, justifyContent: 'flex-end', marginTop: space.xl }}>
+          <Button ref={cancelRef} variant="quiet" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
+          <Button
+            variant={destructive ? 'primary' : 'primary'}
+            onClick={onConfirm}
+            loading={busy}
+            style={destructive ? { background: colors.error, borderColor: colors.error } : undefined}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline error/notice banner. role="alert" so a failure is announced rather
+// than silently appearing above the fold.
+export function Alert({ children, tone = 'error', onRetry, style = {} }) {
+  const tones = {
+    error: { background: colors.errorContainer, color: colors.onErrorContainer, icon: 'error' },
+    info: { background: colors.tertiaryFixed, color: colors.tertiary, icon: 'info' },
+  };
+  const t = tones[tone];
+  return (
+    <div
+      role="alert"
+      style={{ display: 'flex', alignItems: 'flex-start', gap: space.sm, marginBottom: space.lg, padding: `${space.md}px ${space.md + 2}px`, borderRadius: radius.md, background: t.background, color: t.color, fontSize: 14, lineHeight: 1.6, ...style }}
+    >
+      <Icon name={t.icon} size={20} style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ flex: 1 }}>{children}</span>
+      {onRetry && (
+        <button onClick={onRetry} style={{ background: 'none', border: 'none', color: 'inherit', fontWeight: 700, fontSize: 13, textDecoration: 'underline', flexShrink: 0 }}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Placeholder block used while data loads. Mirrors the shape of the real
+// content so the layout does not jump when it arrives.
+export function Skeleton({ height = 16, width = '100%', radius: r = radius.sm, style = {} }) {
+  return <div className="community-skeleton" aria-hidden="true" style={{ height, width, borderRadius: r, ...style }} />;
+}
+
+// Card-shaped skeleton matching the event/message cards.
+export function SkeletonCard({ media = false }) {
+  return (
+    <div style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: radius.md, overflow: 'hidden' }}>
+      {media && <Skeleton height={128} radius={0} />}
+      <div style={{ padding: space.lg, display: 'grid', gap: space.sm }}>
+        <Skeleton height={11} width="38%" />
+        <Skeleton height={18} width="72%" />
+        <Skeleton height={12} />
+        <Skeleton height={12} width="85%" />
+        <Skeleton height={14} width="45%" style={{ marginTop: space.xs }} />
+      </div>
+    </div>
+  );
+}
+
+// One empty state used by every list, so "nothing here" always reads the
+// same and can offer the next action instead of dead-ending.
+export function EmptyState({ icon = 'inbox', title, message, action }) {
+  return (
+    <div style={{ textAlign: 'center', padding: `${space.xxl + 16}px ${space.lg}px`, background: colors.surfaceContainerLowest, borderRadius: radius.md, border: `1px dashed ${colors.outlineVariant}` }}>
+      <div style={{ width: 64, height: 64, margin: '0 auto', borderRadius: '50%', background: colors.tertiaryFixed, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.tertiary }}>
+        <Icon name={icon} size={30} />
+      </div>
+      <h4 style={{ marginTop: space.md, fontFamily: "'Playfair Display', serif", fontSize: 19, color: colors.onSurface }}>{title}</h4>
+      {message && <p style={{ marginTop: space.xs, fontSize: 14, lineHeight: 1.7, color: colors.inkSoft, maxWidth: 380, marginLeft: 'auto', marginRight: 'auto' }}>{message}</p>}
+      {action && <div style={{ marginTop: space.lg }}>{action}</div>}
+    </div>
   );
 }
 
@@ -78,6 +205,52 @@ export function CommunityAdminFonts() {
           color: ${colors.onSurface};
         }
         a { text-decoration: none; }
+
+        /* Keyboard focus was invisible everywhere in this area. Only shows for
+           keyboard users, so mouse clicks stay clean. */
+        :focus { outline: none; }
+        :focus-visible {
+          outline: 3px solid ${colors.primary};
+          outline-offset: 2px;
+          border-radius: ${radius.sm}px;
+        }
+        .on-dark :focus-visible {
+          outline-color: ${colors.primaryFixed};
+        }
+        /* Anything interactive should say so */
+        button, [role="button"] { cursor: pointer; font-family: inherit; }
+        button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+        /* Available to screen readers, invisible on screen */
+        .visually-hidden {
+          position: absolute;
+          width: 1px; height: 1px;
+          padding: 0; margin: -1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        /* Inputs should show they have focus like everything else */
+        input, textarea, select { font-family: inherit; }
+        input::-webkit-search-cancel-button { display: none; }
+
+        /* Skip past the sidebar straight to the page content */
+        .skip-link {
+          position: absolute;
+          left: ${space.md}px;
+          top: -100px;
+          z-index: ${layer.menu + 1};
+          padding: ${space.sm}px ${space.md}px;
+          border-radius: ${radius.sm}px;
+          background: ${colors.primary};
+          color: ${colors.onPrimary};
+          font-weight: 700;
+          font-size: 14px;
+          transition: top ${motion.fast};
+        }
+        .skip-link:focus-visible { top: ${space.md}px; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-family: 'Material Symbols Outlined'; }
         .content-wrapper { flex: 1; }
         .soft-card {
@@ -132,6 +305,52 @@ export function CommunityAdminFonts() {
           color: ${colors.primaryDeep};
           font-family: 'Playfair Display', serif;
         }
+        /* Hover lift handled in CSS so cards do not re-render on mouse move */
+        .lift-card {
+          transition: transform ${motion.base}, box-shadow ${motion.base}, border-color ${motion.base};
+          box-shadow: ${elevation.rest};
+        }
+        .lift-card:hover { transform: translateY(-3px); box-shadow: ${elevation.raised}; }
+        .lift-card:focus-within { box-shadow: ${elevation.raised}; }
+
+        .community-skeleton {
+          background: linear-gradient(100deg, ${colors.surfaceContainerHigh} 28%, ${colors.surfaceContainerLow} 48%, ${colors.surfaceContainerHigh} 68%);
+          background-size: 220% 100%;
+          animation: communityShimmer 1.3s ease-in-out infinite;
+        }
+        @keyframes communityShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .community-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: ${elevation.raised};
+        }
+        .community-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+        .community-spinner {
+          width: 15px; height: 15px; flex-shrink: 0;
+          border: 2px solid currentColor;
+          border-right-color: transparent;
+          border-radius: 50%;
+          animation: communitySpin 620ms linear infinite;
+        }
+        @keyframes communitySpin { to { transform: rotate(360deg); } }
+        @keyframes communityFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes communityMenuIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Respect the OS "reduce motion" setting. The shimmer and spinner are
+           the worst offenders here, so they stop rather than just shorten. */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+          .community-skeleton { animation: none; background: ${colors.surfaceContainerHigh}; }
+          .community-btn:hover:not(:disabled) { transform: none; }
+        }
+
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
         ::-webkit-scrollbar-thumb { background: ${colors.primaryContainer}; border-radius: 10px; }
@@ -144,27 +363,44 @@ export function CommunityAdminFonts() {
 
 // One Sidebar component reused by every Community Admin page.
 export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
+  // Mobile drawer behaviour: Escape closes it, and the page behind it stops
+  // scrolling while it is open.
+  useEffect(() => {
+    if (isMd || !open) return;
+    const onKeyDown = (e) => { if (e.key === "Escape" && onClose) onClose(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMd, open, onClose]);
+
   const handleLogout = () => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    if (navigate) navigate("/login"); else window.location.href = "/login";
+    // Logging out returns you to the public home page, not the login form
+    if (navigate) navigate("/"); else window.location.href = "/";
     if (onClose) onClose();
   };
 
   const content = (
-    <aside style={{ height: "100%", width: 280, background: "linear-gradient(180deg, #0A3B32 0%, #0E4B3F 48%, #113A33 100%)", borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "32px 20px", boxShadow: "18px 0 40px rgba(10, 59, 50, 0.1)" }}>
+    <aside className="on-dark" style={{ height: "100%", width: 280, background: "linear-gradient(180deg, #0A3B32 0%, #0E4B3F 48%, #113A33 100%)", borderRight: `1px solid ${sidebarColors.border}`, display: "flex", flexDirection: "column", padding: "32px 20px", boxShadow: "18px 0 40px rgba(10, 59, 50, 0.1)" }}>
       <div style={{ marginBottom: 38, paddingLeft: 12 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: sidebarColors.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Community Admin</h1>
         <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.7 }}>Simple tools for events and messages.</p>
       </div>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      <nav style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }} aria-label="Community admin sections">
         {NAV_LINKS.map((link) => {
           const isActive = link.key === active;
           return (
             <a
               key={link.key}
+              href={link.path}
+              aria-current={isActive ? "page" : undefined}
               onClick={(e) => { e.preventDefault(); if (navigate) navigate(link.path); if (onClose) onClose(); }}
               style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", textDecoration: "none", borderRadius: 14, fontWeight: isActive ? 600 : 400, color: isActive ? sidebarColors.text : "rgba(255, 255, 255, 0.7)", background: isActive ? "linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07))" : "transparent", borderLeft: isActive ? `3px solid ${colors.primaryFixed}` : "3px solid transparent", fontSize: 14, lineHeight: "20px", transition: "all 0.2s ease", cursor: "pointer", boxShadow: isActive ? "0 10px 25px rgba(0,0,0,0.12)" : "none" }}
               onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = sidebarColors.hoverBackground; e.currentTarget.style.color = sidebarColors.textHover; } }}
@@ -193,23 +429,64 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
   if (!isMd) {
     return (
       <>
-        {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />}
-        <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: 50, transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)", transform: open ? "translateX(0)" : "translateX(-100%)" }}>{content}</div>
+        {open && (
+          <div
+            onClick={onClose}
+            aria-hidden="true"
+            style={{ position: "fixed", inset: 0, background: "rgba(10, 59, 50, 0.55)", backdropFilter: "blur(2px)", zIndex: layer.drawerScrim, animation: `communityFadeIn ${motion.base} both` }}
+          />
+        )}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Community admin menu"
+          // Hidden from assistive tech and the tab order when closed, so the
+          // off-screen menu cannot be tabbed into.
+          aria-hidden={open ? undefined : "true"}
+          inert={open ? undefined : ""}
+          style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: layer.drawer, transition: `transform ${motion.slow}`, transform: open ? "translateX(0)" : "translateX(-100%)", boxShadow: open ? elevation.float : "none" }}
+        >
+          {content}
+        </div>
       </>
     );
   }
-  return <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: 50 }}>{content}</div>;
+  return <div style={{ position: "fixed", left: 0, top: 0, height: "100%", zIndex: layer.drawer }}>{content}</div>;
 }
 
 // One sticky header reused by every Community Admin page.
 export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate ? useNavigate() : null;
-  const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CA';
+  const navigate = useNavigate();
+  const menuButtonRef = useRef(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Lift the header once the page moves under it, so it reads as a layer
+  // above the content rather than floating text.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Escape closes the menu and hands focus back to the button that opened it,
+  // so keyboard users do not get dropped at the top of the page.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [userMenuOpen]);
 
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)", flexShrink: 0, backdropFilter: "blur(10px)" }}>
+    <header style={{ position: "sticky", top: 0, zIndex: layer.header, background: scrolled ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0.92)", borderBottom: `1px solid ${colors.accentBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 82, padding: "18px 30px", boxShadow: scrolled ? elevation.raised : elevation.rest, flexShrink: 0, backdropFilter: "blur(10px)", transition: `box-shadow ${motion.base}, background ${motion.base}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         {!isMd && (
           <button onClick={onMenuClick} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, color: colors.primary, display: "flex", borderRadius: 8 }}>
@@ -224,7 +501,14 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {action}
         <div style={{ position: 'relative' }}>
-          <button onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, cursor: 'pointer' }}>
+          <button
+            ref={menuButtonRef}
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            aria-label={`Account menu for ${user?.name || 'Community Admin'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: radius.pill, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}`, cursor: 'pointer', transition: `box-shadow ${motion.fast}` }}
+          >
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: colors.primary, overflow: 'hidden', display: "flex", alignItems: "center", justifyContent: "center", color: colors.onPrimary, fontWeight: 600, position: "relative", flexShrink: 0 }}>
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -239,18 +523,20 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
           {userMenuOpen && (
             <>
               <div onClick={() => setUserMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                background: 'white', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                border: '1px solid #E9ECEF', minWidth: 160, zIndex: 100, overflow: 'hidden'
+              <div role="menu" style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: space.xs,
+                background: colors.surfaceContainerLowest, borderRadius: radius.md, boxShadow: elevation.float,
+                border: `1px solid ${colors.outlineVariant}`, minWidth: 190, zIndex: layer.menu, overflow: 'hidden',
+                animation: `communityMenuIn ${motion.fast} both`
               }}>
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid #F1F3F5' }}>
                   <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{user?.name}</p>
                   <p style={{ margin: 0, fontSize: 11, color: '#6C757D' }}>Community Admin</p>
                 </div>
                 <button
+                  role="menuitem"
                   onClick={() => { if (navigate) navigate('/community-admin/profile'); else window.location.href = '/community-admin/profile'; setUserMenuOpen(false); }}
-                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                  style={{ display: 'block', width: '100%', padding: '11px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: `background ${motion.fast}` }}
                   onMouseEnter={e => e.target.style.background = '#F8F9FA'}
                   onMouseLeave={e => e.target.style.background = 'none'}
                 >
@@ -258,8 +544,9 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
                 </button>
                 <div style={{ height: 1, background: '#F1F3F5' }} />
                 <button
-                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/login'; }}
-                  style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#E63946' }}
+                  role="menuitem"
+                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; }}
+                  style={{ display: 'block', width: '100%', padding: '11px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: colors.error, transition: `background ${motion.fast}` }}
                   onMouseEnter={e => e.target.style.background = '#FFF5F5'}
                   onMouseLeave={e => e.target.style.background = 'none'}
                 >
