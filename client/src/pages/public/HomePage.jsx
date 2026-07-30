@@ -4,6 +4,32 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
+// Podium styling for the top three donors
+const MEDALS = {
+  1: { color: '#E9C46A', gradient: 'linear-gradient(135deg, #E9C46A, #F2D98A)', glow: 'rgba(233,196,106,0.30)' },
+  2: { color: '#C0C0C0', gradient: 'linear-gradient(135deg, #B8B8B8, #E8E8E8)', glow: 'rgba(184,184,184,0.30)' },
+  3: { color: '#CD7F32', gradient: 'linear-gradient(135deg, #CD7F32, #E3A76B)', glow: 'rgba(205,127,50,0.30)' },
+};
+
+// Visual podium order — winner centred, runner-up left, third right
+const PODIUM_ORDER = { 1: 2, 2: 1, 3: 3 };
+
+// Stable fallback colour per donor so the initial badge doesn't change between renders
+const avatarColor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360}, 62%, 46%)`;
+};
+
+const Avatar = ({ donor, style }) =>
+  donor.profileImage ? (
+    <img src={donor.profileImage} alt={donor.name} style={style} />
+  ) : (
+    <div style={{ ...style, background: avatarColor(donor.name) }}>
+      {donor.name?.charAt(0)?.toUpperCase() || 'U'}
+    </div>
+  );
+
 const Home = () => {
   const pageRef = useRef(null);
   const navigate = useNavigate();
@@ -11,7 +37,8 @@ const Home = () => {
   // ── Stats state ──
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
-  const [topReviews, setTopReviews] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [boardLoading, setBoardLoading] = useState(true);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -47,10 +74,11 @@ const Home = () => {
       .then(data => setStats(data))
       .catch(() => {});
       
-    fetch(`${API_URL}/reviews/top`)
+    fetch(`${API_URL}/stats/leaderboard?limit=10`)
       .then(res => res.json())
-      .then(data => setTopReviews(data))
-      .catch(() => {});
+      .then(data => setLeaderboard(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setBoardLoading(false));
   }, []);
 
   // ── IntersectionObserver to trigger counter animation ──
@@ -376,16 +404,26 @@ const Home = () => {
     craftDetails: { padding: '20px 20px 16px' },
     wishlistBtn: { background: 'none', border: 'none', color: '#DEE2E6', fontSize: 20, cursor: 'pointer' },
     
-    testimonials: { padding: '80px', maxWidth: 1440, margin: '0 auto' },
-    testimonialGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 },
-    testimonialCard: { background: 'white', borderRadius: 24, padding: 36, textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', borderTop: '4px solid #E9C46A', transition: 'all 0.35s ease' },
-    testimonialAvatar: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'white', margin: '0 auto 16px', fontWeight: 'bold', objectFit: 'cover' },
-    testimonialAuthor: { marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' },
-    authorName: { margin: 0, fontSize: 16, color: '#343A40', fontWeight: 700 },
-    authorRole: { fontSize: 13, color: '#6C757D', marginTop: 4 },
-    testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
-    stars: { color: '#E9C46A', marginBottom: 16 },
-    
+    // Layout lives in HomePage.css (.leaderboard-*) so the media queries can
+    // override it — inline styles would always win over a breakpoint.
+    leaderboard: { maxWidth: 1440, margin: '0 auto' },
+    podium: { display: 'grid', gap: 28, alignItems: 'end', marginBottom: 40 },
+    podiumCard: { background: 'white', borderRadius: 24, padding: '32px 24px', textAlign: 'center', boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', position: 'relative', transition: 'all 0.35s ease' },
+    podiumMedal: { position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' },
+    podiumAvatar: { width: 84, height: 84, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'white', margin: '18px auto 16px', fontWeight: 'bold', objectFit: 'cover' },
+    donorBooks: { fontSize: 34, fontWeight: 800, color: '#1E4D4B', lineHeight: 1.1, marginTop: 16 },
+    donorPoints: { marginTop: 12, fontSize: 13, color: '#E76F51', fontWeight: 600 },
+    rankList: { background: 'white', borderRadius: 24, boxShadow: '0 6px 30px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.04)', overflow: 'hidden' },
+    rankRow: { display: 'grid', alignItems: 'center', gap: 16, borderTop: '1px solid #F1F3F5' },
+    rankNum: { fontSize: 18, fontWeight: 800, color: '#ADB5BD', textAlign: 'center' },
+    rankAvatar: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
+    donorName: { margin: 0, fontSize: 17, color: '#343A40', fontWeight: 700 },
+    donorTier: { fontSize: 13, color: '#6C757D', marginTop: 4, display: 'inline-block' },
+    donorBooksLabel: { fontSize: 13, color: '#6C757D', letterSpacing: 0.4, textTransform: 'uppercase' },
+    rankBooks: { fontSize: 18, fontWeight: 800, color: '#1E4D4B', whiteSpace: 'nowrap' },
+    emptyBoard: { textAlign: 'center', padding: '48px 0', color: '#6C757D' },
+    boardSkeleton: { background: 'linear-gradient(100deg, #F1F3F5 30%, #F8F9FA 50%, #F1F3F5 70%)', backgroundSize: '200% 100%', animation: 'boardShimmer 1.4s ease-in-out infinite', boxShadow: 'none' },
+
     levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
     levelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48 },
     levelCard: { background: 'white', borderRadius: 24, padding: '36px 28px', border: '2px solid rgba(0,0,0,0.05)', position: 'relative', boxShadow: '0 6px 28px rgba(0,0,0,0.07)', transition: 'all 0.35s ease' },
@@ -591,45 +629,91 @@ const Home = () => {
       </section>
 
 
-      {/* ============ TESTIMONIALS ============ */}
-      <section style={styles.testimonials}>
+      {/* ============ LEADERBOARD ============ */}
+      <section className="leaderboard-section" style={styles.leaderboard} aria-labelledby="leaderboard-heading">
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <h2 className="reveal" style={styles.sectionTitle}>What Our Readers Say</h2>
-          <p className="reveal" style={styles.sectionSubtitle}>Join thousands of happy book lovers and crafters.</p>
+          <h2 id="leaderboard-heading" className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
+          <p className="reveal" style={styles.sectionSubtitle}>
+            The readers giving the most books back to the community.
+          </p>
         </div>
-        <div className="reveal-stagger" style={styles.testimonialGrid}>
-          {topReviews.length > 0 ? topReviews.map((review, idx) => (
-            <div key={review.id || idx} className="card-hover-lift" style={styles.testimonialCard}>
-              <div style={styles.testimonialStars}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <i key={i} className={`fa-star ${i < review.rating ? 'fa-solid' : 'fa-regular'}`} style={{ color: '#E9C46A' }}></i>
-                ))}
-              </div>
-              <p style={styles.testimonialText}>"{review.comment || 'Great experience!'}"</p>
-              <div style={styles.testimonialAuthor}>
-                {review.user?.profileImage ? (
-                  <img 
-                    src={review.user.profileImage} 
-                    alt="Profile" 
-                    style={styles.testimonialAvatar} 
-                  />
-                ) : (
-                  <div style={{...styles.testimonialAvatar, background: `hsl(${idx * 40}, 70%, 50%)`}}>
-                    {review.user?.name?.charAt(0) || 'U'}
-                  </div>
-                )}
-                <div>
-                  <h4 style={styles.authorName}>{review.user?.name || 'Anonymous User'}</h4>
-                  <span style={styles.authorRole}>ShareShelf Member</span>
+
+        {boardLoading ? (
+          <div className="leaderboard-podium" style={styles.podium} aria-hidden="true">
+            {[2, 1, 3].map((n) => (
+              <div key={n} style={{ ...styles.podiumCard, ...styles.boardSkeleton, height: n === 1 ? 300 : 268 }} />
+            ))}
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div style={styles.emptyBoard}>
+            No donations yet — be the first to get on the board!
+          </div>
+        ) : (
+        <>
+        {/* Podium — DOM order is 1st, 2nd, 3rd; CSS `order` moves the winner
+            to the middle visually so screen readers still get true ranking. */}
+        <ol className="leaderboard-podium" style={styles.podium}>
+          {leaderboard.slice(0, 3).map((donor) => {
+            const isWinner = donor.rank === 1;
+            const medal = MEDALS[donor.rank];
+            return (
+              <li
+                key={donor.id}
+                className="card-hover-lift"
+                style={{
+                  ...styles.podiumCard,
+                  order: PODIUM_ORDER[donor.rank],
+                  borderTop: `4px solid ${medal.color}`,
+                  // The reveal-stagger transition owns `transform` on these
+                  // cards, so the winner is raised with padding and shadow
+                  // instead of a scale that would get animated away.
+                  ...(isWinner
+                    ? {
+                        padding: '44px 24px 40px',
+                        marginBottom: 12,
+                        boxShadow: `0 16px 45px ${medal.glow}`,
+                        border: `1px solid ${medal.color}`,
+                      }
+                    : {}),
+                }}
+              >
+                <div style={{ ...styles.podiumMedal, background: medal.gradient }} aria-hidden="true">
+                  {donor.rank}
                 </div>
+                <Avatar donor={donor} style={styles.podiumAvatar} />
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>
+                  <i className="fa-solid fa-award" style={{ color: medal.color, marginRight: 6 }} aria-hidden="true"></i>
+                  {donor.levelName}
+                </span>
+                <div style={styles.donorBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>Books Donated</div>
+                <div style={styles.donorPoints}>{formatNumber(donor.points)} points earned</div>
+              </li>
+            );
+          })}
+        </ol>
+
+        {leaderboard.length > 3 && (
+        <ol start={4} style={styles.rankList}>
+          {leaderboard.slice(3).map((donor) => (
+            <li key={donor.id} className="leaderboard-row" style={styles.rankRow}>
+              <span style={styles.rankNum} aria-hidden="true">{donor.rank}</span>
+              <Avatar donor={donor} style={styles.rankAvatar} />
+              <div>
+                <h4 style={styles.donorName}>{donor.name}</h4>
+                <span style={styles.donorTier}>{donor.levelName}</span>
               </div>
-            </div>
-          )) : (
-            <div style={{ textAlign: 'center', width: '100%', color: '#6C757D' }}>
-              No reviews yet. Be the first to leave one!
-            </div>
-          )}
-        </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={styles.rankBooks}>{formatNumber(donor.booksDonated)}</div>
+                <div style={styles.donorBooksLabel}>books</div>
+              </div>
+            </li>
+          ))}
+        </ol>
+        )}
+        </>
+        )}
       </section>
 
       {/* ============ LEVELS ============ */}

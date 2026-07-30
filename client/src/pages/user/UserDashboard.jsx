@@ -88,7 +88,8 @@ const UserDashboard = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
     localStorage.removeItem('token');
-    navigate('/login');
+    // Logging out returns you to the public home page, not the login form
+    navigate('/');
   };
 
   const getPointsCostForLevel = (level) => {
