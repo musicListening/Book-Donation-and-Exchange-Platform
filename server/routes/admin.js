@@ -6,18 +6,12 @@ function safeJson(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
 
-// GET /api/admin/dashboard — aggregate stats for the admin dashboard
 router.get('/dashboard', async (req, res) => {
   try {
-    // Helper to run a query with retry, return null on failure
     const q = (fn) => withRetry(fn, 2).catch(() => null);
 
-    // Warm up connection for Neon cold starts
     await withRetry(() => prisma.$queryRaw`SELECT 1`, 3);
-    // Small delay to let Neon fully wake
     await new Promise(r => setTimeout(r, 500));
-
-    // Run queries sequentially (not in parallel) to avoid overwhelming Neon free tier
     const totalUsers = await q(() => prisma.user.count({ where: { isActive: true } }));
     const totalDonations = await q(() => prisma.donationRequest.count());
     const verifiedDonations = await q(() => prisma.donationRequest.count({ where: { verifiedCount: { gt: 0 } } }));
@@ -41,8 +35,8 @@ router.get('/dashboard', async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { name: true, email: true } } }
     }));
-    const genreDistribution = await q(() => prisma.bookItem.groupBy({
-      by: ['genre'],
+    const genreDistribution = await q(() => prisma.bookCollection.groupBy({
+      by: ['category'],
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     }));
@@ -86,7 +80,21 @@ router.get('/dashboard', async (req, res) => {
       take: 5,
     }));
     const craftCount = await q(() => prisma.craftListing.count());
+    const craftListed = await q(() => prisma.craftListing.count({ where: { status: 'LISTED' } }));
+    const craftDraft = await q(() => prisma.craftListing.count({ where: { status: 'DRAFT' } }));
     const craftSold = await q(() => prisma.craftListing.count({ where: { status: 'SOLD' } }));
+
+    const pendingDonations = await q(() => prisma.donationRequest.count({
+      where: { verifiedCount: 0, status: 'PENDING' }
+    }));
+    const rejectedDonations = await q(() => prisma.donationRequest.count({
+      where: { status: 'REJECTED' } 
+    }));
+
+    const collections = await q(() => prisma.bookCollection.findMany({
+      include: { _count: { select: { books: true } } },
+      orderBy: { stock: 'desc' },
+    }));
 
     const totalPointsIssuedVal = totalPointsIssued?._sum?.amount || 0;
     const totalPointsSpentVal = totalPointsSpent?._sum?.amount || 0;
@@ -96,14 +104,12 @@ router.get('/dashboard', async (req, res) => {
     const totalEarnedLKRVal = Math.round((rawCash + (rawPointsInOrders * 0.1)) * 100) / 100;
     const totalEarnedRupeesVal = Math.round(totalEarnedLKRVal * 0.27 * 100) / 100;
 
-    // Map top donors with user info
     const topDonorIds = (topDonors || []).map(d => d.userId);
     const donorUsers = topDonorIds.length > 0
       ? await q(() => prisma.user.findMany({ where: { id: { in: topDonorIds } }, select: { id: true, name: true } })) || []
       : [];
     const donorMap = Object.fromEntries(donorUsers.map(u => [u.id, u.name]));
 
-    // Build daily chart (last 30 days)
     const dailyChart = [];
     const now = new Date();
     const dailyData = dailyDonations || [];
@@ -119,7 +125,6 @@ router.get('/dashboard', async (req, res) => {
       });
     }
 
-    // Build monthly chart (last 6 months)
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyChart = [];
     const monthlyData = monthlyDonations || [];
@@ -135,7 +140,6 @@ router.get('/dashboard', async (req, res) => {
       });
     }
 
-    // Build yearly chart (last 5 years)
     const yearlyChart = [];
     const yearlyData = yearlyDonations || [];
     for (let i = 4; i >= 0; i--) {
@@ -158,17 +162,30 @@ router.get('/dashboard', async (req, res) => {
         completedOrders: completedOrders || 0,
         totalDonations: totalDonations || 0,
         verifiedDonations: verifiedDonations || 0,
+        pendingDonations: pendingDonations || 0,
+        rejectedDonations: rejectedDonations || 0,
         verificationRate: totalDonations > 0
           ? Math.round(((verifiedDonations || 0) / totalDonations) * 100 * 10) / 10
           : 0,
-        craftListings: craftCount || 0,
+        craftTotal: craftCount || 0,
+        craftListed: craftListed || 0,
+        craftDraft: craftDraft || 0,
         craftSold: craftSold || 0,
         totalEarnedLKR: totalEarnedLKRVal,
         totalEarnedRupees: totalEarnedRupeesVal,
       },
       genreDistribution: (genreDistribution || []).map(g => ({
-        name: g.genre || 'Uncategorized',
+        name: g.category || 'Uncategorized',
         count: g._count.id,
+      })),
+      collections: (collections || []).map(c => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        stock: c.stock,
+        bookCount: c._count?.books || 0,
+        pointsRequired: c.pointsRequired,
+        cashPrice: c.cashPrice,
       })),
       dailyPerformance: dailyChart,
       monthlyPerformance: monthlyChart,
@@ -178,7 +195,7 @@ router.get('/dashboard', async (req, res) => {
         donor: d.user?.name || 'Unknown',
         email: d.user?.email || '',
         quantity: `${d.verifiedCount} / ${d.requestedCount} books`,
-        status: d.verifiedCount >= d.requestedCount ? 'Verified' : 'Pending',
+        status: d.verifiedCount >= d.requestedCount ? 'Verified' : d.status === 'REJECTED' ? 'Rejected' : 'Pending',
         points: `+${d.pointsAwarded} pts`,
         date: d.createdAt.toISOString().split('T')[0],
       })),
@@ -195,7 +212,6 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-// GET /api/admin/report — generate reports with real data from database
 router.get('/report', async (req, res) => {
   try {
     const { type, startDate, endDate } = req.query;
@@ -268,75 +284,77 @@ router.get('/report', async (req, res) => {
 
     if (type === 'Total Deliveries') {
       const orders = await prisma.order.findMany({
-        where: hasDateFilter ? { createdAt: dateFilter } : {},
-        include: { items: true },
+        where: { status: 'COMPLETED', ...(hasDateFilter ? { createdAt: dateFilter } : {}) },
+        include: {
+          user: { select: { name: true, email: true } },
+          items: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
       });
 
-      const statusMap = { PENDING: 'Order Confirmed', PROCESSING: 'Processed & Packed', COMPLETED: 'Delivered', CANCELLED: 'Cancelled' };
-      const statuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'];
-      const counts = {};
-      for (const s of statuses) counts[s] = { book: 0, craft: 0 };
+      const rows = orders.map((o, i) => {
+        const itemTotal = (o.items || []).reduce((s, it) => s + it.quantity, 0);
+        return {
+          col1: `#${o.id.substring(0, 8).toUpperCase()}`,
+          col2: o.user?.name || 'Unknown',
+          col3: o.user?.email || '',
+          col4: itemTotal.toLocaleString(),
+          col5: `Rs. ${(o.cashAmount || 0).toLocaleString()}`,
+          col6: (o.totalPoints || 0).toLocaleString(),
+          col7: new Date(o.createdAt).toLocaleDateString(),
+        };
+      });
 
-      for (const order of orders) {
-        const s = order.status;
-        if (!counts[s]) counts[s] = { book: 0, craft: 0 };
-        for (const item of order.items || []) {
-          if (item.collectionId || item.bookItemId) counts[s].book += item.quantity;
-          if (item.craftListingId) counts[s].craft += item.quantity;
-        }
-      }
+      const counts = { PENDING: 0, PROCESSING: 0, COMPLETED: 0, CANCELLED: 0 };
+      const allOrders = await prisma.order.findMany({
+        where: hasDateFilter ? { createdAt: dateFilter } : {},
+        select: { status: true },
+      });
+      for (const o of allOrders) { if (counts[o.status] !== undefined) counts[o.status]++; }
+      const maxCount = Math.max(counts.COMPLETED, 1);
 
-      let totalBook = 0, totalCraft = 0;
-      const rows = [];
-      for (const s of statuses) {
-        const b = counts[s]?.book || 0;
-        const c = counts[s]?.craft || 0;
-        totalBook += b; totalCraft += c;
-        rows.push({ col1: statusMap[s] || s, col2: b.toLocaleString(), col3: c.toLocaleString(), col4: (b + c).toLocaleString() });
-      }
-      rows.push({ col1: 'Total Deliveries', col2: totalBook.toLocaleString(), col3: totalCraft.toLocaleString(), col4: (totalBook + totalCraft).toLocaleString() });
-
-      const maxVal = Math.max(totalBook, totalCraft, 1);
       return res.json({
-        title: 'Delivery & Fulfillment Status Report',
-        subtitle: 'Real-time tracking of book and craft shipments across all stages',
-        headers: ['Status Stage', 'Book Orders', 'Craft Orders', 'Total'],
+        title: 'Completed Deliveries Report',
+        subtitle: `Total of ${counts.COMPLETED} orders delivered${hasDateFilter ? ' in selected date range' : ''}`,
+        headers: ['Order ID', 'Customer Name', 'Email', 'Items', 'Cash', 'Points', 'Date'],
         rows,
         chartData: [
-          { label: 'Books', val: Math.round(totalBook / maxVal * 100), color: '#1E4D4B' },
-          { label: 'Crafts', val: Math.round(totalCraft / maxVal * 100), color: '#E9C46A' },
+          { label: 'Delivered', val: Math.round(counts.COMPLETED / maxCount * 100), color: '#1E4D4B' },
         ],
       });
     }
 
-    if (type === 'Most Popular Collections') {
-      const orderItems = await prisma.orderItem.findMany({
-        where: {
-          collectionId: { not: null },
-          ...(hasDateFilter ? { order: { createdAt: dateFilter } } : {}),
-        },
-        include: { collection: true },
+    if (type === 'Most Popular Bundles') {
+      const bundles = await prisma.bookCollection.findMany({
+        where: hasDateFilter ? { createdAt: dateFilter } : {},
+        include: { _count: { select: { books: true } } },
+        orderBy: { stock: 'desc' },
+        take: 50,
       });
 
-      const collectionMap = {};
-      for (const item of orderItems) {
-        if (!item.collection) continue;
-        const id = item.collectionId;
-        if (!collectionMap[id]) collectionMap[id] = { name: item.collection.title, category: item.collection.category, units: 0 };
-        collectionMap[id].units += item.quantity;
-      }
+      const rows = bundles.map((b, i) => ({
+        col1: b.title,
+        col2: b.category || 'General',
+        col3: (b._count?.books || 0).toLocaleString(),
+        col4: (b.stock || 0).toLocaleString(),
+        col5: (b.pointsRequired || 0).toLocaleString(),
+        col6: b.cashPrice ? `Rs. ${b.cashPrice.toLocaleString()}` : '-',
+        col7: b.type || 'STANDARD',
+      }));
 
-      const sorted = Object.values(collectionMap).sort((a, b) => b.units - a.units).slice(0, 5);
-      const maxUnits = Math.max(...sorted.map(s => s.units), 1);
-      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#767777', '#2A9D8F'];
-      const demand = (u) => u > maxUnits * 0.7 ? 'High' : u > maxUnits * 0.4 ? 'Medium' : 'Low';
+      const maxBooks = Math.max(...rows.map(r => parseInt(r.col3.replace(/,/g, ''))), 1);
 
       return res.json({
-        title: 'Top Performing Book Collections',
-        subtitle: 'Most requested and curated book bundles by genre',
-        headers: ['Collection Name', 'Category', 'Units Sold', 'Demand Trend'],
-        rows: sorted.map(s => ({ col1: s.name, col2: s.category, col3: s.units.toLocaleString(), col4: demand(s.units) })),
-        chartData: sorted.map((s, i) => ({ label: s.category, val: Math.round(s.units / maxUnits * 100), color: colors[i % colors.length] })),
+        title: 'Top Performing Bundles',
+        subtitle: 'All book bundles ranked by stock and book count',
+        headers: ['Bundle Name', 'Category', 'Books', 'Stock', 'Points', 'Cash Price', 'Type'],
+        rows,
+        chartData: bundles.slice(0, 8).map((b, i) => ({
+          label: b.title.length > 12 ? b.title.substring(0, 12) + '...' : b.title,
+          val: Math.round(((b._count?.books || 0) / maxBooks) * 100),
+          color: (['#1E4D4B', '#E9C46A', '#643C29', '#767777', '#2A9D8F', '#E76F51', '#457B9D', '#A8DADC'])[i % 8],
+        })),
       });
     }
 
@@ -391,36 +409,13 @@ router.get('/report', async (req, res) => {
 
       const loginLogs = await prisma.loginLog.findMany({
         where: {
-          user: { role: { in: staffRoles } },
+          User: { role: { in: staffRoles } },
           ...(hasDateFilter ? { createdAt: dateFilter } : {}),
         },
-        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        include: { User: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { createdAt: 'desc' },
+        take: 200,
       });
-
-      // Group by user to show summary per staff member
-      const userMap = {};
-      for (const log of loginLogs) {
-        const uid = log.userId;
-        if (!userMap[uid]) {
-          userMap[uid] = {
-            name: log.user.name,
-            email: log.user.email,
-            role: log.user.role,
-            totalLogins: 0,
-            totalLogouts: 0,
-            lastLogin: null,
-            lastLogout: null,
-          };
-        }
-        if (log.action === 'LOGIN') {
-          userMap[uid].totalLogins++;
-          if (!userMap[uid].lastLogin) userMap[uid].lastLogin = log.createdAt;
-        } else if (log.action === 'LOGOUT') {
-          userMap[uid].totalLogouts++;
-          if (!userMap[uid].lastLogout) userMap[uid].lastLogout = log.createdAt;
-        }
-      }
 
       const roleLabels = {
         OPERATIONS_STAFF: 'Operations Staff',
@@ -429,34 +424,29 @@ router.get('/report', async (req, res) => {
         PLATFORM_ADMIN: 'Platform Admin',
       };
 
-      const rows = Object.values(userMap).map(u => ({
-        col1: u.name,
-        col2: u.email,
-        col3: roleLabels[u.role] || u.role,
-        col4: u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never',
-        col5: u.lastLogout ? new Date(u.lastLogout).toLocaleString() : 'Still active',
+      const rows = loginLogs.map(log => ({
+        col1: new Date(log.createdAt).toLocaleString(),
+        col2: log.User.name,
+        col3: log.User.email,
+        col4: roleLabels[log.User.role] || log.User.role,
+        col5: log.action === 'LOGIN' ? 'Login' : 'Logout',
+        col6: log.ip || 'N/A',
+        col7: log.userAgent ? log.userAgent.substring(0, 50) + (log.userAgent.length > 50 ? '...' : '') : 'N/A',
       }));
 
-      // Chart data: logins per role
-      const roleCounts = {};
-      for (const u of Object.values(userMap)) {
-        const r = roleLabels[u.role] || u.role;
-        roleCounts[r] = (roleCounts[r] || 0) + u.totalLogins;
-      }
-      const maxLogins = Math.max(...Object.values(roleCounts), 1);
-      const colors = ['#1E4D4B', '#E9C46A', '#643C29', '#2A9D8F'];
-      const chartData = Object.entries(roleCounts).map(([role, count], i) => ({
-        label: role,
-        val: Math.round(count / maxLogins * 100),
-        color: colors[i % colors.length],
-      }));
+      const loginCount = rows.filter(r => r.col5 === 'Login').length;
+      const logoutCount = rows.filter(r => r.col5 === 'Logout').length;
+      const maxCount = Math.max(loginCount, logoutCount, 1);
 
       return res.json({
         title: 'System Activity Logs',
-        subtitle: 'Login and logout activity for all staff roles',
-        headers: ['Staff Member', 'Email', 'Role', 'Last Login', 'Last Logout'],
+        subtitle: 'Individual login and logout records for all staff and admin roles',
+        headers: ['Timestamp', 'Staff Name', 'Email', 'Role', 'Action', 'IP Address', 'User Agent'],
         rows,
-        chartData,
+        chartData: [
+          { label: 'Logins', val: Math.round(loginCount / maxCount * 100), color: '#1E4D4B' },
+          { label: 'Logouts', val: Math.round(logoutCount / maxCount * 100), color: '#E9C46A' },
+        ],
       });
     }
 
@@ -466,8 +456,6 @@ router.get('/report', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate report' });
   }
 });
-
-// ===== SYSTEM CONFIGURATION =====
 
 // GET /api/admin/config — fetch all system config as key-value pairs
 router.get('/config', async (req, res) => {

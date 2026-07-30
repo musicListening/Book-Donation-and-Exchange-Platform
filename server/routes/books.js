@@ -92,6 +92,7 @@ router.get('/marketplace', async (req, res) => {
                     title: cleanTitle,
                     author: book.author,
                     genre: book.genre,
+                    category: book.collection?.category || book.genre || 'Book',
                     condition: book.condition,
                     pointsPrice: book.pointsPrice,
                     imageUrl: book.imageUrl,
@@ -105,6 +106,16 @@ router.get('/marketplace', async (req, res) => {
                 existing.quantity += 1;
                 existing.bookIds.push(book.id);
                 if (!existing.imageUrl && book.imageUrl) existing.imageUrl = book.imageUrl;
+                
+                // Prioritize book collection over craft/null collection
+                const currentCategory = existing.category;
+                const isCurrentCraft = currentCategory && currentCategory.startsWith('Craft:');
+                const isNewCraft = book.collection?.category && book.collection.category.startsWith('Craft:');
+                
+                if (book.collection && (!existing.collection || (isCurrentCraft && !isNewCraft))) {
+                    existing.collection = book.collection;
+                    existing.category = book.collection.category;
+                }
                 if (book.donationRequest?.donationImages?.length && !existing.donorImages?.length) {
                     existing.donorImages = book.donationRequest.donationImages;
                 }
@@ -197,25 +208,107 @@ router.put('/:id/image', authenticate, uploadBook.single('image'), async (req, r
 router.put('/:id/add-to-marketplace', authenticate, uploadBook.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { pointsPrice } = req.body;
+        const { pointsPrice, title, qty, existingImageUrl } = req.body;
         
-        let imageUrl = undefined;
+        let imageUrl = existingImageUrl || undefined;
         if (req.file) {
             const result = await uploadToCloudinary(req.file);
             imageUrl = result.secure_url;
         }
+
+        // Get the current book to know its collectionId
+        const currentBook = await prisma.bookItem.findUnique({
+            where: { id },
+            select: { collectionId: true }
+        });
+
+        if (!currentBook) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        const quantityToUpdate = Math.max(1, parseInt(qty) || 1);
+
+        // Find other books in the same collection that are not available
+        const availableBooks = await prisma.bookItem.findMany({
+            where: {
+                collectionId: currentBook.collectionId,
+                isAvailable: false,
+                id: { not: id }
+            },
+            take: quantityToUpdate - 1
+        });
+
+        const idsToUpdate = [id, ...availableBooks.map(b => b.id)];
 
         const updateData = {
             isAvailable: true,
             addedToMarketplaceAt: new Date(),
         };
         if (pointsPrice) updateData.pointsPrice = parseInt(pointsPrice);
+        if (title) updateData.title = title;
         if (imageUrl) updateData.imageUrl = imageUrl;
 
-        const book = await prisma.bookItem.update({
+        // Perform the updates using updateMany
+        await prisma.bookItem.updateMany({
+            where: { id: { in: idsToUpdate } },
+            data: updateData
+        });
+
+        // If a new image was uploaded, update all existing available books with the same title and condition
+        if (req.file && imageUrl) {
+            const cleanTitle = (title || '').replace(/\s*#\d+$/i, '').trim();
+            const currentBookFull = await prisma.bookItem.findUnique({
+                where: { id }
+            });
+            if (currentBookFull) {
+                await prisma.bookItem.updateMany({
+                    where: {
+                        isAvailable: true,
+                        title: { equals: cleanTitle, mode: 'insensitive' },
+                        condition: currentBookFull.condition
+                    },
+                    data: {
+                        imageUrl: imageUrl
+                    }
+                });
+            }
+        }
+
+        // If the requested quantity is greater than the available books in the DB,
+        // we create the remaining books!
+        const remainingToCreate = quantityToUpdate - idsToUpdate.length;
+        if (remainingToCreate > 0) {
+            // Get full details of the current book to clone them
+            const fullCurrentBook = await prisma.bookItem.findUnique({
+                where: { id }
+            });
+
+            const newBooksData = Array.from({ length: remainingToCreate }).map(() => ({
+                title: title || fullCurrentBook.title,
+                author: fullCurrentBook.author,
+                isbn: fullCurrentBook.isbn,
+                condition: fullCurrentBook.condition,
+                language: fullCurrentBook.language,
+                genre: fullCurrentBook.genre,
+                publicationYear: fullCurrentBook.publicationYear,
+                isDonated: fullCurrentBook.isDonated,
+                donationRequestId: fullCurrentBook.donationRequestId,
+                collectionId: fullCurrentBook.collectionId,
+                isAvailable: true,
+                pointsPrice: pointsPrice ? parseInt(pointsPrice) : fullCurrentBook.pointsPrice,
+                imageUrl: imageUrl || fullCurrentBook.imageUrl,
+                addedToMarketplaceAt: new Date()
+            }));
+
+            await prisma.bookItem.createMany({
+                data: newBooksData
+            });
+        }
+
+        // Get one of the updated books to return
+        const book = await prisma.bookItem.findUnique({
             where: { id },
-            data: updateData,
-            include: { collection: true },
+            include: { collection: true }
         });
 
         res.json(book);

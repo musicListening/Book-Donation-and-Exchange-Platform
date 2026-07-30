@@ -32,7 +32,7 @@ const authLimiter = rateLimit({
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  'https://shareshelfbookdonation.netlify.app/',
+  'https://shareshelfbookdonation.netlify.app',
   'https://book-donation-and-exchange-platform.onrender.com',
 ];
 app.use(cors({
@@ -73,8 +73,8 @@ const { authenticate, requireRole } = require('./middleware/auth');
 
 // 4. Register routes
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', apiLimiter, authenticate, userRoutes);
-app.get('/api/admin/config', apiLimiter, authenticate, async (req, res) => {
+app.use('/api/users', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), userRoutes);
+app.get('/api/admin/config', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     const { withRetry } = require('./db');
     const { prisma } = require('./db');

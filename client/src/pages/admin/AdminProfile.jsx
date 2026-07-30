@@ -13,12 +13,18 @@ export default function AdminProfile() {
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('user'));
-    if (stored) {
-      setUser(stored);
-      setName(stored.name || '');
-      setEmail(stored.email || '');
-      setProfileImage(stored.profileImage || '');
+    try {
+      const stored = JSON.parse(localStorage.getItem('user'));
+      if (stored) {
+        setUser(stored);
+        setName(stored.name || '');
+        setEmail(stored.email || '');
+        setProfileImage(stored.profileImage || '');
+      } else {
+        setMessage({ type: 'error', text: 'User data not found. Please log in again.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Invalid user data. Please log in again.' });
     }
   }, []);
 
@@ -30,6 +36,13 @@ export default function AdminProfile() {
       setTimeout(() => setMessage(null), 3000);
       return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image must be under 5MB.' });
+      setTimeout(() => setMessage(null), 3000);
+      e.target.value = '';
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setProfileFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
@@ -88,6 +101,7 @@ export default function AdminProfile() {
   return (
     <AdminLayout title="Profile" hideHeaderLabel={true} hideNotifications={true}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
+        {/* ============ TOAST MESSAGES ============ */}
         {message && (
           <div style={{
             padding: '12px 20px',
@@ -98,7 +112,7 @@ export default function AdminProfile() {
             background: message.type === 'success' ? '#E8F5E9' : '#FFEBEE',
             color: message.type === 'success' ? '#2E7D32' : '#C62828',
           }}>
-            {message.type === 'success' ? '✓' : '⚠'} {message.text}
+            {message.type === 'success' ? '✓' : <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', backgroundColor: '#C62828', color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 4, flexShrink: 0 }}>!</span>} {message.text}
           </div>
         )}
 
@@ -108,15 +122,14 @@ export default function AdminProfile() {
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           overflow: 'hidden',
         }}>
-          {/* Header banner */}
+          {/* ============ PROFILE HEADER BANNER ============ */}
           <div style={{
             height: 120,
             background: 'linear-gradient(135deg, #1A6B68 0%, #0F4F4D 100%)',
           }} />
 
-          {/* Profile content */}
           <div style={{ padding: '0 40px 40px', marginTop: -48 }}>
-            {/* Avatar */}
+            {/* ============ AVATAR + NAME SECTION ============ */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginBottom: 32 }}>
               <div style={{
                 width: 120,
@@ -163,7 +176,7 @@ export default function AdminProfile() {
               </div>
             </div>
 
-            {/* Form */}
+            {/* ============ PROFILE FORM ============ */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
                 <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14, color: '#343A40' }}>
@@ -231,12 +244,13 @@ export default function AdminProfile() {
               </div>
             </div>
 
-            {/* Actions */}
+            {/* ============ ACTION BUTTONS ============ */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32, borderTop: '1px solid #F1F3F5', paddingTop: 24 }}>
               <button
                 onClick={() => {
                   setName(user?.name || '');
                   setProfileFile(null);
+                  if (previewUrl) URL.revokeObjectURL(previewUrl);
                   setPreviewUrl('');
                   setMessage(null);
                 }}

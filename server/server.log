@@ -1,0 +1,15 @@
+◇ injected env (5) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+DB warm-up attempt 1/3 failed, retrying...
+DB warm-up attempt 2/3 failed, retrying...
+❌ Database connection failed: Can't reach database server at `ep-lucky-heart-aoi5gqz5-pooler.c-2.ap-southeast-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-lucky-heart-aoi5gqz5-pooler.c-2.ap-southeast-1.aws.neon.tech:5432`.
+❌ Failed to start server due to DB connection error: PrismaClientInitializationError: Can't reach database server at `ep-lucky-heart-aoi5gqz5-pooler.c-2.ap-southeast-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-lucky-heart-aoi5gqz5-pooler.c-2.ap-southeast-1.aws.neon.tech:5432`.
+    at r (C:\Users\Akarsha\Desktop\PM\Project\Book-Donation-and-Exchange-Platform\server\node_modules\@prisma\client\runtime\library.js:112:2770)
+    at async warmUpDb (C:\Users\Akarsha\Desktop\PM\Project\Book-Donation-and-Exchange-Platform\server\db.js:28:7) {
+  clientVersion: '6.19.3',
+  errorCode: 'P1001',
+  retryable: undefined
+}

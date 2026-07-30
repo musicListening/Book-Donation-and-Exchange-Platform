@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -48,6 +47,12 @@ model User {
   Shipment                                        Shipment[]
   SystemConfig                                    SystemConfig[]
   Task                                            Task[]
+
+  @@index([role])
+  @@index([isActive])
+  @@index([role, isActive])
+  @@index([level, points])
+  @@index([createdAt])
 }
 
 model DeletedUser {
@@ -96,6 +101,11 @@ model DonationRequest {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   Notification         Notification[]
   PointTransaction     PointTransaction[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model BookCollection {
@@ -116,6 +126,11 @@ model BookCollection {
   books            BookItem[]
   CartItem         CartItem[]
   orderItems       OrderItem[]
+
+  @@index([category])
+  @@index([type])
+  @@index([stock])
+  @@index([createdAt])
 }
 
 model BookItem {
@@ -189,6 +204,13 @@ model Order {
   items                     OrderItem[]
   Payment                   Payment[]
   PointTransaction          PointTransaction[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([driverId])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 model OrderItem {
@@ -205,6 +227,11 @@ model OrderItem {
   collection     BookCollection? @relation(fields: [collectionId], references: [id])
   craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([collectionId])
+  @@index([bookItemId])
+  @@index([craftListingId])
 }
 
 model DeliveryUpdate {
