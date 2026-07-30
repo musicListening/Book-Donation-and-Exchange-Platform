@@ -48,11 +48,11 @@ model User {
   SystemConfig                                    SystemConfig[]
   Task                                            Task[]
 
-  @@index([role])
-  @@index([isActive])
-  @@index([role, isActive])
-  @@index([level, points])
   @@index([createdAt])
+  @@index([isActive])
+  @@index([level, points])
+  @@index([role])
+  @@index([role, isActive])
 }
 
 model DeletedUser {
@@ -102,10 +102,10 @@ model DonationRequest {
   Notification         Notification[]
   PointTransaction     PointTransaction[]
 
-  @@index([userId])
-  @@index([status])
   @@index([createdAt])
+  @@index([status])
   @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model BookCollection {
@@ -128,9 +128,9 @@ model BookCollection {
   orderItems       OrderItem[]
 
   @@index([category])
-  @@index([type])
-  @@index([stock])
   @@index([createdAt])
+  @@index([stock])
+  @@index([type])
 }
 
 model BookItem {
@@ -205,12 +205,12 @@ model Order {
   Payment                   Payment[]
   PointTransaction          PointTransaction[]
 
-  @@index([userId])
-  @@index([status])
-  @@index([driverId])
   @@index([createdAt])
+  @@index([driverId])
   @@index([status, createdAt])
+  @@index([status])
   @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model OrderItem {
@@ -228,10 +228,10 @@ model OrderItem {
   craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  @@index([orderId])
-  @@index([collectionId])
   @@index([bookItemId])
+  @@index([collectionId])
   @@index([craftListingId])
+  @@index([orderId])
 }
 
 model DeliveryUpdate {
