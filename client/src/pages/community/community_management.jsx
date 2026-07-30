@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, space, radius } from '../../components/communityTokens';
+import { Icon, Button, Alert, SkeletonCard, EmptyState, CommunityConfirm, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function currentUser() {
   try {
@@ -13,22 +14,18 @@ function currentUser() {
 
 // Real customer message pulled from EventComment + User records.
 function MessageCard({ message, onDelete, deleting, canDelete }) {
-  const [hovered, setHovered] = useState(false);
   const initials = message.user.name.charAt(0).toUpperCase();
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <article
+      className="lift-card"
+      aria-busy={deleting || undefined}
       style={{
         background: colors.surfaceContainerLowest,
         border: `1px solid ${colors.outlineVariant}`,
-        borderRadius: 16,
-        padding: 20,
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.28s',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none',
-        opacity: deleting ? 0.5 : 1,
+        borderRadius: radius.lg,
+        padding: space.lg,
+        opacity: deleting ? 0.55 : 1,
         position: 'relative',
       }}
     >
@@ -58,17 +55,20 @@ function MessageCard({ message, onDelete, deleting, canDelete }) {
       </div>
 
       {canDelete && (
-        <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 8, borderTop: `1px solid ${colors.outlineVariant}` }}>
-          <button
+        <div style={{ display: 'flex', gap: 12, marginTop: space.md, paddingTop: space.sm, borderTop: `1px solid ${colors.outlineVariant}` }}>
+          <Button
+            variant="danger"
+            size="sm"
+            icon="delete"
             onClick={() => onDelete(message)}
-            disabled={deleting}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'transparent', border: `1px solid ${colors.outlineVariant}`, borderRadius: 40, fontSize: 12, fontWeight: 500, cursor: deleting ? 'not-allowed' : 'pointer', color: colors.error }}
+            loading={deleting}
+            aria-label={`Remove message from ${message.user.name}`}
           >
-            <Icon name="delete" size={16} /> {deleting ? 'Removing...' : 'Remove message'}
-          </button>
+            {deleting ? 'Removing...' : 'Remove message'}
+          </Button>
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -80,6 +80,7 @@ export default function MessageModeration() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removingId, setRemovingId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [search, setSearch] = useState('');
   const user = currentUser();
 
@@ -98,15 +99,18 @@ export default function MessageModeration() {
 
   useEffect(() => { loadMessages(); }, []);
 
-  const handleDelete = async (message) => {
-    if (!window.confirm(`Remove this message from ${message.user.name}?`)) return;
+  const handleDelete = async () => {
+    const message = pendingDelete;
+    if (!message) return;
     setRemovingId(message.id);
     setError('');
     try {
       await communityAPI.deleteMessage(message.id);
       setMessages((current) => current.filter((item) => item.id !== message.id));
+      setPendingDelete(null);
     } catch (requestError) {
       setError(requestError.message || 'Unable to remove the message.');
+      setPendingDelete(null);
     } finally {
       setRemovingId(null);
     }
@@ -160,29 +164,57 @@ export default function MessageModeration() {
             </section>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by message or customer name..."
-              style={{ width: '100%', maxWidth: 460, padding: '14px 18px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: '#fff', boxShadow: '0 10px 24px rgba(10,59,50,0.04)' }}
-            />
-            <div style={{ padding: '10px 16px', borderRadius: 999, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: space.lg }}>
+            <div style={{ position: 'relative', flex: '1 1 320px', maxWidth: 460 }}>
+              <label htmlFor="message-search" className="visually-hidden">Search messages by content or customer name</label>
+              <Icon name="search" size={19} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: colors.inkSoft, pointerEvents: 'none' }} />
+              <input
+                id="message-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by message or customer name..."
+                style={{ width: '100%', padding: '14px 44px', borderRadius: radius.pill, border: `1px solid ${colors.accentBorder}`, fontSize: 14, background: colors.surfaceContainerLowest, boxShadow: '0 10px 24px rgba(10,59,50,0.04)', fontFamily: 'inherit', color: colors.onSurface }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', padding: 7, borderRadius: '50%', border: 'none', background: colors.surfaceContainerHigh, color: colors.onSurfaceVariant }}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              )}
+            </div>
+            <div style={{ padding: '10px 16px', borderRadius: radius.pill, border: `1px solid ${colors.accentBorder}`, background: colors.accentSoft, color: colors.inkSoft, fontSize: 13 }}>Newest first</div>
           </div>
 
-          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
+          {/* Announced to screen readers as the filter narrows the list */}
+          <p aria-live="polite" className="visually-hidden">
+            {loading ? 'Loading messages' : `${filteredMessages.length} ${filteredMessages.length === 1 ? 'message' : 'messages'} shown`}
+          </p>
+
+          {error && <Alert onRetry={loadMessages}>{error}</Alert>}
 
           {loading && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <p style={{ color: colors.onSurfaceVariant }}>Loading messages...</p>
+            <div className="message-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => <SkeletonCard key={n} />)}
             </div>
           )}
 
           {!loading && filteredMessages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
-              <Icon name="forum" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
-              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>No community messages yet.</p>
-            </div>
+            search.trim()
+              ? <EmptyState
+                  icon="search_off"
+                  title="No messages match that search"
+                  message={`Nothing found for "${search.trim()}". Try a different name or word.`}
+                  action={<Button variant="accent" onClick={() => setSearch('')}>Clear search</Button>}
+                />
+              : <EmptyState
+                  icon="forum"
+                  title="No community messages yet"
+                  message="When members comment on events, their messages show up here for review."
+                />
           )}
 
           {!loading && filteredMessages.length > 0 && (
@@ -191,7 +223,7 @@ export default function MessageModeration() {
                 <MessageCard
                   key={message.id}
                   message={message}
-                  onDelete={handleDelete}
+                  onDelete={setPendingDelete}
                   deleting={removingId === message.id}
                   canDelete={user?.role === 'COMMUNITY_ADMIN'}
                 />
@@ -204,6 +236,17 @@ export default function MessageModeration() {
           <p style={{ fontSize: 13, color: `${colors.onSurfaceVariant}CC` }}>© 2026 Community Admin Ecosystem — Growing together, sustainably.</p>
         </footer>
       </main>
+
+      <CommunityConfirm
+        open={Boolean(pendingDelete)}
+        destructive
+        busy={Boolean(removingId)}
+        title="Remove this message?"
+        message={pendingDelete ? `${pendingDelete.user.name}'s message will no longer be visible to the community. This cannot be undone.` : ''}
+        confirmLabel="Remove message"
+        onConfirm={handleDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }
