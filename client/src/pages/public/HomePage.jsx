@@ -452,7 +452,7 @@ const Home = () => {
       {/* ... (keep all the other sections unchanged) ... */}
       
       {/* ============ HERO SECTION ============ */}
-      <section className="hero-section-bg" style={styles.heroSection}>
+      <section className="hero-section-bg hero-section-container" style={styles.heroSection}>
         {/* Background Image */}
         <img 
           src="https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&q=80&w=1920" 
@@ -471,8 +471,8 @@ const Home = () => {
           </div>
         </div>
 
-        <div style={styles.hero}>
-          <div style={styles.heroContent}>
+        <div className="hero-inner" style={styles.hero}>
+          <div className="hero-content" style={styles.heroContent}>
             <div className="hero-badge-shimmer hero-enter hero-enter--delay-1" style={styles.heroBadge}>
               <i className="fa-solid fa-book"></i> ShareShelf Book Exchange
             </div>
@@ -484,7 +484,7 @@ const Home = () => {
               of curated book bundles or handmade paper crafts. Join our sustainable 
               reading revolution.
             </p>
-            <div className="hero-enter hero-enter--delay-4" style={styles.heroButtons}>
+            <div className="hero-enter hero-enter--delay-4 hero-buttons" style={styles.heroButtons}>
               <button
                 type="button"
                 className="hero-btn-primary"
@@ -508,7 +508,7 @@ const Home = () => {
               <span className="hero-trust-badge" style={styles.heroTrustBadge}><i className="fa-solid fa-circle-check" style={{ color: '#2A9D8F' }}></i> Instant points</span>
             </div>
           </div>
-          <div className="hero-visual-enter" style={styles.heroVisual}>
+          <div className="hero-visual-enter hero-visual" style={styles.heroVisual}>
             <div style={styles.heroCollage}>
               <div className="hexagon-wrapper-1" style={styles.hexagonWrapper1}>
                 <div style={styles.hexagonInner}>
@@ -531,10 +531,10 @@ const Home = () => {
       </section>
 
       {/* ============ HOW IT WORKS ============ */}
-      <section id="how-it-works" style={styles.howItWorks}>
+      <section id="how-it-works" className="how-it-works-section" style={styles.howItWorks}>
         <h2 className="reveal" style={styles.sectionTitle}>How ShareShelf Works</h2>
         <p className="reveal" style={styles.sectionSubtitle}>Four simple steps to turn your books into new adventures.</p>
-        <div className="reveal-stagger" style={styles.stepsGrid}>
+        <div className="reveal-stagger steps-grid" style={styles.stepsGrid}>
           <div className="card-hover-lift" style={styles.stepCard}>
             <div className="step-icon-hover" style={styles.stepIcon}>
               <i className="fa-solid fa-calendar-plus"></i>
@@ -571,8 +571,8 @@ const Home = () => {
       </section>
 
       {/* ============ STATS BAR ============ */}
-      <section style={styles.statsBar}>
-        <div ref={statsRef} className="reveal-stagger" style={styles.statsGrid}>
+      <section className="stats-bar-section" style={styles.statsBar}>
+        <div ref={statsRef} className="reveal-stagger stats-grid" style={styles.statsGrid}>
           <div style={{ textAlign: 'center' }}>
             <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
@@ -589,12 +589,12 @@ const Home = () => {
       </section>
 
       {/* ============ CATEGORIES ============ */}
-      <section id="marketplace" style={styles.categories}>
+      <section id="marketplace" className="categories-section" style={styles.categories}>
         <div style={styles.categoriesHeader}>
           <h2 className="reveal" style={styles.sectionTitle}>Find Your Genre</h2>
           <p className="reveal" style={styles.sectionSubtitle}>Browse thousands of books across every category imaginable.</p>
         </div>
-        <div className="reveal-stagger" style={styles.categoryGrid}>
+        <div className="reveal-stagger category-grid" style={styles.categoryGrid}>
           <div className="card-hover-lift" style={styles.categoryCard} onClick={() => handleProtectedAction('/marketplace?category=Fiction')}>
             <div style={{ ...styles.categoryIcon, background: 'rgba(231,111,81,0.15)', color: '#E76F51' }}><i className="fa-solid fa-dragon"></i></div>
             <div><h4>Fiction</h4><span style={{ fontSize: 13, color: '#6C757D' }}>Novels, Fantasy & more</span></div>
@@ -717,10 +717,10 @@ const Home = () => {
       </section>
 
       {/* ============ LEVELS ============ */}
-      <section style={styles.levels}>
+      <section className="levels-section" style={styles.levels}>
         <h2 className="reveal" style={styles.sectionTitle}>Level Up Your Reading</h2>
         <p className="reveal" style={styles.sectionSubtitle}>Earn more benefits as you donate and engage.</p>
-        <div className="reveal-stagger" style={styles.levelsGrid}>
+        <div className="reveal-stagger levels-grid" style={styles.levelsGrid}>
           <div className="level-hover" style={styles.levelCard}>
             <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666' }}>📚</div>
             <h3>Book Lover</h3>
@@ -759,7 +759,7 @@ const Home = () => {
       </section>
 
       {/* ============ CTA BANNER ============ */}
-      <section className="cta-pulse" style={styles.ctaBanner}>
+      <section className="cta-pulse cta-banner-section" style={styles.ctaBanner}>
         <h2 className="reveal" style={{ color: 'white', fontSize: 36, marginBottom: 16, position: 'relative', zIndex: 1 }}>Ready to Give Your Books a New Story?</h2>
         <p className="reveal" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, marginBottom: 24, position: 'relative', zIndex: 1 }}>Join thousands of readers and crafters building a library without walls.</p>
         <button type="button" onClick={() => openAuthModal('signup', '/user-dashboard')} className="reveal" style={{ ...styles.btn, background: 'white', color: '#E76F51', borderColor: 'white', fontSize: 18, padding: '16px 36px', position: 'relative', zIndex: 1 }}>
@@ -769,8 +769,8 @@ const Home = () => {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer id="about" style={styles.footer}>
-        <div style={styles.footerGrid}>
+      <footer id="about" className="footer-section" style={styles.footer}>
+        <div className="footer-grid" style={styles.footerGrid}>
           <div>
             <div style={styles.footerLogo}>📚 ShareShelf</div>
             <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
