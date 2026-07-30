@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="860" viewBox="0 0 1320 860" font-family="Segoe UI, Arial, Helvetica, sans-serif">
+  <title>Community Module — UML Use Case Diagram</title>
+  <desc>Use case diagram for the community module of the Book Donation and Exchange Platform. Actors: Customer (END_USER) and Community Administrator (COMMUNITY_ADMIN).</desc>
+
+  <defs>
+    <style>
+      .uc      { fill: #eef8f4; stroke: #176b63; stroke-width: 1.6; }
+      .uc-adm  { fill: #fff9e6; stroke: #9a6420; stroke-width: 1.6; }
+      .uc-txt  { font-size: 14px; fill: #172b29; text-anchor: middle; }
+      .assoc   { stroke: #5c6a68; stroke-width: 1.2; fill: none; }
+      .rel     { stroke: #176b63; stroke-width: 1.2; fill: none; stroke-dasharray: 6 4; }
+      .rel-txt { font-size: 11px; fill: #176b63; font-style: italic; text-anchor: middle; }
+      .actor   { stroke: #0f4e48; stroke-width: 2; fill: none; }
+      .actor-t { font-size: 14px; font-weight: 700; fill: #0f4e48; text-anchor: middle; }
+      .actor-r { font-size: 11px; fill: #5c6a68; text-anchor: middle; }
+      .bnd     { fill: none; stroke: #176b63; stroke-width: 2; }
+      .bnd-t   { font-size: 16px; font-weight: 700; fill: #176b63; text-anchor: middle; }
+      .grp     { font-size: 11px; font-weight: 700; fill: #9a6420; letter-spacing: .08em; }
+      .ttl     { font-size: 21px; font-weight: 700; fill: #0f4e48; }
+      .sub     { font-size: 12.5px; fill: #5c6a68; }
+      .leg     { font-size: 11.5px; fill: #5c6a68; }
+    </style>
+
+    <g id="stick">
+      <circle class="actor" cx="0" cy="-34" r="12"/>
+      <line class="actor" x1="0" y1="-22" x2="0" y2="10"/>
+      <line class="actor" x1="-16" y1="-8" x2="16" y2="-8"/>
+      <line class="actor" x1="0" y1="10" x2="-13" y2="34"/>
+      <line class="actor" x1="0" y1="10" x2="13" y2="34"/>
+    </g>
+  </defs>
+
+  <rect width="1320" height="860" fill="#ffffff"/>
+
+  <text class="ttl" x="34" y="40">Community Module — Use Case Diagram</text>
+  <text class="sub" x="34" y="62">Book Donation and Exchange Platform · ShareShelf</text>
+
+  <!-- system boundary -->
+  <rect class="bnd" x="300" y="92" width="700" height="700" rx="6"/>
+  <text class="bnd-t" x="650" y="120">Community Module</text>
+
+  <text class="grp" x="330" y="152">EVENTS</text>
+  <text class="grp" x="330" y="432">CONVERSATION</text>
+  <text class="grp" x="722" y="612">ADMINISTRATION</text>
+
+  <!-- left column: customer use cases -->
+  <ellipse class="uc" cx="470" cy="182" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="187">Browse events</text>
+
+  <ellipse class="uc" cx="470" cy="248" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="253">View event details</text>
+
+  <ellipse class="uc" cx="470" cy="314" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="319">Join / leave event</text>
+
+  <ellipse class="uc" cx="470" cy="462" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="467">Read conversation</text>
+
+  <ellipse class="uc" cx="470" cy="528" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="533">Post message</text>
+
+  <ellipse class="uc" cx="470" cy="594" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="599">Edit own message</text>
+
+  <ellipse class="uc" cx="470" cy="660" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="665">Delete own message</text>
+
+  <ellipse class="uc" cx="470" cy="742" rx="126" ry="27"/>
+  <text class="uc-txt" x="470" y="747">Sign in</text>
+
+  <!-- right column: administrator use cases -->
+  <ellipse class="uc-adm" cx="830" cy="182" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="187">Publish event</text>
+
+  <ellipse class="uc-adm" cx="830" cy="248" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="253">Edit event</text>
+
+  <ellipse class="uc-adm" cx="830" cy="314" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="319">Delete event</text>
+
+  <ellipse class="uc-adm" cx="830" cy="380" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="385">View attendee list</text>
+
+  <ellipse class="uc-adm" cx="830" cy="462" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="467">Moderate any message</text>
+
+  <ellipse class="uc-adm" cx="830" cy="528" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="533">Search messages</text>
+
+  <ellipse class="uc-adm" cx="830" cy="642" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="647">View dashboard stats</text>
+
+  <ellipse class="uc-adm" cx="830" cy="708" rx="126" ry="27"/>
+  <text class="uc-txt" x="830" y="713">Manage profile</text>
+
+  <!-- actors -->
+  <g transform="translate(130,430)">
+    <use href="#stick"/>
+    <text class="actor-t" x="0" y="58">Customer</text>
+    <text class="actor-r" x="0" y="75">END_USER</text>
+  </g>
+
+  <g transform="translate(1180,430)">
+    <use href="#stick"/>
+    <text class="actor-t" x="0" y="58">Community</text>
+    <text class="actor-t" x="0" y="75">Administrator</text>
+    <text class="actor-r" x="0" y="92">COMMUNITY_ADMIN</text>
+  </g>
+
+  <!-- customer associations -->
+  <path class="assoc" d="M156 414 L344 188"/>
+  <path class="assoc" d="M156 418 L344 252"/>
+  <path class="assoc" d="M157 422 L344 316"/>
+  <path class="assoc" d="M158 432 L344 460"/>
+  <path class="assoc" d="M157 438 L344 526"/>
+  <path class="assoc" d="M156 442 L344 592"/>
+  <path class="assoc" d="M155 446 L344 658"/>
+  <path class="assoc" d="M150 452 L346 738"/>
+
+  <!-- administrator associations -->
+  <path class="assoc" d="M1154 414 L956 188"/>
+  <path class="assoc" d="M1154 418 L956 252"/>
+  <path class="assoc" d="M1155 422 L956 316"/>
+  <path class="assoc" d="M1156 426 L956 380"/>
+  <path class="assoc" d="M1157 434 L956 462"/>
+  <path class="assoc" d="M1156 440 L956 528"/>
+  <path class="assoc" d="M1155 446 L956 642"/>
+  <path class="assoc" d="M1152 452 L956 708"/>
+  <!-- administrator also browses events and reads the conversation -->
+  <path class="assoc" d="M1152 406 C1030 150 700 128 596 176"/>
+  <path class="assoc" d="M1160 462 C1060 560 700 508 596 466"/>
+
+  <!-- relationships -->
+  <path class="rel" d="M470 687 L470 715"/>
+  <text class="rel-txt" x="470" y="706" transform="rotate(-90 470 706)">&#171;include&#187;</text>
+
+  <path class="rel" d="M830 735 C830 762 600 764 512 758"/>
+  <text class="rel-txt" x="676" y="780">&#171;include&#187;</text>
+
+  <path class="rel" d="M344 528 C300 545 300 578 344 592"/>
+  <text class="rel-txt" x="286" y="546">&#171;extend&#187;</text>
+
+  <path class="rel" d="M344 534 C286 570 286 640 344 656"/>
+  <text class="rel-txt" x="286" y="640">&#171;extend&#187;</text>
+
+  <path class="rel" d="M704 462 L596 462"/>
+  <text class="rel-txt" x="650" y="452">&#171;extend&#187;</text>
+
+  <!-- legend -->
+  <g transform="translate(34,724)">
+    <rect x="0" y="0" width="230" height="82" rx="6" fill="#f7fbfa" stroke="#bfe3d3"/>
+    <text class="grp" x="14" y="20">LEGEND</text>
+
+    <ellipse class="uc" cx="26" cy="42" rx="13" ry="8"/>
+    <text class="leg" x="48" y="46">Customer use case</text>
+
+    <ellipse class="uc-adm" cx="26" cy="64" rx="13" ry="8"/>
+    <text class="leg" x="48" y="68">Administrator use case</text>
+  </g>
+</svg>
