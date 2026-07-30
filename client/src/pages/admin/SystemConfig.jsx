@@ -143,6 +143,29 @@ export default function SystemConfig() {
 
   // Save handler
   const handleSave = async () => {
+    // Client-side validation for negative values
+    const numericFields = [
+      { key: 'Base Points Per Book', value: basePointRate },
+      { key: 'Collection Bonus %', value: collectionBonus },
+      { key: 'Mystery Box Books', value: mysteryBoxBooks },
+      { key: 'Mystery Box Points Cost', value: mysteryBoxPointsCost },
+      { key: 'Rare Collection Min Level', value: rareCollectionMinLevel },
+    ];
+    for (const field of numericFields) {
+      if (Number(field.value) < 0) {
+        setMessage({ type: 'error', text: `${field.key} cannot be negative.` });
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+    }
+    for (const lvl of levels) {
+      if (Number(lvl.minBooks || lvl.minPoints || 0) < 0) {
+        setMessage({ type: 'error', text: `Level ${lvl.level} threshold cannot be negative.` });
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       setMessage(null);

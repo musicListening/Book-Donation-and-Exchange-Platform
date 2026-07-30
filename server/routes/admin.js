@@ -214,16 +214,19 @@ router.get('/dashboard', async (req, res) => {
 
 router.get('/report', async (req, res) => {
   try {
-    const { type, startDate, endDate } = req.query;
+    const { type, startDate, endDate, tzOffset } = req.query;
     await withRetry(() => prisma.$queryRaw`SELECT 1`, 2);
     await new Promise(r => setTimeout(r, 300));
 
+    const offsetMs = (parseInt(tzOffset) || 0) * 60 * 1000;
     const dateFilter = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
+    if (startDate) {
+      const [y, m, d] = startDate.split('-').map(Number);
+      dateFilter.gte = new Date(Date.UTC(y, m - 1, d) + offsetMs);
+    }
     if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      dateFilter.lte = end;
+      const [y, m, d] = endDate.split('-').map(Number);
+      dateFilter.lte = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) + offsetMs);
     }
     const hasDateFilter = startDate || endDate;
 
@@ -476,6 +479,30 @@ router.put('/config', async (req, res) => {
   try {
     const entries = req.body; // { key: value, ... }
     const updatedBy = req.headers['x-user-id'] || null;
+
+    // Validate numeric config keys cannot be negative
+    const numericKeys = ['BASE_POINTS_PER_BOOK', 'COLLECTION_BONUS_PERCENTAGE', 'MYSTERY_BOX_BOOKS', 'MYSTERY_BOX_POINTS_COST', 'RARE_COLLECTION_MIN_LEVEL'];
+    for (const key of numericKeys) {
+      if (entries[key] !== undefined) {
+        const num = Number(entries[key]);
+        if (isNaN(num) || num < 0) {
+          return res.status(400).json({ error: `${key} cannot be negative.` });
+        }
+      }
+    }
+
+    // Parse and validate LEVEL_THRESHOLDS if present
+    if (entries.LEVEL_THRESHOLDS) {
+      const rawLevels = safeJson(entries.LEVEL_THRESHOLDS);
+      if (rawLevels && Array.isArray(rawLevels)) {
+        for (const lvl of rawLevels) {
+          const minVal = Number(lvl.minBooks || lvl.minPoints || 0);
+          if (isNaN(minVal) || minVal < 0) {
+            return res.status(400).json({ error: `Level ${lvl.level} threshold cannot be negative.` });
+          }
+        }
+      }
+    }
 
     for (const [key, value] of Object.entries(entries)) {
       await prisma.systemConfig.upsert({

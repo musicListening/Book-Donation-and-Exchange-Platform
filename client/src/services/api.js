@@ -54,7 +54,8 @@ export const adminAPI = {
     return checkResponse(response);
   },
   getReport: async (type, startDate, endDate) => {
-    const params = new URLSearchParams({ type, startDate, endDate });
+    const tzOffset = new Date().getTimezoneOffset();
+    const params = new URLSearchParams({ type, startDate, endDate, tzOffset });
     console.log(`📡 GET /admin/report?${params}`);
     const response = await fetch(`${API_BASE}/admin/report?${params}`, {
       headers: authHeaders({ 'Cache-Control': 'no-cache' }),
