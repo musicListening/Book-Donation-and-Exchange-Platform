@@ -243,10 +243,11 @@ function MessageItem({ message, isOwn, showMeta, onUpdate, onDelete }) {
 
   return (
     <article className={`message ${isOwn ? 'own' : ''} ${showMeta ? '' : 'grouped'}`}>
-      {/* Avatar only on the first message of a run, like a group chat */}
-      {showMeta
-        ? <div className="avatar" style={isOwn ? undefined : { background: nameColour(message.user.name) }}>{message.user.name.charAt(0).toUpperCase()}</div>
-        : <div className="avatar-spacer" aria-hidden="true" />}
+      {/* Avatars identify other people, so your own messages do not carry one.
+          Within a run only the first message keeps it. */}
+      {!isOwn && (showMeta
+        ? <div className="avatar" style={{ background: nameColour(message.user.name) }}>{message.user.name.charAt(0).toUpperCase()}</div>
+        : <div className="avatar-spacer" aria-hidden="true" />)}
       <div className="bubble">
         {/* Sender name is group-chat information — no point telling you your own */}
         {showMeta && !isOwn && <p className="sender" style={{ color: nameColour(message.user.name) }}>{message.user.name}</p>}
@@ -529,8 +530,9 @@ export default function CommunityHome() {
         .tabs{display:flex;align-self:stretch;gap:4px}
         .tab{border:0;border-bottom:3px solid transparent;background:transparent;color:${c.muted};padding:0 18px;cursor:pointer;display:flex;gap:8px;align-items:center;font-weight:600}
         .tab.active{color:${c.primary};border-bottom-color:${c.primary}}
-        .exit{color:${c.primary};background:#fff;border:1px solid ${c.greenBorder};text-decoration:none;padding:9px 15px;border-radius:999px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;transition:background .18s,border-color .18s}
-        .exit:hover{background:${c.soft};border-color:${c.primary}}
+        /* Icon-only round back button */
+        .exit{color:${c.primary};background:#fff;border:1px solid ${c.greenBorder};text-decoration:none;width:40px;height:40px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;transition:background .18s,border-color .18s,transform .18s}
+        .exit:hover{background:${c.soft};border-color:${c.primary};transform:translateX(-2px)}
         .content{max-width:1200px;margin:auto;padding:56px 24px 84px}
         .hero-panel{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;margin-bottom:30px}
         .hero-card,.spotlight-card{background:rgba(255,255,255,.94);border:1px solid ${c.greenBorder};border-radius:16px;box-shadow:0 12px 28px rgba(23,107,99,.06)}
@@ -619,7 +621,9 @@ export default function CommunityHome() {
         .day-divider span{background:rgba(255,255,255,.92);border:1px solid ${c.greenBorder};color:${c.muted};font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 14px;border-radius:999px}
 
         .message{display:flex;gap:9px;margin-bottom:10px;max-width:78%;align-items:flex-end}
-        .message.own{margin-left:auto;flex-direction:row-reverse}
+        /* Own messages carry no avatar, so the bubble itself must be pushed
+           to the right edge of the row */
+        .message.own{margin-left:auto;justify-content:flex-end}
         .message.grouped{margin-bottom:4px}
         .avatar{width:34px;height:34px;font-weight:700;font-size:14px;flex:0 0 auto}
         .avatar-spacer{width:34px;flex:0 0 auto}
@@ -684,7 +688,7 @@ export default function CommunityHome() {
           .tabs{flex:1}
           .tab{flex:1;justify-content:center;padding:0 8px;font-size:13px}
           .tab .material-symbols-outlined{display:none}
-          .exit{padding:9px 12px}
+          .exit{width:36px;height:36px}
           .content{padding:28px 14px 48px}
           .hero-panel{grid-template-columns:1fr}
           .heading h1,.conversation-header h1{font-size:24px}
@@ -707,7 +711,9 @@ export default function CommunityHome() {
             <button role="tab" aria-selected={tab === 'events'} aria-controls="panel-events" className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => switchTab('events')}><Icon name="event" size={20} />Events</button>
             <button role="tab" aria-selected={tab === 'messages'} aria-controls="panel-messages" className={`tab ${tab === 'messages' ? 'active' : ''}`} onClick={() => switchTab('messages')}><Icon name="forum" size={20} />Conversation</button>
           </nav>
-          <Link to="/user-dashboard" className="exit" aria-label="Back to dashboard"><Icon name="arrow_back" size={19} /><span>Dashboard</span></Link>
+          {/* Icon only — the arrow carries the meaning, the label is for
+              screen readers and the native tooltip. */}
+          <Link to="/user-dashboard" className="exit" aria-label="Back to dashboard" title="Back to dashboard"><Icon name="arrow_back" size={21} /></Link>
         </div>
       </header>
 
