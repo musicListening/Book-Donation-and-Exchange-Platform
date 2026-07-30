@@ -162,6 +162,19 @@ All endpoints sit under `/api/community` and require a Bearer token.
 
 ## 5. Use case diagram
 
+Standalone copies for reports and slides:
+
+- [`community-use-case-diagram.svg`](community-use-case-diagram.svg) — vector,
+  scales without loss, inserts directly into Word 2016+, PowerPoint and
+  LibreOffice, and stays editable in Inkscape or Illustrator.
+- [`community-use-case-diagram.png`](community-use-case-diagram.png) —
+  2640 x 1760, for anything that will not take an SVG.
+
+![Community module use case diagram](community-use-case-diagram.svg)
+
+The mermaid source below is the same diagram, kept inline so it renders on
+GitHub and stays diffable:
+
 ```mermaid
 flowchart LR
     customer(["👤 Customer<br/>END_USER"])
