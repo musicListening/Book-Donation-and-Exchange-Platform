@@ -36,24 +36,26 @@ const UserDashboard = () => {
           });
         } catch (autoErr) {}
 
-        const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users`).then(r => r.ok ? r.json() : []),
+        const token = localStorage.getItem('token');
+        const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+        const [freshUser, boxes, config] = await Promise.all([
+          fetch(`${API_BASE}/users/me`, { headers: authHeaders }).then(r => r.ok ? r.json() : null),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
-          systemConfigAPI.getAll()
+          systemConfigAPI.getAll().catch(() => ({}))
         ]);
 
-        if (config.LEVEL_THRESHOLDS) {
+        if (config && config.LEVEL_THRESHOLDS) {
           try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
         }
-        if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+        if (config && config.MYSTERY_BOX_LEVEL_CONFIG) {
           try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
         }
-        if (config.MYSTERY_BOX_POINTS_COST) {
+        if (config && config.MYSTERY_BOX_POINTS_COST) {
           setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
         }
 
-        const freshUser = Array.isArray(freshUsers) ? freshUsers.find(u => u.id === storedUser.id) : null;
-        if (freshUser) {
+        if (freshUser && freshUser.id) {
           setUser(freshUser);
           localStorage.setItem('user', JSON.stringify(freshUser));
           localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
@@ -141,10 +143,13 @@ const UserDashboard = () => {
     if (!user) return alert('Please log in first.');
     setReviewSaving(true);
     try {
+      const reviewToken = localStorage.getItem('token');
+      const reviewHeaders = reviewToken ? { 'Authorization': `Bearer ${reviewToken}` } : {};
       const res = await fetch(`${API_BASE}/reviews`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
+        headers: {
+          'Content-Type': 'application/json',
+          ...reviewHeaders
         },
         body: JSON.stringify({ userId: user.id, rating: userReview.rating, comment: userReview.comment })
       });

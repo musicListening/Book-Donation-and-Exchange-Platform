@@ -155,10 +155,15 @@ const DriverProfile = () => {
     setSaving(true);
     setMessage(null);
     try {
+      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('name', editName.trim());
       if (profileFile) formData.append('profileImage', profileFile);
-      const res = await fetch(`${API_BASE}/users/${currentUser.id}/profile`, { method: 'PUT', body: formData });
+      const res = await fetch(`${API_BASE}/users/me/profile`, {
+        method: 'PUT',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData
+      });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
       const updated = await res.json();
       setCurrentUser(updated);
