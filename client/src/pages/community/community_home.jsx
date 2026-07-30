@@ -511,7 +511,7 @@ export default function CommunityHome() {
   };
 
   return (
-    <div className="community-page">
+    <div className={`community-page ${tab === 'messages' ? 'chat-view' : ''}`}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,0&display=swap" rel="stylesheet" />
       <style>{`
         *{box-sizing:border-box}
@@ -592,7 +592,24 @@ export default function CommunityHome() {
         .empty h2{color:${c.ink};font-size:20px;margin:12px 0 6px}
         .error{color:${c.error}}
         .details,.conversation{max-width:900px;margin:auto;background:#fff;border:1px solid ${c.greenBorder};border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(23,43,41,.07)}
-        .conversation{display:flex;flex-direction:column}
+        .conversation{display:flex;flex-direction:column;max-width:960px}
+        /* When the thread owns the page, the page itself becomes the flex
+           column and the chat takes whatever height is left. No magic numbers,
+           so it cannot drift out of step with the nav or the padding. */
+        .community-page.chat-view{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+        /* width:100% because .content uses margin:auto, and an auto margin on
+           a flex item stops it stretching - it collapses to its content width. */
+        .community-page.chat-view .content{flex:1;min-height:0;width:100%;display:flex;padding-top:24px;padding-bottom:24px}
+        /* The tab panel sits between .content and the chat, so it has to pass
+           the available height through rather than wrapping it in an auto box. */
+        .community-page.chat-view .tab-panel{flex:1;min-height:0;display:flex}
+        /* height:100% makes the height definite. Relying on flex stretch alone
+           left it sizing to its own content, so the list had nothing to
+           shrink against and the thread never scrolled. */
+        .community-page.chat-view .conversation{flex:1;min-height:0;height:100%;max-width:none}
+        /* The resting min-height would stop the list shrinking, which is what
+           makes it scroll internally instead of stretching the whole page. */
+        .community-page.chat-view .message-list{min-height:0}
         .details-topbar{display:flex;justify-content:space-between;align-items:center;margin:20px 24px;flex-wrap:wrap;gap:12px}
         .details-admin-actions{display:flex;gap:10px}
         .details-admin-actions .secondary{display:flex;align-items:center;gap:6px;border:1px solid ${c.border};background:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:700;color:${c.ink}}
@@ -615,7 +632,7 @@ export default function CommunityHome() {
         .chat-action:hover{background:rgba(255,255,255,.16)}
 
         /* Chat surface — a soft tint of the page palette, not a photo */
-        .message-list{min-height:390px;max-height:58vh;overflow-y:auto;overflow-x:hidden;padding:20px 22px 8px;background:
+        .message-list{flex:1;min-height:320px;overflow-y:auto;overflow-x:hidden;padding:20px 22px 8px;background:
           radial-gradient(circle at 18% 12%, rgba(220,241,234,.55), transparent 26%),
           radial-gradient(circle at 82% 78%, rgba(255,244,204,.5), transparent 24%),
           ${c.softer};scroll-behavior:smooth}
@@ -701,7 +718,8 @@ export default function CommunityHome() {
           .hero{height:230px}
           .detail-body{padding:24px 18px}
           .detail-body h1{font-size:27px}
-          .message-list{padding:14px 12px 6px;max-height:62vh}
+          .message-list{padding:14px 12px 6px}
+          /* Nav is 64px on small screens and the page padding is tighter */
           .message{max-width:88%}
           .bubble-text{font-size:14px}
           .chat-title h1{font-size:16px}
@@ -727,6 +745,9 @@ export default function CommunityHome() {
       </header>
 
       <main className="content">
+        {/* The hero introduces the events view. On the conversation tab it
+            just pushes the chat down, so it is only rendered for events. */}
+        {tab === 'events' && (
         <section className="hero-panel">
           <div className="hero-card">
             <p className="hero-kicker">Community hub</p>
@@ -749,8 +770,9 @@ export default function CommunityHome() {
             )}
           </div>
         </section>
+        )}
         {tab === 'events' ? (
-          <div id="panel-events" role="tabpanel" tabIndex={-1}>
+          <div id="panel-events" className="tab-panel" role="tabpanel" tabIndex={-1}>
             {selected ? (
               <Details event={selected} onBack={() => setSelected(null)} isAdmin={isAdmin} onEdit={openEdit} onDelete={deleteEvent} deleting={deletingId === selected.id} onParticipate={toggleParticipation} participating={participatingId === selected.id} />
             ) : (
@@ -758,7 +780,7 @@ export default function CommunityHome() {
             )}
           </div>
         ) : (
-          <div id="panel-messages" role="tabpanel" tabIndex={-1}>
+          <div id="panel-messages" className="tab-panel" role="tabpanel" tabIndex={-1}>
             <Conversation messages={messages} loading={loadingMessages} error={messageError} onSend={sendMessage} onUpdate={updateMessage} onDelete={deleteMessage} onRefresh={loadMessages} currentUserId={user?.id} />
           </div>
         )}
