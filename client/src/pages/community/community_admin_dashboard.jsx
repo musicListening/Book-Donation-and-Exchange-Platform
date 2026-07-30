@@ -1,33 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors, space, radius } from '../../components/communityTokens';
-import { Icon, Button, Chip, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
+import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <div
-      className="lift-card"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: colors.surfaceContainerLowest,
         border: `1px solid ${colors.outlineVariant}`,
-        borderRadius: radius.md,
-        padding: space.lg,
+        borderRadius: 12,
+        padding: 20,
         display: 'flex',
-        alignItems: 'flex-start',
-        gap: space.md,
+        alignItems: 'center',
+        gap: 16,
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none',
       }}
     >
       <div style={{ padding: 12, borderRadius: '50%', background: bg, color: fg, flexShrink: 0, display: 'flex' }}>
         <Icon name={icon} size={24} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 11.5, fontWeight: 600, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
-        {/* Tabular figures stop the numbers jittering as they change */}
-        <p style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.15, marginTop: 4, color: colors.primary, fontFamily: "'Playfair Display', serif", fontVariantNumeric: 'tabular-nums' }}>
-          {value.toLocaleString()}
-        </p>
-        <span style={{ fontSize: 12, color: colors.secondary, display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: space.xs }}>
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: 12, color: colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</p>
+        <p style={{ fontSize: 32, fontWeight: 700, lineHeight: '40px', color: colors.primary, fontFamily: "'Playfair Display', serif" }}>{value.toLocaleString()}</p>
+        <span style={{ fontSize: 12, color: colors.secondary, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
           <Icon name={subIcon} size={14} />
           {sub}
         </span>
@@ -37,26 +38,31 @@ function MetricCard({ icon, label, value, sub, subIcon, bg, fg }) {
 }
 
 function EventCard({ event, isLatest }) {
+  const [hovered, setHovered] = useState(false);
   const participants = event.participants || [];
   const participantCount = event.participantCount ?? participants.length;
   const shownNames = participants.slice(0, 3).map((participant) => participant.name);
   const extraCount = participants.length - shownNames.length;
 
   return (
-    <article
-      className="lift-card"
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: colors.surfaceContainerLowest,
         border: isLatest ? `2px solid ${colors.primary}` : `1px solid ${colors.outlineVariant}`,
-        borderRadius: radius.md,
+        borderRadius: 12,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05)' : 'none',
         position: 'relative',
       }}
     >
       {isLatest && (
-        <Chip tone="primary" style={{ position: 'absolute', top: 12, right: 12, zIndex: 2 }}>Latest</Chip>
+        <div style={{ position: 'absolute', top: 12, right: 12, background: colors.primary, color: colors.onPrimary, padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, zIndex: 2, letterSpacing: '0.5px' }}>LATEST</div>
       )}
       <div style={{ height: 128, position: 'relative' }}>
         <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -79,7 +85,7 @@ function EventCard({ event, isLatest }) {
           )}
         </div>
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -152,21 +158,24 @@ export default function CommunityAdminDashboard() {
         }
       `}</style>
 
-      <a className="skip-link" href="#dashboard-content">Skip to content</a>
       <CommunitySidebar active="dashboard" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
 
       <main style={{ marginLeft: isMd ? 280 : 0, minHeight: '100vh', background: colors.surface, display: 'flex', flexDirection: 'column' }}>
         <CommunityHeader title="Dashboard" subtitle="Overview and recent activity" isMd={isMd} onMenuClick={() => setSidebarOpen(true)} />
 
-        <div id="dashboard-content" tabIndex={-1} className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+        <div className="content-wrapper" style={{ padding: 36, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
           <div className="dashboard-hero">
             <section className="soft-card" style={{ padding: 30 }}>
               <p className="eyebrow">Overview</p>
               <h3 className="page-title">Welcome back{user?.name ? `, ${user.name}` : ''}</h3>
               <p className="page-subtitle">Check your numbers and manage events or messages from here.</p>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 26 }}>
-                <Button as={Link} to="/community-admin/events" icon="add_circle">New event</Button>
-                <Button as={Link} to="/community-admin/messages" variant="accent" icon="forum">Review messages</Button>
+                <Link to="/community-admin/events" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.primary, color: colors.onPrimary, fontWeight: 700 }}>
+                  <Icon name="add_circle" size={18} /> New event
+                </Link>
+                <Link to="/community-admin/messages" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 999, background: colors.accentSoft, color: colors.primaryDeep, border: `1px solid ${colors.accentBorder}`, fontWeight: 700 }}>
+                  <Icon name="forum" size={18} /> Review messages
+                </Link>
               </div>
             </section>
             <section className="soft-card" style={{ padding: 30 }}>
@@ -191,7 +200,7 @@ export default function CommunityAdminDashboard() {
             </section>
           </div>
 
-          {error && <Alert>{error}</Alert>}
+          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
 
           <div className="metric-grid" style={{ marginBottom: 48 }}>
             {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
@@ -202,24 +211,22 @@ export default function CommunityAdminDashboard() {
               <p className="eyebrow">Publishing feed</p>
               <h3 style={{ fontSize: 24, fontWeight: 700, color: colors.onSurface, fontFamily: "'Playfair Display', serif" }}>Latest events</h3>
             </div>
-            <Button as={Link} to="/community-admin/events" variant="accent" size="sm">
+            <Link to="/community-admin/events" style={{ color: colors.primary, fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderRadius: 999, background: colors.accentSoft, border: `1px solid ${colors.accentBorder}` }}>
               Manage events <Icon name="arrow_forward" size={16} />
-            </Button>
+            </Link>
           </div>
 
           {loading && (
-            <div className="event-grid" aria-hidden="true">
-              {[0, 1, 2].map((n) => <SkeletonCard key={n} media />)}
+            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
+              <p style={{ color: colors.onSurfaceVariant }}>Loading events...</p>
             </div>
           )}
 
           {!loading && latestEvents.length === 0 && (
-            <EmptyState
-              icon="event_busy"
-              title="No events published yet"
-              message="Publish your first event and it will show up here and on the community page."
-              action={<Button as={Link} to="/community-admin/events" icon="add_circle">Create an event</Button>}
-            />
+            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
+              <Icon name="event_busy" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
+              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>No events published yet.</p>
+            </div>
           )}
 
           {!loading && latestEvents.length > 0 && (

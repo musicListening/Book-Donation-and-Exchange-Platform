@@ -37,50 +37,91 @@ const UserDashboard = () => {
 
       // 1. Try to auto-assign mystery boxes
       try {
-        try {
-          await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: storedUser.id })
-          });
-        } catch (autoErr) {}
+        const autoResponse = await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: storedUser.id })
+        });
+        if (autoResponse.ok) {
+          console.log('✅ Auto-assign completed');
+        }
+      } catch (autoErr) {
+        console.log('Auto-assign not available');
+      }
 
-        const token = localStorage.getItem('token');
-        const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+      // 2. Fetch fresh user data
+      let userData = null;
+      try {
+        const userResponse = await fetch(`${API_BASE}/users/${storedUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (userResponse.ok) {
+          userData = await userResponse.json();
+          console.log('✅ User data fetched:', userData);
+        }
+      } catch (err) {
+        console.log('User fetch failed, using stored data');
+      }
 
-        const [freshUser, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users/me`, { headers: authHeaders }).then(r => r.ok ? r.json() : null),
-          mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
-          systemConfigAPI.getAll().catch(() => ({}))
-        ]);
+      // Use stored user if API fails
+      if (!userData) {
+        userData = storedUser;
+      }
 
-        if (config && config.LEVEL_THRESHOLDS) {
+      // Update user state
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('ss_current_user', JSON.stringify(userData));
+
+      // 3. Fetch mystery boxes
+      try {
+        const boxes = await mysteryBoxAPI.getByUser(storedUser.id);
+        const boxesArray = Array.isArray(boxes) ? boxes : [];
+        const seen = new Set();
+        const uniqueBoxes = boxesArray.filter(b => {
+          if (!b || !b.id) return false;
+          if (seen.has(b.id)) return false;
+          seen.add(b.id);
+          return true;
+        });
+        setMysteryBoxes(uniqueBoxes);
+        console.log('🎁 Mystery boxes loaded:', uniqueBoxes.length);
+      } catch (err) {
+        console.error('Error fetching mystery boxes:', err);
+        setMysteryBoxes([]);
+      }
+
+      // 4. Fetch system config
+      try {
+        const config = await systemConfigAPI.getAll();
+        if (config.LEVEL_THRESHOLDS) {
           try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
         }
-        if (config && config.MYSTERY_BOX_LEVEL_CONFIG) {
+        if (config.MYSTERY_BOX_LEVEL_CONFIG) {
           try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
         }
-        if (config && config.MYSTERY_BOX_POINTS_COST) {
+        if (config.MYSTERY_BOX_POINTS_COST) {
           setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
         }
       } catch (err) {
         console.error('Error fetching config:', err);
       }
 
-        if (freshUser && freshUser.id) {
-          setUser(freshUser);
-          localStorage.setItem('user', JSON.stringify(freshUser));
-          localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
-        }
-
-        // Fetch user review
-        try {
-          const revRes = await fetch(`${API_BASE}/reviews/me/${storedUser.id}`);
-          if (revRes.ok) {
-            const data = await revRes.json();
-            if (data) {
-              setUserReview({ rating: data.rating, comment: data.comment || '' });
-            }
+      // 5. Fetch user review
+      try {
+        const revRes = await fetch(`${API_BASE}/reviews/me/${storedUser.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (revRes.ok) {
+          const data = await revRes.json();
+          if (data) {
+            setUserReview({ rating: data.rating, comment: data.comment || '' });
           }
         }
       } catch (err) {
@@ -115,8 +156,7 @@ const UserDashboard = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
     localStorage.removeItem('token');
-    // Logging out returns you to the public home page, not the login form
-    navigate('/');
+    navigate('/login');
   };
 
   const getPointsCostForLevel = (level) => {
@@ -161,13 +201,11 @@ const UserDashboard = () => {
     if (!user) return alert('Please log in first.');
     setReviewSaving(true);
     try {
-      const reviewToken = localStorage.getItem('token');
-      const reviewHeaders = reviewToken ? { 'Authorization': `Bearer ${reviewToken}` } : {};
       const res = await fetch(`${API_BASE}/reviews`, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
-          ...reviewHeaders
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ userId: user.id, rating: userReview.rating, comment: userReview.comment })
       });
@@ -326,6 +364,36 @@ const UserDashboard = () => {
       <Navbar variant="user" user={user} />
 
       <main style={styles.mainContent}>
+        {/* Error message */}
+        {error && (
+          <div style={{
+            background: '#FFEBEE',
+            border: '1px solid #EF9A9A',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 20,
+            color: '#C62828',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span>⚠️ {error}</span>
+            <button 
+              onClick={() => { setError(null); fetchAllData(); }}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: '#C62828', 
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div style={styles.welcomeHeader}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -380,6 +448,7 @@ const UserDashboard = () => {
                 </div>
               </div>
             </div>
+
             <div style={styles.actionsGrid}>
               <Link to="/donate" style={styles.actionBtn}>
                 <i className="fa-solid fa-hand-holding-heart" style={{ ...styles.actionIcon, color: '#2A9D8F' }}></i>

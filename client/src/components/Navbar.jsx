@@ -44,8 +44,7 @@ export default function Navbar({
     localStorage.removeItem('user');
     localStorage.removeItem('ss_current_user');
     localStorage.removeItem('userRole');
-    // Logging out returns you to the public home page, not the login form
-    navigate('/');
+    navigate('/login');
   };
 
   const isActive = (path) => location.pathname === path;
