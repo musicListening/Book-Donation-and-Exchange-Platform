@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
 
@@ -18,6 +18,39 @@ const localDateTime = (value) => {
   const date = new Date(value);
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date - offset).toISOString().slice(0, 16);
+};
+
+// Group chats colour each sender's name so a busy thread stays readable.
+// Hues are picked from the page palette rather than at random.
+const SENDER_COLOURS = ['#176b63', '#2f8f73', '#9a6420', '#0f4e48', '#7a4a2f', '#3c6e5c'];
+const nameColour = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return SENDER_COLOURS[Math.abs(hash) % SENDER_COLOURS.length];
+};
+
+// 14:32 — the short stamp shown inside each bubble
+const clockTime = (value) => new Date(value).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+// "Today" / "Yesterday" / a date, used for the separators between days
+const dayLabel = (value) => {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+};
+
+// Messages within 5 minutes from the same person collapse into one run,
+// so only the first keeps its avatar and name.
+const CHAT_GROUP_WINDOW_MS = 5 * 60 * 1000;
+const startsNewRun = (message, previous) => {
+  if (!previous) return true;
+  if (previous.user.id !== message.user.id) return true;
+  if (new Date(message.createdAt).toDateString() !== new Date(previous.createdAt).toDateString()) return true;
+  return new Date(message.createdAt) - new Date(previous.createdAt) > CHAT_GROUP_WINDOW_MS;
 };
 
 function formatEvent(event) {
@@ -187,7 +220,7 @@ function Details({ event, onBack, isAdmin, onEdit, onDelete, deleting, onPartici
   );
 }
 
-function MessageItem({ message, isOwn, onUpdate, onDelete }) {
+function MessageItem({ message, isOwn, showMeta, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(message.content);
   const [saving, setSaving] = useState(false);
@@ -209,10 +242,14 @@ function MessageItem({ message, isOwn, onUpdate, onDelete }) {
   };
 
   return (
-    <article className={`message ${isOwn ? 'own' : ''}`}>
-      <div className="avatar">{message.user.name.charAt(0).toUpperCase()}</div>
-      <div className="message-body">
-        <div className="message-top"><strong>{message.user.name}</strong><time>{new Date(message.createdAt).toLocaleString()}</time></div>
+    <article className={`message ${isOwn ? 'own' : ''} ${showMeta ? '' : 'grouped'}`}>
+      {/* Avatar only on the first message of a run, like a group chat */}
+      {showMeta
+        ? <div className="avatar" style={isOwn ? undefined : { background: nameColour(message.user.name) }}>{message.user.name.charAt(0).toUpperCase()}</div>
+        : <div className="avatar-spacer" aria-hidden="true" />}
+      <div className="bubble">
+        {/* Sender name is group-chat information — no point telling you your own */}
+        {showMeta && !isOwn && <p className="sender" style={{ color: nameColour(message.user.name) }}>{message.user.name}</p>}
         {editing ? (
           <form className="edit-form" onSubmit={saveEdit}>
             <textarea autoFocus value={value} onChange={(event) => setValue(event.target.value)} maxLength={1000} aria-label="Edit your message" />
@@ -223,11 +260,14 @@ function MessageItem({ message, isOwn, onUpdate, onDelete }) {
           </form>
         ) : (
           <>
-            <p>{message.content}</p>
+            <p className="bubble-text">{message.content}</p>
+            <time className="stamp" dateTime={message.createdAt} title={new Date(message.createdAt).toLocaleString()}>
+              {clockTime(message.createdAt)}
+            </time>
             {isOwn && (
-              <div className="message-actions">
-                <button type="button" onClick={startEdit}><Icon name="edit" size={15} />Edit</button>
-                <button type="button" className="danger" onClick={remove} disabled={removing}><Icon name="delete" size={15} />{removing ? 'Deleting...' : 'Delete'}</button>
+              <div className="bubble-actions">
+                <button type="button" aria-label="Edit message" title="Edit" onClick={startEdit}><Icon name="edit" size={15} /></button>
+                <button type="button" className="danger" aria-label="Delete message" title="Delete" onClick={remove} disabled={removing}><Icon name={removing ? 'hourglass_top' : 'delete'} size={15} /></button>
               </div>
             )}
           </>
@@ -240,37 +280,102 @@ function MessageItem({ message, isOwn, onUpdate, onDelete }) {
 function Conversation({ messages, loading, error, onSend, onUpdate, onDelete, onRefresh, currentUserId }) {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
+  const listRef = useRef(null);
+  const endRef = useRef(null);
+
+  // A chat reads newest-last, so open at the bottom and follow new messages —
+  // but only when the reader is already near the bottom, so scrolling back
+  // through history is not yanked away when someone else posts.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    if (distanceFromBottom < 160) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
+
   const submit = async (event) => {
     event.preventDefault();
     if (!content.trim() || sending) return;
     setSending(true);
-    try { await onSend(content); setContent(''); } finally { setSending(false); }
+    try {
+      await onSend(content);
+      setContent('');
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    } finally { setSending(false); }
   };
+
+  // Enter sends, Shift+Enter makes a new line — the usual chat behaviour
+  const onKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submit(event);
+    }
+  };
+
+  const participants = new Set(messages.map((message) => message.user.id)).size;
 
   return (
     <section className="conversation">
-      <div className="conversation-header">
-        <div className="conversation-icon"><Icon name="forum" /></div>
-        <div><p>Member space</p><h1>Community conversation</h1><span>Messages from ShareShelf customers</span></div>
-        <button className="icon-button" title="Refresh messages" aria-label="Refresh messages" onClick={onRefresh}><Icon name="refresh" /></button>
+      <div className="chat-header">
+        <div className="chat-avatar" aria-hidden="true"><Icon name="groups" /></div>
+        <div className="chat-title">
+          <h1>Community conversation</h1>
+          <span>
+            {loading
+              ? 'Loading messages…'
+              : `${messages.length} ${messages.length === 1 ? 'message' : 'messages'}${participants ? ` · ${participants} ${participants === 1 ? 'member' : 'members'}` : ''}`}
+          </span>
+        </div>
+        <button className="chat-action" title="Refresh messages" aria-label="Refresh messages" onClick={onRefresh}><Icon name="refresh" size={20} /></button>
       </div>
-      <div className="message-list">
+
+      <div className="message-list" ref={listRef}>
         {loading && (
-          <div aria-hidden="true" style={{ display: 'grid', gap: 14 }}>
-            {[0, 1, 2].map((n) => (
-              <div key={n} className="skel" style={{ height: 74, borderRadius: 14 }} />
+          <div aria-hidden="true" className="skel-chat">
+            {[70, 46, 60].map((width, n) => (
+              <div key={n} className={`skel skel-bubble ${n === 1 ? 'own' : ''}`} style={{ width: `${width}%` }} />
             ))}
           </div>
         )}
         {!loading && error && <p className="center error">{error}</p>}
-        {!loading && !error && messages.length === 0 && <div className="center"><Icon name="chat_bubble_outline" size={48} /><p>Be the first to start the conversation.</p></div>}
-        {messages.map((message) => (
-          <MessageItem key={message.id} message={message} isOwn={message.user.id === currentUserId} onUpdate={onUpdate} onDelete={onDelete} />
-        ))}
+        {!loading && !error && messages.length === 0 && (
+          <div className="center">
+            <Icon name="chat_bubble_outline" size={48} />
+            <p>No messages yet. Say hello to the community.</p>
+          </div>
+        )}
+        {!loading && messages.map((message, index) => {
+          const previous = messages[index - 1];
+          const newDay = !previous || new Date(message.createdAt).toDateString() !== new Date(previous.createdAt).toDateString();
+          return (
+            <div key={message.id}>
+              {newDay && <div className="day-divider"><span>{dayLabel(message.createdAt)}</span></div>}
+              <MessageItem
+                message={message}
+                isOwn={message.user.id === currentUserId}
+                showMeta={startsNewRun(message, newDay ? null : previous)}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+              />
+            </div>
+          );
+        })}
+        <div ref={endRef} />
       </div>
+
       <form className="composer" onSubmit={submit}>
-        <textarea aria-label="Community message" value={content} onChange={(event) => setContent(event.target.value)} maxLength={1000} placeholder="Share a message with the community..." />
-        <button className="send" disabled={!content.trim() || sending} title="Send message" aria-label="Send message"><Icon name="send" /></button>
+        <textarea
+          aria-label="Community message"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          onKeyDown={onKeyDown}
+          maxLength={1000}
+          rows={1}
+          placeholder="Type a message"
+        />
+        <button className="send" disabled={!content.trim() || sending} title="Send message" aria-label="Send message">
+          <Icon name={sending ? 'hourglass_top' : 'send'} size={21} />
+        </button>
       </form>
     </section>
   );
@@ -424,7 +529,8 @@ export default function CommunityHome() {
         .tabs{display:flex;align-self:stretch;gap:4px}
         .tab{border:0;border-bottom:3px solid transparent;background:transparent;color:${c.muted};padding:0 18px;cursor:pointer;display:flex;gap:8px;align-items:center;font-weight:600}
         .tab.active{color:${c.primary};border-bottom-color:${c.primary}}
-        .exit{color:#fff;background:${c.error};text-decoration:none;padding:9px 13px;border-radius:6px;display:flex;align-items:center;gap:6px;font-weight:600}
+        .exit{color:${c.primary};background:#fff;border:1px solid ${c.greenBorder};text-decoration:none;padding:9px 15px;border-radius:999px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;transition:background .18s,border-color .18s}
+        .exit:hover{background:${c.soft};border-color:${c.primary}}
         .content{max-width:1200px;margin:auto;padding:56px 24px 84px}
         .hero-panel{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;margin-bottom:30px}
         .hero-card,.spotlight-card{background:rgba(255,255,255,.94);border:1px solid ${c.greenBorder};border-radius:16px;box-shadow:0 12px 28px rgba(23,107,99,.06)}
@@ -480,7 +586,8 @@ export default function CommunityHome() {
         .empty{border:1px dashed ${c.greenBorder};background:#fff;padding:68px 28px;text-align:center;color:${c.muted};border-radius:12px;grid-column:1/-1}
         .empty h2{color:${c.ink};font-size:20px;margin:12px 0 6px}
         .error{color:${c.error}}
-        .details,.conversation{max-width:900px;margin:auto;background:#fff;border:1px solid ${c.greenBorder};border-radius:12px;overflow:hidden}
+        .details,.conversation{max-width:900px;margin:auto;background:#fff;border:1px solid ${c.greenBorder};border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(23,43,41,.07)}
+        .conversation{display:flex;flex-direction:column}
         .details-topbar{display:flex;justify-content:space-between;align-items:center;margin:20px 24px;flex-wrap:wrap;gap:12px}
         .details-admin-actions{display:flex;gap:10px}
         .details-admin-actions .secondary{display:flex;align-items:center;gap:6px;border:1px solid ${c.border};background:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:700;color:${c.ink}}
@@ -493,37 +600,68 @@ export default function CommunityHome() {
         .detail-meta>div{padding:18px;background:${c.yellow};border-radius:10px;display:flex;gap:11px;color:${c.primary}}
         .detail-meta span{color:${c.muted};font-size:12px;display:grid;gap:4px}
         .detail-meta strong{color:${c.ink};font-size:14px}
-        .conversation-header{padding:24px;border-bottom:1px solid ${c.border};display:flex;align-items:center;gap:14px}
-        .conversation-header h1{font-size:27px}
-        .conversation-header span{color:${c.muted};font-size:14px}
-        .conversation-icon,.avatar{background:${c.primary};color:#fff;display:grid;place-items:center;border-radius:50%;flex:0 0 auto}
-        .conversation-icon{width:48px;height:48px;background:${c.soft};color:${c.primary}}
-        .icon-button{margin-left:auto;width:42px;height:42px;border:1px solid ${c.border};border-radius:6px;background:#fff;color:${c.primary};display:grid;place-items:center;cursor:pointer}
-        .message-list{min-height:390px;max-height:56vh;overflow:auto;padding:28px;background:#fffdf4}
-        .message{display:flex;gap:11px;margin-bottom:22px;max-width:760px}
-        .message.own{margin-left:auto}
-        .avatar{width:38px;height:38px;font-weight:700}
-        .message-body{flex:1;min-width:0}
-        .message-top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
-        .message-top time{color:${c.muted};font-size:12px}
-        .message p{margin:5px 0 0;color:${c.ink};line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
-        .message-actions{display:flex;gap:16px;margin-top:8px}
-        .message-actions button{border:0;background:transparent;padding:0;color:${c.muted};font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px}
-        .message-actions button:hover{color:${c.primary}}
-        .message-actions button.danger:hover{color:${c.error}}
-        .message-actions button:disabled{opacity:.6;cursor:not-allowed}
-        .edit-form{margin-top:6px;display:flex;flex-direction:column;gap:8px}
-        .edit-form textarea{width:100%;resize:vertical;min-height:56px;padding:11px;border:1px solid ${c.yellowBorder};border-radius:10px;color:${c.ink};font:inherit}
+        /* ---------- Group chat ---------- */
+        .chat-header{padding:14px 20px;border-bottom:1px solid ${c.border};display:flex;align-items:center;gap:13px;background:${c.primary}}
+        .chat-avatar{width:44px;height:44px;flex:0 0 auto;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center}
+        .chat-title{flex:1;min-width:0}
+        .chat-title h1{margin:0;font-size:18px;color:#fff;font-family:'DM Sans',sans-serif;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .chat-title span{display:block;margin-top:2px;font-size:12.5px;color:rgba(255,255,255,.78)}
+        .chat-action{border:0;background:transparent;color:#fff;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:background .18s}
+        .chat-action:hover{background:rgba(255,255,255,.16)}
+
+        /* Chat surface — a soft tint of the page palette, not a photo */
+        .message-list{min-height:390px;max-height:58vh;overflow-y:auto;overflow-x:hidden;padding:20px 22px 8px;background:
+          radial-gradient(circle at 18% 12%, rgba(220,241,234,.55), transparent 26%),
+          radial-gradient(circle at 82% 78%, rgba(255,244,204,.5), transparent 24%),
+          ${c.softer};scroll-behavior:smooth}
+
+        .day-divider{display:flex;justify-content:center;margin:14px 0 18px}
+        .day-divider span{background:rgba(255,255,255,.92);border:1px solid ${c.greenBorder};color:${c.muted};font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 14px;border-radius:999px}
+
+        .message{display:flex;gap:9px;margin-bottom:10px;max-width:78%;align-items:flex-end}
+        .message.own{margin-left:auto;flex-direction:row-reverse}
+        .message.grouped{margin-bottom:4px}
+        .avatar{width:34px;height:34px;font-weight:700;font-size:14px;flex:0 0 auto}
+        .avatar-spacer{width:34px;flex:0 0 auto}
+
+        /* The bubble, with a small tail on the first of each run */
+        .bubble{position:relative;background:#fff;border:1px solid ${c.greenBorder};border-radius:14px;padding:8px 12px 6px;box-shadow:0 1px 1px rgba(23,43,41,.06);min-width:96px}
+        .message.own .bubble{background:${c.soft};border-color:${c.greenBorder}}
+        .message:not(.grouped) .bubble{border-top-left-radius:4px}
+        .message.own:not(.grouped) .bubble{border-top-left-radius:14px;border-top-right-radius:4px}
+
+        .sender{margin:0 0 3px;font-size:13px;font-weight:700;line-height:1.2}
+        .bubble-text{margin:0;color:${c.ink};line-height:1.5;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere;padding-right:52px}
+        .stamp{position:absolute;right:11px;bottom:6px;font-size:11px;color:${c.muted};font-variant-numeric:tabular-nums}
+
+        /* Own-message controls: out of the way until hover or keyboard focus */
+        .bubble-actions{position:absolute;top:-13px;right:6px;display:flex;gap:2px;opacity:0;transition:opacity .16s}
+        .message:hover .bubble-actions,.message:focus-within .bubble-actions{opacity:1}
+        @media (hover:none){.bubble-actions{opacity:1}}
+        .bubble-actions button{width:27px;height:27px;border:1px solid ${c.greenBorder};border-radius:50%;background:#fff;color:${c.muted};display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 6px rgba(23,43,41,.12)}
+        .bubble-actions button:hover{color:${c.primary};border-color:${c.primary}}
+        .bubble-actions button.danger:hover{color:${c.error};border-color:${c.error}}
+        .bubble-actions button:disabled{opacity:.6;cursor:not-allowed}
+
+        .edit-form{margin-top:4px;display:flex;flex-direction:column;gap:8px;min-width:220px}
+        .edit-form textarea{width:100%;resize:vertical;min-height:56px;padding:10px;border:1px solid ${c.yellowBorder};border-radius:10px;color:${c.ink};font:inherit;background:#fff}
         .edit-form textarea:focus{outline:2px solid ${c.soft};border-color:${c.primary}}
-        .edit-actions{display:flex;justify-content:flex-end;gap:14px}
+        .edit-actions{display:flex;justify-content:flex-end;gap:12px;align-items:center}
         .edit-actions .text-button{margin:0;color:${c.muted};font-weight:700}
-        .save-button{border:0;border-radius:6px;background:${c.primary};color:#fff;font-weight:700;padding:8px 16px;cursor:pointer}
+        .save-button{border:0;border-radius:999px;background:${c.primary};color:#fff;font-weight:700;padding:7px 16px;cursor:pointer}
         .save-button:disabled{background:#9db6b1;cursor:not-allowed}
+
+        .skel-chat{display:grid;gap:12px;padding-top:6px}
+        .skel-bubble{height:52px;border-radius:14px}
+        .skel-bubble.own{margin-left:auto}
         .center{text-align:center;color:${c.muted};padding:60px 20px}
-        .composer{padding:20px 24px;display:flex;gap:12px;border-top:1px solid ${c.yellowBorder}}
-        .composer textarea{flex:1;resize:vertical;min-height:56px;max-height:110px;padding:14px;border:1px solid ${c.yellowBorder};border-radius:10px;color:${c.ink};font:inherit}
-        .composer textarea:focus{outline:2px solid ${c.soft};border-color:${c.primary}}
-        .send{width:52px;height:52px;align-self:end;border:0;border-radius:10px;background:${c.primary};color:#fff;display:grid;place-items:center;cursor:pointer}
+        /* Chat input bar: pill field plus a round send button */
+        .composer{padding:14px 18px;display:flex;gap:10px;align-items:flex-end;border-top:1px solid ${c.border};background:#fff}
+        .composer textarea{flex:1;resize:none;min-height:46px;max-height:132px;padding:13px 18px;border:1px solid ${c.border};border-radius:24px;color:${c.ink};font:inherit;line-height:1.45;background:${c.softer}}
+        .composer textarea::placeholder{color:${c.muted}}
+        .composer textarea:focus{outline:none;border-color:${c.primary};background:#fff;box-shadow:0 0 0 3px ${c.soft}}
+        .send{width:46px;height:46px;flex:0 0 auto;border:0;border-radius:50%;background:${c.primary};color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .16s,background .16s}
+        .send:hover:not(:disabled){transform:scale(1.06)}
         .send:disabled{background:#b6c5c2;cursor:not-allowed}
         .modal-layer{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px}
         .modal-backdrop{position:absolute;inset:0;background:rgba(10,35,32,.55)}
@@ -546,8 +684,7 @@ export default function CommunityHome() {
           .tabs{flex:1}
           .tab{flex:1;justify-content:center;padding:0 8px;font-size:13px}
           .tab .material-symbols-outlined{display:none}
-          .exit{padding:9px}
-          .exit span:last-child{display:none}
+          .exit{padding:9px 12px}
           .content{padding:28px 14px 48px}
           .hero-panel{grid-template-columns:1fr}
           .heading h1,.conversation-header h1{font-size:24px}
@@ -555,8 +692,11 @@ export default function CommunityHome() {
           .hero{height:230px}
           .detail-body{padding:24px 18px}
           .detail-body h1{font-size:27px}
-          .message-list{padding:18px 14px}
-          .message{max-width:100%}
+          .message-list{padding:14px 12px 6px;max-height:62vh}
+          .message{max-width:88%}
+          .bubble-text{font-size:14px}
+          .chat-title h1{font-size:16px}
+          .composer{padding:12px}
         }
       `}</style>
 
@@ -567,7 +707,7 @@ export default function CommunityHome() {
             <button role="tab" aria-selected={tab === 'events'} aria-controls="panel-events" className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => switchTab('events')}><Icon name="event" size={20} />Events</button>
             <button role="tab" aria-selected={tab === 'messages'} aria-controls="panel-messages" className={`tab ${tab === 'messages' ? 'active' : ''}`} onClick={() => switchTab('messages')}><Icon name="forum" size={20} />Conversation</button>
           </nav>
-          <Link to="/user-dashboard" className="exit"><Icon name="arrow_back" size={19} /><span>Dashboard</span></Link>
+          <Link to="/user-dashboard" className="exit" aria-label="Back to dashboard"><Icon name="arrow_back" size={19} /><span>Dashboard</span></Link>
         </div>
       </header>
 
