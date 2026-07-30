@@ -347,7 +347,7 @@ const Home = () => {
     stepNumber: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, background: '#E76F51', color: 'white', borderRadius: '50%', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(231,111,81,0.4)' },
     
     statsBar: { background: 'linear-gradient(135deg, #1E4D4B 0%, #163836 50%, #0f2624 100%)', padding: '60px 80px' },
-    statsGrid: { maxWidth: 1440, width: '100%', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' },
+    statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' },
     statNumber: { fontSize: 42, fontWeight: 800, display: 'block', marginBottom: 4, color: 'white' },
     statLabel: { fontSize: 16, opacity: 0.9, color: 'white' },
     
