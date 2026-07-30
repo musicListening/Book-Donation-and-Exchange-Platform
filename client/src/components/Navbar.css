@@ -440,7 +440,7 @@
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--nav-border);
-  padding: 0 clamp(20px, 4vw, 48px);
+  padding: 16px clamp(20px, 4vw, 48px) 24px;
   gap: 4px;
   max-height: 0;
   overflow: hidden;
@@ -448,8 +448,6 @@
 }
 .ss-navbar__mobile--open {
   max-height: 500px;
-  padding: 16px clamp(20px, 4vw, 48px) 24px;
-  border-top: 1px solid var(--nav-border);
 }
 .ss-navbar__mobile-link {
   display: flex;

@@ -166,11 +166,6 @@
   color: #1E4D4B;
 }
 
-.password-toggle-btn i {
-  font-family: "Font Awesome 6 Free" !important;
-  font-weight: 900 !important;
-}
-
 .auth-modal-btn {
   width: 100%;
   padding: 14px;

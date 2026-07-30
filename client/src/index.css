@@ -122,16 +122,13 @@ code {
     padding: 120px 24px 60px !important;
   }
   .hero-inner {
-    display: flex !important;
     flex-direction: column-reverse !important;
     gap: 40px !important;
     text-align: center !important;
     align-items: center !important;
-    padding: 0 16px !important;
   }
   .hero-content {
     max-width: 100% !important;
-    width: 100% !important;
   }
   .hero-title {
     font-size: 38px !important;
@@ -208,19 +205,11 @@ code {
     grid-template-columns: 1fr !important;
     gap: 24px !important;
   }
-  .profile-main > div:first-child {
-    position: static !important;
-  }
   .profile-tab-menu {
     overflow-x: auto !important;
     white-space: nowrap !important;
     padding-bottom: 8px !important;
     gap: 16px !important;
-  }
-  .table-responsive {
-    width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
   }
 
   /* Cart Layout */
