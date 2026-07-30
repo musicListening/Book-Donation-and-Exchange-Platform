@@ -243,11 +243,11 @@ function MessageItem({ message, isOwn, showMeta, onUpdate, onDelete }) {
 
   return (
     <article className={`message ${isOwn ? 'own' : ''} ${showMeta ? '' : 'grouped'}`}>
-      {/* Avatars identify other people, so your own messages do not carry one.
-          Within a run only the first message keeps it. */}
-      {!isOwn && (showMeta
-        ? <div className="avatar" style={{ background: nameColour(message.user.name) }}>{message.user.name.charAt(0).toUpperCase()}</div>
-        : <div className="avatar-spacer" aria-hidden="true" />)}
+      {/* Round letter avatar for the sender. Within a run of messages only
+          the first one carries it, so the thread does not repeat itself. */}
+      {showMeta
+        ? <div className="avatar" title={message.user.name} style={{ background: nameColour(message.user.name) }}>{message.user.name.charAt(0).toUpperCase()}</div>
+        : <div className="avatar-spacer" aria-hidden="true" />}
       <div className="bubble">
         {/* Sender name is group-chat information — no point telling you your own */}
         {showMeta && !isOwn && <p className="sender" style={{ color: nameColour(message.user.name) }}>{message.user.name}</p>}
@@ -512,7 +512,7 @@ export default function CommunityHome() {
 
   return (
     <div className="community-page">
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,0&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,0&display=swap" rel="stylesheet" />
       <style>{`
         *{box-sizing:border-box}
         /* Nothing on this page showed keyboard focus */
@@ -526,7 +526,10 @@ export default function CommunityHome() {
         h1,h2{font-family:'Libre Baskerville',serif;letter-spacing:0}
         .nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);border-bottom:1px solid ${c.greenBorder};backdrop-filter:blur(12px)}
         .nav-inner{max-width:1200px;margin:auto;min-height:72px;padding:0 24px;display:flex;align-items:center;gap:24px;justify-content:space-between}
-        .brand{color:${c.primary};font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;text-decoration:none}
+        .brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;transition:opacity .2s,transform .2s}
+        .brand:hover{opacity:.85;transform:translateY(-1px)}
+        .brand-mark{width:38px;height:38px;flex:0 0 auto;border-radius:10px;background:linear-gradient(135deg,${c.primary},${c.dark});color:#fff;display:grid;place-items:center;font-size:16px;box-shadow:0 4px 12px rgba(23,107,99,.25)}
+        .brand-text{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:${c.primary};letter-spacing:-.3px}
         .tabs{display:flex;align-self:stretch;gap:4px}
         .tab{border:0;border-bottom:3px solid transparent;background:transparent;color:${c.muted};padding:0 18px;cursor:pointer;display:flex;gap:8px;align-items:center;font-weight:600}
         .tab.active{color:${c.primary};border-bottom-color:${c.primary}}
@@ -621,12 +624,14 @@ export default function CommunityHome() {
         .day-divider span{background:rgba(255,255,255,.92);border:1px solid ${c.greenBorder};color:${c.muted};font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 14px;border-radius:999px}
 
         .message{display:flex;gap:9px;margin-bottom:10px;max-width:78%;align-items:flex-end}
-        /* Own messages carry no avatar, so the bubble itself must be pushed
-           to the right edge of the row */
-        .message.own{margin-left:auto;justify-content:flex-end}
+        /* Own messages mirror the row so the avatar sits on the right */
+        .message.own{margin-left:auto;flex-direction:row-reverse}
         .message.grouped{margin-bottom:4px}
-        .avatar{width:34px;height:34px;font-weight:700;font-size:14px;flex:0 0 auto}
-        .avatar-spacer{width:34px;flex:0 0 auto}
+        /* Round letter avatar — the sender's initial on their own colour */
+        .avatar{width:36px;height:36px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+          color:#fff;font-weight:700;font-size:15px;line-height:1;text-transform:uppercase;
+          box-shadow:0 1px 3px rgba(23,43,41,.18);user-select:none}
+        .avatar-spacer{width:36px;flex:0 0 auto}
 
         /* The bubble, with a small tail on the first of each run */
         .bubble{position:relative;background:#fff;border:1px solid ${c.greenBorder};border-radius:14px;padding:8px 12px 6px;box-shadow:0 1px 1px rgba(23,43,41,.06);min-width:96px}
@@ -706,7 +711,11 @@ export default function CommunityHome() {
 
       <header className="nav">
         <div className="nav-inner">
-          <Link to="/user-dashboard" className="brand">ShareShelf Community</Link>
+          {/* Same brand mark as the site navbar, drawn in the community palette */}
+          <Link to="/" className="brand" aria-label="ShareShelf home">
+            <span className="brand-mark"><i className="fa-solid fa-book-open" /></span>
+            <span className="brand-text">ShareShelf</span>
+          </Link>
           <nav className="tabs" role="tablist" aria-label="Community sections">
             <button role="tab" aria-selected={tab === 'events'} aria-controls="panel-events" className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => switchTab('events')}><Icon name="event" size={20} />Events</button>
             <button role="tab" aria-selected={tab === 'messages'} aria-controls="panel-messages" className={`tab ${tab === 'messages' ? 'active' : ''}`} onClick={() => switchTab('messages')}><Icon name="forum" size={20} />Conversation</button>
