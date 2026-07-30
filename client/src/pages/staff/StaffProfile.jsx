@@ -47,7 +47,12 @@ export default function StaffProfile() {
       formData.append('name', name.trim());
       if (profileFile) formData.append('profileImage', profileFile);
 
-      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, { method: 'PUT', body: formData });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/users/me/profile`, {
+        method: 'PUT',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to update profile');
