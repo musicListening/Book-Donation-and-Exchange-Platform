@@ -8,6 +8,13 @@ router.post('/register', async (req, res) => {
     try {
         const { name, email, password } = req.body; 
 
+        // Validate email domain
+        const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'yahoomail.com'];
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        if (!allowedDomains.includes(emailDomain)) {
+            return res.status(400).json({ message: 'Only Gmail, Outlook, and Yahoo mail are allowed for registration.' });
+        }
+
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ message: 'User with this email already exists' });
