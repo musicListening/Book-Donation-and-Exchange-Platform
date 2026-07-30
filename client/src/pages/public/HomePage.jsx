@@ -382,8 +382,8 @@ const Home = () => {
     stepIcon: { width: 80, height: 80, background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 30, color: '#1E4D4B', position: 'relative', boxShadow: '0 8px 24px rgba(233,196,106,0.35)' },
     stepNumber: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, background: '#E76F51', color: 'white', borderRadius: '50%', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(231,111,81,0.4)' },
     
-    statsBar: { background: 'linear-gradient(135deg, #1E4D4B 0%, #163836 50%, #0f2624 100%)', padding: '60px 80px' },
-    statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' },
+    statsBar: { background: 'linear-gradient(135deg, #1E4D4B 0%, #163836 50%, #0f2624 100%)', padding: '60px 80px 60px 300px' },
+    statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'right' },
     statNumber: { fontSize: 42, fontWeight: 800, display: 'block', marginBottom: 4, color: 'white' },
     statLabel: { fontSize: 16, opacity: 0.9, color: 'white' },
     
@@ -601,15 +601,15 @@ const Home = () => {
       {/* ============ STATS BAR ============ */}
       <section className="stats-bar" style={styles.statsBar}>
         <div ref={statsRef} className="reveal-stagger stats-grid" style={styles.statsGrid}>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
           </div>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>👥 {formatNumber(animatedMembers)}+</span>
             <span style={styles.statLabel}>Active Members</span>
           </div>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>🪙 {formatNumber(animatedPoints)}+</span>
             <span style={styles.statLabel}>Points Earned</span>
           </div>
