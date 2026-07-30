@@ -4,6 +4,16 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
+// Gold / silver / bronze treatment for the three podium places.
+const MEDALS = [
+  { emoji: '🥇', background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', color: '#7A5C10', glow: '0 0 20px rgba(233,196,106,0.5)' },
+  { emoji: '🥈', background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666', glow: 'none' },
+  { emoji: '🥉', background: 'linear-gradient(135deg, #CD7F32, #E0A165)', color: 'white', glow: 'none' },
+];
+
+const avatarColor = (rank) => `hsl(${rank * 47}, 65%, 48%)`;
+const initialOf = (name) => (name || 'U').trim().charAt(0).toUpperCase();
+
 const Home = () => {
   const pageRef = useRef(null);
   const navigate = useNavigate();
@@ -12,6 +22,7 @@ const Home = () => {
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
   const [topReviews, setTopReviews] = useState([]);
+  const [topDonors, setTopDonors] = useState([]);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -51,6 +62,11 @@ const Home = () => {
       .then(res => res.json())
       .then(data => setTopReviews(data))
       .catch(() => {});
+
+    fetch(`${API_URL}/stats/leaderboard?limit=10`)
+      .then(res => res.json())
+      .then(data => setTopDonors(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   // ── IntersectionObserver to trigger counter animation ──
@@ -70,6 +86,12 @@ const Home = () => {
 
   // navigation helper
   const navTo = useCallback((path) => navigate(path), [navigate]);
+
+  // Podium reads 2nd — 1st — 3rd so the winner sits in the middle; with fewer
+  // than three donors we just show whoever exists, in order.
+  const podium = topDonors.slice(0, 3);
+  const podiumOrder = podium.length === 3 ? [podium[1], podium[0], podium[2]] : podium;
+  const runnersUp = topDonors.slice(3);
 
   // Auth modal state
   const [authOpen, setAuthOpen] = useState(false);
@@ -114,8 +136,12 @@ const Home = () => {
       });
     });
 
-    // Scroll-reveal IntersectionObserver
-    const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
+  }, []);
+
+  // Scroll-reveal IntersectionObserver. Re-runs when async sections (leaderboard,
+  // reviews) mount so their cards get observed too instead of staying hidden.
+  useEffect(() => {
+    const revealEls = document.querySelectorAll('.reveal:not(.revealed), .reveal-stagger:not(.revealed)');
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -127,7 +153,7 @@ const Home = () => {
     revealEls.forEach(el => observer.observe(el));
 
     return () => observer.disconnect();
-  }, []);
+  }, [topDonors, topReviews]);
 
   const styles = {
     // Header - FIXED
@@ -386,12 +412,24 @@ const Home = () => {
     testimonialText: { fontSize: 15, color: '#495057', fontStyle: 'italic', lineHeight: 1.6 },
     stars: { color: '#E9C46A', marginBottom: 16 },
     
-    levels: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
-    levelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48 },
-    levelCard: { background: 'white', borderRadius: 24, padding: '36px 28px', border: '2px solid rgba(0,0,0,0.05)', position: 'relative', boxShadow: '0 6px 28px rgba(0,0,0,0.07)', transition: 'all 0.35s ease' },
-    levelCardFeatured: { borderColor: '#E9C46A', boxShadow: '0 16px 45px rgba(233,196,106,0.2)', transform: 'scale(1.04)' },
-    levelBadge: { width: 80, height: 80, borderRadius: '50%', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 },
-    levelBenefits: { listStyle: 'none', textAlign: 'left', fontSize: 14, color: '#343A40' },
+    leaderboard: { padding: '80px', maxWidth: 1440, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(180deg, #F1F3F5, #F8F9FA)' },
+    podiumGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, marginTop: 48, alignItems: 'end' },
+    podiumCard: { background: 'white', borderRadius: 24, padding: '36px 28px', border: '2px solid rgba(0,0,0,0.05)', position: 'relative', boxShadow: '0 6px 28px rgba(0,0,0,0.07)', transition: 'all 0.35s ease' },
+    podiumCardFirst: { borderColor: '#E9C46A', boxShadow: '0 16px 45px rgba(233,196,106,0.2)', transform: 'scale(1.04)' },
+    podiumMedal: { width: 80, height: 80, borderRadius: '50%', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 },
+    podiumAvatar: { width: 56, height: 56, borderRadius: '50%', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
+    podiumName: { margin: 0, fontSize: 18, fontWeight: 700, color: '#343A40' },
+    podiumTier: { fontSize: 13, color: '#6C757D', marginTop: 4 },
+    podiumCount: { fontSize: 32, fontWeight: 800, color: '#1E4D4B', marginTop: 16, lineHeight: 1.1 },
+    podiumCountLabel: { fontSize: 13, color: '#6C757D', textTransform: 'uppercase', letterSpacing: 0.6 },
+    boardList: { marginTop: 28, display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' },
+    boardRow: { background: 'white', borderRadius: 16, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 4px 18px rgba(0,0,0,0.05)', transition: 'all 0.35s ease' },
+    boardRank: { width: 32, flexShrink: 0, fontSize: 16, fontWeight: 800, color: '#6C757D', textAlign: 'center' },
+    boardAvatar: { width: 40, height: 40, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'white', fontWeight: 'bold', objectFit: 'cover' },
+    boardName: { margin: 0, fontSize: 15, fontWeight: 700, color: '#343A40' },
+    boardTier: { fontSize: 12, color: '#6C757D', marginTop: 2 },
+    boardCount: { marginLeft: 'auto', fontSize: 18, fontWeight: 800, color: '#1E4D4B', display: 'flex', alignItems: 'baseline', gap: 6 },
+    boardCountLabel: { fontSize: 12, fontWeight: 600, color: '#6C757D' },
     
     ctaBanner: { background: 'linear-gradient(135deg, #E76F51 0%, #D45D3F 60%, #C44F32 100%)', padding: 80, textAlign: 'center' },
     ctaNote: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 16 },
@@ -632,46 +670,85 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ============ LEVELS ============ */}
-      <section style={styles.levels}>
-        <h2 className="reveal" style={styles.sectionTitle}>Level Up Your Reading</h2>
-        <p className="reveal" style={styles.sectionSubtitle}>Earn more benefits as you donate and engage.</p>
-        <div className="reveal-stagger" style={styles.levelsGrid}>
-          <div className="level-hover" style={styles.levelCard}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666' }}>📚</div>
-            <h3>Book Lover</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>0 — 250 Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Early bundle access</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Profile badge</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Standard delivery</li>
-            </ul>
-          </div>
-          <div className="level-hover" style={{ ...styles.levelCard, ...styles.levelCardFeatured }}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', color: '#7A5C10', boxShadow: '0 0 20px rgba(233,196,106,0.5)' }}>🥇</div>
-            <h3>Bibliophile</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>251 — 750 Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> +10% bonus points on donations</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Priority support</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Exclusive bundles</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Free shipping on orders over 200 pts</li>
-            </ul>
-          </div>
-          <div className="level-hover" style={styles.levelCard}>
-            <div style={{ ...styles.levelBadge, background: 'linear-gradient(135deg, #B8E6E4, #1E4D4B)', color: 'white', boxShadow: '0 0 20px rgba(30,77,75,0.5)' }}>💎</div>
-            <h3>Grand Librarian</h3>
-            <p style={{ fontSize: 14, color: '#6C757D', marginBottom: 16 }}>751+ Points</p>
-            <ul style={styles.levelBenefits}>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> +20% bonus points on donations</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Free delivery always</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Custom profile frame</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> Early access to all new arrivals</li>
-              <li style={{ padding: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}><i className="fa-solid fa-check" style={{ color: '#2A9D8F' }}></i> VIP support line</li>
-            </ul>
-          </div>
-        </div>
+      {/* ============ LEADERBOARD ============ */}
+      <section style={styles.leaderboard}>
+        <h2 className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
+        <p className="reveal" style={styles.sectionSubtitle}>The readers giving the most books back to the community.</p>
 
+        {topDonors.length > 0 ? (
+          <>
+            {/* Top three on a podium: #2 left, #1 raised in the middle, #3 right */}
+            <div
+              className="reveal-stagger"
+              style={{
+                ...styles.podiumGrid,
+                gridTemplateColumns: `repeat(${podiumOrder.length}, 1fr)`,
+                maxWidth: podiumOrder.length < 3 ? 760 : undefined,
+                margin: podiumOrder.length < 3 ? '48px auto 0' : undefined,
+              }}
+            >
+              {podiumOrder.map((donor) => {
+                const medal = MEDALS[donor.rank - 1];
+                return (
+                  <div
+                    key={donor.id}
+                    className="level-hover"
+                    style={donor.rank === 1 ? { ...styles.podiumCard, ...styles.podiumCardFirst } : styles.podiumCard}
+                  >
+                    <div style={{ ...styles.podiumMedal, background: medal.background, color: medal.color, boxShadow: medal.glow }}>
+                      {medal.emoji}
+                    </div>
+                    {donor.profileImage ? (
+                      <img src={donor.profileImage} alt="" style={styles.podiumAvatar} />
+                    ) : (
+                      <div style={{ ...styles.podiumAvatar, background: avatarColor(donor.rank) }}>
+                        {initialOf(donor.name)}
+                      </div>
+                    )}
+                    <h3 style={styles.podiumName}>{donor.name || 'Anonymous Donor'}</h3>
+                    <p style={styles.podiumTier}>{donor.levelName}</p>
+                    <div style={styles.podiumCount}>{donor.booksDonated}</div>
+                    <div style={styles.podiumCountLabel}>
+                      {donor.booksDonated === 1 ? 'Book Donated' : 'Books Donated'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Everyone else, ranked */}
+            {runnersUp.length > 0 && (
+              <div className="reveal-stagger" style={styles.boardList}>
+                {runnersUp.map((donor) => (
+                  <div key={donor.id} className="card-hover-lift" style={styles.boardRow}>
+                    <span style={styles.boardRank}>#{donor.rank}</span>
+                    {donor.profileImage ? (
+                      <img src={donor.profileImage} alt="" style={styles.boardAvatar} />
+                    ) : (
+                      <div style={{ ...styles.boardAvatar, background: avatarColor(donor.rank) }}>
+                        {initialOf(donor.name)}
+                      </div>
+                    )}
+                    <div>
+                      <h4 style={styles.boardName}>{donor.name || 'Anonymous Donor'}</h4>
+                      <span style={styles.boardTier}>{donor.levelName}</span>
+                    </div>
+                    <span style={styles.boardCount}>
+                      {donor.booksDonated}
+                      <span style={styles.boardCountLabel}>
+                        {donor.booksDonated === 1 ? 'book' : 'books'}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', width: '100%', color: '#6C757D', marginTop: 48 }}>
+            No donations yet. Donate a book and claim the top spot!
+          </div>
+        )}
       </section>
 
       {/* ============ CTA BANNER ============ */}
