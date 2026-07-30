@@ -48,11 +48,11 @@ model User {
   SystemConfig                                    SystemConfig[]
   Task                                            Task[]
 
-  @@index([role])
-  @@index([isActive])
-  @@index([role, isActive])
-  @@index([level, points])
   @@index([createdAt])
+  @@index([isActive])
+  @@index([level, points])
+  @@index([role])
+  @@index([role, isActive])
 }
 
 model DeletedUser {
@@ -102,10 +102,10 @@ model DonationRequest {
   Notification         Notification[]
   PointTransaction     PointTransaction[]
 
-  @@index([userId])
-  @@index([status])
   @@index([createdAt])
+  @@index([status])
   @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model BookCollection {
@@ -128,9 +128,9 @@ model BookCollection {
   orderItems       OrderItem[]
 
   @@index([category])
-  @@index([type])
-  @@index([stock])
   @@index([createdAt])
+  @@index([stock])
+  @@index([type])
 }
 
 model BookItem {
@@ -173,7 +173,7 @@ model CraftListing {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   donationRequestId String?
-  CartItem          CartItem[]
+  CraftItem         CartItem[]
   donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   Dispute           Dispute[]
@@ -205,12 +205,12 @@ model Order {
   Payment                   Payment[]
   PointTransaction          PointTransaction[]
 
-  @@index([userId])
-  @@index([status])
-  @@index([driverId])
   @@index([createdAt])
+  @@index([driverId])
   @@index([status, createdAt])
+  @@index([status])
   @@index([userId, createdAt])
+  @@index([userId])
 }
 
 model OrderItem {
@@ -228,10 +228,10 @@ model OrderItem {
   craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  @@index([orderId])
-  @@index([collectionId])
   @@index([bookItemId])
+  @@index([collectionId])
   @@index([craftListingId])
+  @@index([orderId])
 }
 
 model DeliveryUpdate {
@@ -293,6 +293,49 @@ model AuditLog {
   User_AuditLog_targetUserIdToUser User?       @relation("AuditLog_targetUserIdToUser", fields: [targetUserId], references: [id], onUpdate: NoAction)
 }
 
+model Cart {
+  id        String     @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now())
+  User      User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  CartItem  CartItem[]
+}
+
+model CartItem {
+  id             String          @id @default(dbgenerated("gen_random_uuid()"))
+  cartId         String
+  collectionId   String?
+  bookItemId     String?
+  craftListingId String?
+  quantity       Int             @default(1)
+  addedAt        DateTime        @default(now())
+  BookItem       BookItem?       @relation(fields: [bookItemId], references: [id], onUpdate: NoAction)
+  Cart           Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  BookCollection BookCollection? @relation(fields: [collectionId], references: [id], onUpdate: NoAction)
+  CraftListing   CraftListing?   @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
+}
+
+model Dispute {
+  id                                String        @id @default(dbgenerated("gen_random_uuid()"))
+  raisedByUserId                    String
+  againstUserId                     String
+  orderId                           String?
+  craftListingId                    String?
+  reason                            String
+  description                       String
+  status                            DisputeStatus @default(OPEN)
+  resolution                        String?
+  resolvedBy                        String?
+  createdAt                         DateTime      @default(now())
+  updatedAt                         DateTime      @default(now())
+  User_Dispute_againstUserIdToUser  User          @relation("Dispute_againstUserIdToUser", fields: [againstUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  CraftListing                      CraftListing? @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
+  Order                             Order?        @relation(fields: [orderId], references: [id], onUpdate: NoAction)
+  User_Dispute_raisedByUserIdToUser User          @relation("Dispute_raisedByUserIdToUser", fields: [raisedByUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User_Dispute_resolvedByToUser     User?         @relation("Dispute_resolvedByToUser", fields: [resolvedBy], references: [id], onUpdate: NoAction)
+}
+
 model Notification {
   id                String           @id @default(dbgenerated("gen_random_uuid()"))
   userId            String
@@ -306,6 +349,20 @@ model Notification {
   DonationRequest   DonationRequest? @relation(fields: [relatedDonationId], references: [id], onUpdate: NoAction)
   Order             Order?           @relation(fields: [relatedOrderId], references: [id], onUpdate: NoAction)
   User              User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model Payment {
+  id            String        @id @default(dbgenerated("gen_random_uuid()"))
+  orderId       String
+  userId        String
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now())
+  Order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model PointTransaction {
@@ -413,63 +470,6 @@ model LoginLog {
   User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Cart {
-  id        String     @id @default(dbgenerated("gen_random_uuid()"))
-  userId    String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @default(now())
-  User      User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  CartItem  CartItem[]
-}
-
-model CartItem {
-  id             String          @id @default(dbgenerated("gen_random_uuid()"))
-  cartId         String
-  collectionId   String?
-  bookItemId     String?
-  craftListingId String?
-  quantity       Int             @default(1)
-  addedAt        DateTime        @default(now())
-  BookItem       BookItem?       @relation(fields: [bookItemId], references: [id], onUpdate: NoAction)
-  Cart           Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  BookCollection BookCollection? @relation(fields: [collectionId], references: [id], onUpdate: NoAction)
-  CraftListing   CraftListing?   @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
-}
-
-model Dispute {
-  id                                String        @id @default(dbgenerated("gen_random_uuid()"))
-  raisedByUserId                    String
-  againstUserId                     String
-  orderId                           String?
-  craftListingId                    String?
-  reason                            String
-  description                       String
-  status                            DisputeStatus @default(OPEN)
-  resolution                        String?
-  resolvedBy                        String?
-  createdAt                         DateTime      @default(now())
-  updatedAt                         DateTime      @default(now())
-  User_Dispute_againstUserIdToUser  User          @relation("Dispute_againstUserIdToUser", fields: [againstUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  CraftListing                      CraftListing? @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
-  Order                             Order?        @relation(fields: [orderId], references: [id], onUpdate: NoAction)
-  User_Dispute_raisedByUserIdToUser User          @relation("Dispute_raisedByUserIdToUser", fields: [raisedByUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User_Dispute_resolvedByToUser     User?         @relation("Dispute_resolvedByToUser", fields: [resolvedBy], references: [id], onUpdate: NoAction)
-}
-
-model Payment {
-  id            String        @id @default(dbgenerated("gen_random_uuid()"))
-  orderId       String
-  userId        String
-  amount        Float
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  transactionId String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @default(now())
-  Order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
 enum UserRole {
   END_USER
   OPERATIONS_STAFF
@@ -523,6 +523,13 @@ enum AuditAction {
   LOGOUT
 }
 
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
 enum NotificationType {
   ORDER_UPDATE
   SALE_CONFIRMATION
@@ -532,6 +539,19 @@ enum NotificationType {
   SYSTEM
   DISPUTE_UPDATE
   MYSTERY_BOX_REWARD
+}
+
+enum PaymentMethod {
+  STRIPE
+  RAZORPAY
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
 
 enum TransactionType {
@@ -547,24 +567,4 @@ enum TransactionType {
 enum MysteryBoxStatus {
   UNCLAIMED
   CLAIMED
-}
-
-enum DisputeStatus {
-  OPEN
-  UNDER_REVIEW
-  RESOLVED
-  CLOSED
-}
-
-enum PaymentMethod {
-  STRIPE
-  RAZORPAY
-  MANUAL
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
 }

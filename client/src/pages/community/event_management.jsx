@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communityAPI } from '../../services/api';
-import { colors } from '../../components/communityTokens';
-import { Icon, Button, Alert, SkeletonCard, EmptyState, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
-
-// Shared field styling so every input in the event form matches
-const fieldLabel = { display: 'block', fontSize: 13.5, fontWeight: 600, marginBottom: 7, color: colors.onSurface };
-const requiredMark = { color: colors.error, marginLeft: 2 };
-const fieldHint = { marginTop: 6, fontSize: 12, lineHeight: 1.5, color: colors.inkSoft };
+import { colors, Icon, CommunityAdminFonts, CommunitySidebar, CommunityHeader, useIsMdScreen } from '../../components/CommunityAdminUI';
 
 const localDateTime = (value) => { if (!value) return ''; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date - offset).toISOString().slice(0, 16); };
 const eventLabel = (event) => new Date(event.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -17,18 +11,6 @@ function EventForm({ event, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-  // Escape closes the form and the page behind it stops scrolling
-  useEffect(() => {
-    const onKeyDown = (e) => { if (e.key === 'Escape' && !saving) onClose(); };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [saving, onClose]);
 
   const submit = async (submitEvent) => {
     submitEvent.preventDefault();
@@ -45,51 +27,43 @@ function EventForm({ event, onClose, onSave }) {
 
   return (
     <>
-      <div onClick={() => !saving && onClose()} aria-hidden="true" style={{ position: 'fixed', inset: 0, background: 'rgba(10, 59, 50, 0.55)', backdropFilter: 'blur(2px)', zIndex: 100 }} />
-      <form
-        onSubmit={submit}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="event-form-title"
-        style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: colors.surfaceContainerLowest, borderRadius: 20, padding: 28, width: '90%', maxWidth: 560, zIndex: 101, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 48px -12px rgba(10, 59, 50, 0.24)' }}
-      >
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
+      <form onSubmit={submit} style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: colors.surfaceContainerLowest, borderRadius: 16, padding: 28, width: '90%', maxWidth: 560, zIndex: 101, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 35px -10px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h3 id="event-form-title" style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: colors.primary }}>{event ? 'Edit event' : 'Add new event'}</h3>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: '50%', display: 'flex' }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: colors.primary }}>{event ? 'Edit Event' : 'Add New Event'}</h3>
+          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: '50%', display: 'flex' }}>
             <Icon name="close" size={24} style={{ color: colors.onSurfaceVariant }} />
           </button>
         </div>
-        {error && <Alert>{error}</Alert>}
+        {error && <p style={{ color: colors.error, background: colors.errorContainer, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{error}</p>}
         {form.imageUrl && (
           <img src={form.imageUrl} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }} />
         )}
         <div style={{ marginBottom: 16 }}>
-          <label htmlFor="event-title" style={fieldLabel}>Event title <span style={requiredMark} aria-hidden="true">*</span></label>
-          <input id="event-title" className="event-field" type="text" required autoFocus value={form.title} onChange={(input) => update('title', input.target.value)} />
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Event Title *</label>
+          <input type="text" required value={form.title} onChange={(input) => update('title', input.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, fontFamily: "'Inter', sans-serif" }} />
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label htmlFor="event-description" style={fieldLabel}>Description <span style={requiredMark} aria-hidden="true">*</span></label>
-          <textarea id="event-description" className="event-field" required value={form.description} onChange={(input) => update('description', input.target.value)} style={{ minHeight: 104, resize: 'vertical' }} />
-          <p style={fieldHint}>Shown on the community page under the event title.</p>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Description *</label>
+          <textarea required value={form.description} onChange={(input) => update('description', input.target.value)} style={{ width: '100%', minHeight: 100, padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14, fontFamily: "'Inter', sans-serif", resize: 'vertical' }} />
         </div>
-        <div className="event-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
-            <label htmlFor="event-date" style={fieldLabel}>Date &amp; time <span style={requiredMark} aria-hidden="true">*</span></label>
-            <input id="event-date" className="event-field" type="datetime-local" required value={form.eventDate} onChange={(input) => update('eventDate', input.target.value)} />
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Date &amp; Time *</label>
+            <input type="datetime-local" required value={form.eventDate} onChange={(input) => update('eventDate', input.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
           </div>
           <div>
-            <label htmlFor="event-venue" style={fieldLabel}>Venue</label>
-            <input id="event-venue" className="event-field" type="text" value={form.venue} onChange={(input) => update('venue', input.target.value)} placeholder="Optional" />
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Venue</label>
+            <input type="text" value={form.venue} onChange={(input) => update('venue', input.target.value)} placeholder="Optional" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
           </div>
         </div>
         <div style={{ marginBottom: 24 }}>
-          <label htmlFor="event-image" style={fieldLabel}>Image URL</label>
-          <input id="event-image" className="event-field" type="url" value={form.imageUrl} onChange={(input) => update('imageUrl', input.target.value)} placeholder="https://example.com/image.jpg" />
-          <p style={fieldHint}>Leave empty to use the default event picture.</p>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: colors.onSurface }}>Image URL (optional)</label>
+          <input type="url" value={form.imageUrl} onChange={(input) => update('imageUrl', input.target.value)} placeholder="https://example.com/image.jpg" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, fontSize: 14 }} />
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button type="submit" loading={saving}>{saving ? 'Saving...' : event ? 'Update event' : 'Create event'}</Button>
+          <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: 8, border: `1px solid ${colors.outlineVariant}`, background: 'transparent', cursor: 'pointer', fontSize: 14, color: colors.onSurfaceVariant }}>Cancel</button>
+          <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: colors.primary, color: 'white', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 500, opacity: saving ? 0.7 : 1 }}>{saving ? 'Saving...' : event ? 'Update Event' : 'Create Event'}</button>
         </div>
       </form>
     </>
@@ -97,16 +71,16 @@ function EventForm({ event, onClose, onSave }) {
 }
 
 function EventCard({ event, onEdit, onDelete, deleting }) {
+  const [hovered, setHovered] = useState(false);
+  const [imgHovered, setImgHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isUpcoming = new Date(event.eventDate) >= new Date();
 
   return (
-    <article className="lift-card event-card" onMouseLeave={() => setMenuOpen(false)} style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
-      {/* Kept mounted rather than hover-only: a hover gate made Edit and
-          Delete unreachable for keyboard and touch users entirely. */}
-      <div className="event-card-actions" style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-        <div>
-          <button onClick={() => setMenuOpen(!menuOpen)} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`Actions for ${event.title}`} style={{ background: 'rgba(10, 59, 50, 0.72)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', backdropFilter: 'blur(4px)' }}>
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => { setHovered(false); setMenuOpen(false); }} style={{ background: colors.surfaceContainerLowest, border: `1px solid ${colors.outlineVariant}`, borderRadius: 12, overflow: 'hidden', transition: 'transform 0.2s ease, box-shadow 0.2s ease', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02)' : 'none', position: 'relative' }}>
+      {hovered && (
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
+          <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', backdropFilter: 'blur(4px)' }}>
             <Icon name="more_vert" size={20} />
           </button>
           {menuOpen && (
@@ -120,9 +94,9 @@ function EventCard({ event, onEdit, onDelete, deleting }) {
             </div>
           )}
         </div>
-      </div>
-      <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
-        <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      )}
+      <div style={{ position: 'relative', height: 180, overflow: 'hidden' }} onMouseEnter={() => setImgHovered(true)} onMouseLeave={() => setImgHovered(false)}>
+        <img src={event.imageUrl || 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=200&fit=crop'} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', transform: imgHovered ? 'scale(1.05)' : 'scale(1)' }} />
         <span style={{ position: 'absolute', top: 16, left: 16, padding: '4px 12px', borderRadius: 40, fontSize: 12, fontWeight: 500, backdropFilter: 'blur(4px)', background: isUpcoming ? 'rgba(0,109,91,0.88)' : colors.outlineVariant, color: isUpcoming ? '#fff' : colors.onSurface }}>{isUpcoming ? 'Upcoming' : 'Past'}</span>
       </div>
       <div style={{ padding: 20 }}>
@@ -139,7 +113,7 @@ function EventCard({ event, onEdit, onDelete, deleting }) {
         </div>
       </div>
       {deleting && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', display: 'grid', placeItems: 'center', fontWeight: 600, color: colors.error }}>Deleting...</div>}
-    </article>
+    </div>
   );
 }
 
@@ -246,45 +220,6 @@ export default function EventManagement() {
         .event-search { flex: 1; min-width: 220px; padding: 10px 14px 10px 40px; border-radius: 40px; border: 1px solid ${colors.outlineVariant}; font-size: 14px; background-position: 12px center; background-repeat: no-repeat; }
         .event-hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; margin-bottom: 28px; }
         @media (max-width: 1024px) { .event-hero { grid-template-columns: 1fr; } }
-
-        /* Actions stay in the DOM and in the tab order; they only fade
-           visually, and come fully forward on hover or keyboard focus. */
-        .event-card-actions { opacity: 0.35; transition: opacity 180ms ease; }
-        .event-card:hover .event-card-actions,
-        .event-card:focus-within .event-card-actions { opacity: 1; }
-        @media (hover: none) { .event-card-actions { opacity: 1; } }
-
-        .event-card img { transition: transform 500ms ease; }
-        .event-card:hover img { transform: scale(1.05); }
-
-        /* One field style for the whole event form */
-        .event-field {
-          width: 100%;
-          padding: 11px 14px;
-          border-radius: 10px;
-          border: 1px solid ${colors.outlineVariant};
-          background: ${colors.surfaceContainerLowest};
-          color: ${colors.onSurface};
-          font-size: 14px;
-          font-family: 'Inter', sans-serif;
-          transition: border-color 140ms ease, box-shadow 140ms ease;
-        }
-        .event-field::placeholder { color: ${colors.inkSoft}; opacity: 0.75; }
-        .event-field:hover { border-color: ${colors.primaryContainer}; }
-        .event-field:focus {
-          outline: none;
-          border-color: ${colors.primary};
-          box-shadow: 0 0 0 3px ${colors.primaryFixed};
-        }
-        /* Only flag a required field once the browser has judged it */
-        .event-field:user-invalid {
-          border-color: ${colors.error};
-          box-shadow: 0 0 0 3px ${colors.errorContainer};
-        }
-        /* The stacked date/venue row is too tight on small screens */
-        @media (max-width: 520px) {
-          .event-form-row { grid-template-columns: 1fr !important; }
-        }
       `}</style>
 
       <CommunitySidebar active="events" open={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} isMd={isMd} />
@@ -348,20 +283,13 @@ export default function EventManagement() {
             </select>
           </div>
 
-          {error && <Alert onRetry={loadEvents}>{error}</Alert>}
+          {error && <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: colors.errorContainer, color: colors.onErrorContainer }}>{error}</div>}
 
-          {/* Announced as the search and sort narrow the list */}
-          <p aria-live="polite" className="visually-hidden">
-            {loading ? 'Loading events' : `${sortedEvents.length} ${sortedEvents.length === 1 ? 'event' : 'events'} shown`}
-          </p>
-
-          {loading && (
-            <div className="event-grid" aria-hidden="true">
-              {[0, 1, 2].map((n) => <SkeletonCard key={n} media />)}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
+              <p style={{ color: colors.onSurfaceVariant }}>Loading events...</p>
             </div>
-          )}
-
-          {!loading && sortedEvents.length > 0 && (
+          ) : (
             <div className="event-grid">
               {sortedEvents.map((event) => (
                 <EventCard key={event.id} event={event} onEdit={handleEditEvent} onDelete={handleDeleteEvent} deleting={deletingId === event.id} />
@@ -370,19 +298,10 @@ export default function EventManagement() {
           )}
 
           {!loading && sortedEvents.length === 0 && (
-            events.length === 0
-              ? <EmptyState
-                  icon="event_busy"
-                  title="No events yet"
-                  message="Create your first event and it will appear here and on the community page."
-                  action={<Button icon="add_circle" onClick={handleAddEvent}>Add event</Button>}
-                />
-              : <EmptyState
-                  icon="search_off"
-                  title="No events match your search"
-                  message={`Nothing found for "${search.trim()}". Try a different title, venue or word.`}
-                  action={<Button variant="accent" onClick={() => setSearch('')}>Clear search</Button>}
-                />
+            <div style={{ textAlign: 'center', padding: 60, background: colors.surfaceContainerLowest, borderRadius: 12, border: `1px solid ${colors.outlineVariant}` }}>
+              <Icon name="event_busy" size={48} style={{ color: colors.onSurfaceVariant, opacity: 0.5 }} />
+              <p style={{ marginTop: 16, color: colors.onSurfaceVariant }}>{events.length === 0 ? 'No events found. Click "Add Event" to create one.' : 'No events match your search.'}</p>
+            </div>
           )}
         </div>
 
