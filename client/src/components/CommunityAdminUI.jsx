@@ -382,7 +382,8 @@ export function CommunitySidebar({ active, open, onClose, navigate, isMd }) {
     if (u?.id) fetch((import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api')) + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u.id }) }).catch(() => {});
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    if (navigate) navigate("/login"); else window.location.href = "/login";
+    // Logging out returns you to the public home page, not the login form
+    if (navigate) navigate("/"); else window.location.href = "/";
     if (onClose) onClose();
   };
 
@@ -544,7 +545,7 @@ export function CommunityHeader({ title, subtitle, action, isMd, onMenuClick }) 
                 <div style={{ height: 1, background: '#F1F3F5' }} />
                 <button
                   role="menuitem"
-                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/login'; }}
+                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; }}
                   style={{ display: 'block', width: '100%', padding: '11px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: colors.error, transition: `background ${motion.fast}` }}
                   onMouseEnter={e => e.target.style.background = '#FFF5F5'}
                   onMouseLeave={e => e.target.style.background = 'none'}
