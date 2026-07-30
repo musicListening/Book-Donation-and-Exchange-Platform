@@ -18,6 +18,14 @@ const Signup = () => {
     e.preventDefault();
     setError('');
 
+    // Validate email domain
+    const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'yahoomail.com'];
+    const emailDomain = formData.email.split('@')[1]?.toLowerCase();
+    if (!allowedDomains.includes(emailDomain)) {
+      setError('Only Gmail, Outlook, and Yahoo mail are allowed for registration.');
+      return;
+    }
+
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');

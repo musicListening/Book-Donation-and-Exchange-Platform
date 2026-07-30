@@ -136,6 +136,14 @@ export default function AuthModal({
     e.preventDefault();
     setError('');
 
+    // Validate email domain
+    const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'yahoomail.com'];
+    const emailDomain = email.split('@')[1]?.toLowerCase();
+    if (!allowedDomains.includes(emailDomain)) {
+      setError('Only Gmail, Outlook, and Yahoo mail are allowed for registration.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
