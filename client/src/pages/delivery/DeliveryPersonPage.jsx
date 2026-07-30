@@ -10,17 +10,6 @@ const DeliveryPersonPage = () => {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // Custom modal and toast states (No browser 'localhost says' popups)
-  const [confirmModal, setConfirmModal] = useState({ show: false, orderId: null });
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 4000);
-  };
-
   // Load user from localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -87,18 +76,15 @@ const DeliveryPersonPage = () => {
     }
   };
 
-  // Open confirmation modal
-  const handleConfirmDelivery = (orderId) => {
+  // Confirm delivery
+  const handleConfirmDelivery = async (orderId) => {
     if (!orderId) {
-      showToast('No order to confirm', 'error');
+      alert('No order to confirm');
       return;
     }
-    setConfirmModal({ show: true, orderId });
-  };
 
-  // Execute delivery confirmation
-  const executeConfirmDelivery = async (orderId) => {
-    setConfirmModal({ show: false, orderId: null });
+    if (!window.confirm('Confirm delivery for this order?')) return;
+
     setUpdating(true);
     try {
       const token = localStorage.getItem('token');
@@ -123,14 +109,14 @@ const DeliveryPersonPage = () => {
       const updatedOrder = await response.json();
       console.log('✅ Delivery confirmed:', updatedOrder);
 
-      showToast('Order delivered successfully!', 'success');
+      alert('✅ Order delivered successfully!');
       
       // Refresh the orders
       fetchAssignedOrders(currentUser.id || currentUser.userId);
       
     } catch (error) {
       console.error('❌ Error confirming delivery:', error);
-      showToast('Failed to confirm delivery: ' + error.message, 'error');
+      alert('Failed to confirm delivery: ' + error.message);
     } finally {
       setUpdating(false);
     }
@@ -527,119 +513,6 @@ const DeliveryPersonPage = () => {
           )}
         </section>
       </div>
-
-      {/* ===== CUSTOM CONFIRM DELIVERY MODAL ===== */}
-      {confirmModal.show && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
-          background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{
-            background: 'white', borderRadius: '16px', maxWidth: '440px', width: '100%',
-            padding: '28px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            textAlign: 'center', position: 'relative'
-          }}>
-            <div style={{
-              width: '56px', height: '56px', borderRadius: '50%',
-              background: '#E8F5E9', color: '#1B5E20',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px auto', fontSize: '24px'
-            }}>
-              <i className="fa-solid fa-truck-ramp-box"></i>
-            </div>
-            
-            <h3 style={{
-              fontSize: '20px', fontWeight: 700, color: '#111827',
-              marginBottom: '8px'
-            }}>
-              Confirm Delivery
-            </h3>
-            
-            <p style={{
-              fontSize: '14px', color: '#4B5563', lineHeight: '1.5',
-              marginBottom: '24px'
-            }}>
-              Are you sure you want to confirm delivery for this order?
-            </p>
-            
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setConfirmModal({ show: false, orderId: null })}
-                style={{
-                  flex: 1, padding: '12px 20px', borderRadius: '10px',
-                  border: '1px solid #D1D5DB', background: 'white',
-                  color: '#374151', fontSize: '14px', fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => executeConfirmDelivery(confirmModal.orderId)}
-                disabled={updating}
-                style={{
-                  flex: 1, padding: '12px 20px', borderRadius: '10px',
-                  border: 'none', background: '#0f3d3e',
-                  color: 'white', fontSize: '14px', fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {updating ? 'Confirming...' : 'Yes, Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== CUSTOM POPUP TOAST ===== */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 10001,
-          background: toast.type === 'error' ? '#FEF2F2' : '#F0FDF4',
-          border: `1px solid ${toast.type === 'error' ? '#FCA5A5' : '#86EFAC'}`,
-          borderRadius: '12px', padding: '16px 20px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          display: 'flex', alignItems: 'center', gap: '12px',
-          minWidth: '300px', maxWidth: '420px'
-        }}>
-          <div style={{
-            width: '28px', height: '28px', borderRadius: '50%',
-            background: toast.type === 'error' ? '#EF4444' : '#22C55E',
-            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '14px', flexShrink: 0
-          }}>
-            <i className={`fa-solid ${toast.type === 'error' ? 'fa-xmark' : 'fa-check'}`}></i>
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{
-              margin: 0, fontSize: '14px', fontWeight: 600,
-              color: toast.type === 'error' ? '#991B1B' : '#166534'
-            }}>
-              {toast.type === 'error' ? 'Notice' : 'Success'}
-            </p>
-            <p style={{
-              margin: 0, fontSize: '13px',
-              color: toast.type === 'error' ? '#B91C1C' : '#15803D'
-            }}>
-              {toast.message}
-            </p>
-          </div>
-          <button
-            onClick={() => setToast({ show: false, message: '', type: 'success' })}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#6B7280', fontSize: '16px'
-            }}
-          >
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-      )}
     </>
   );
 };

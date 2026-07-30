@@ -289,10 +289,10 @@ const Profile = () => {
       }
 
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/users/me/profile`, {
+      const res = await fetch(`${API_BASE}/users/${user.id}/profile`, {
         method: 'PUT',
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
         body: formData,
       });
