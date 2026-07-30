@@ -26,7 +26,11 @@ model User {
   profileImage                                    String?
   AuditLog_AuditLog_actorUserIdToUser             AuditLog[]         @relation("AuditLog_actorUserIdToUser")
   AuditLog_AuditLog_targetUserIdToUser            AuditLog[]         @relation("AuditLog_targetUserIdToUser")
+  Cart                                            Cart?
   craftListings                                   CraftListing[]
+  Dispute_Dispute_againstUserIdToUser             Dispute[]          @relation("Dispute_againstUserIdToUser")
+  Dispute_Dispute_raisedByUserIdToUser            Dispute[]          @relation("Dispute_raisedByUserIdToUser")
+  Dispute_Dispute_resolvedByToUser                Dispute[]          @relation("Dispute_resolvedByToUser")
   donations                                       DonationRequest[]
   comments                                        EventComment[]
   likes                                           EventLike[]
@@ -36,6 +40,7 @@ model User {
   Notification                                    Notification[]
   orders                                          Order[]
   Order_Order_driverIdToUser                      Order[]            @relation("Order_driverIdToUser")
+  Payment                                         Payment[]
   PlatformReview                                  PlatformReview?
   PointTransaction_PointTransaction_staffIdToUser PointTransaction[] @relation("PointTransaction_staffIdToUser")
   PointTransaction_PointTransaction_userIdToUser  PointTransaction[] @relation("PointTransaction_userIdToUser")
@@ -119,6 +124,7 @@ model BookCollection {
   updatedAt        DateTime       @updatedAt
   cashPrice        Float?
   books            BookItem[]
+  CartItem         CartItem[]
   orderItems       OrderItem[]
 
   @@index([category])
@@ -149,6 +155,7 @@ model BookItem {
   collection           BookCollection?  @relation(fields: [collectionId], references: [id])
   donationRequest      DonationRequest? @relation(fields: [donationRequestId], references: [id])
   MysteryBox           MysteryBox?      @relation(fields: [mysteryBoxId], references: [id])
+  CartItem             CartItem[]
   orderItems           OrderItem[]
 }
 
@@ -166,8 +173,10 @@ model CraftListing {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   donationRequestId String?
+  CartItem          CartItem[]
   donationRequest   DonationRequest? @relation(fields: [donationRequestId], references: [id])
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Dispute           Dispute[]
   orderItems        OrderItem[]
 }
 
@@ -188,10 +197,12 @@ model Order {
   driverId                  String?
   driverName                String?
   deliveryUpdates           DeliveryUpdate[]
+  Dispute                   Dispute[]
   Notification              Notification[]
   user                      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   User_Order_driverIdToUser User?              @relation("Order_driverIdToUser", fields: [driverId], references: [id], onUpdate: NoAction, map: "fk_order_driver")
   items                     OrderItem[]
+  Payment                   Payment[]
   PointTransaction          PointTransaction[]
 
   @@index([userId])
@@ -402,6 +413,63 @@ model LoginLog {
   User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Cart {
+  id        String     @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now())
+  User      User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  CartItem  CartItem[]
+}
+
+model CartItem {
+  id             String          @id @default(dbgenerated("gen_random_uuid()"))
+  cartId         String
+  collectionId   String?
+  bookItemId     String?
+  craftListingId String?
+  quantity       Int             @default(1)
+  addedAt        DateTime        @default(now())
+  BookItem       BookItem?       @relation(fields: [bookItemId], references: [id], onUpdate: NoAction)
+  Cart           Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  BookCollection BookCollection? @relation(fields: [collectionId], references: [id], onUpdate: NoAction)
+  CraftListing   CraftListing?   @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
+}
+
+model Dispute {
+  id                                String        @id @default(dbgenerated("gen_random_uuid()"))
+  raisedByUserId                    String
+  againstUserId                     String
+  orderId                           String?
+  craftListingId                    String?
+  reason                            String
+  description                       String
+  status                            DisputeStatus @default(OPEN)
+  resolution                        String?
+  resolvedBy                        String?
+  createdAt                         DateTime      @default(now())
+  updatedAt                         DateTime      @default(now())
+  User_Dispute_againstUserIdToUser  User          @relation("Dispute_againstUserIdToUser", fields: [againstUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  CraftListing                      CraftListing? @relation(fields: [craftListingId], references: [id], onUpdate: NoAction)
+  Order                             Order?        @relation(fields: [orderId], references: [id], onUpdate: NoAction)
+  User_Dispute_raisedByUserIdToUser User          @relation("Dispute_raisedByUserIdToUser", fields: [raisedByUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User_Dispute_resolvedByToUser     User?         @relation("Dispute_resolvedByToUser", fields: [resolvedBy], references: [id], onUpdate: NoAction)
+}
+
+model Payment {
+  id            String        @id @default(dbgenerated("gen_random_uuid()"))
+  orderId       String
+  userId        String
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now())
+  Order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
 enum UserRole {
   END_USER
   OPERATIONS_STAFF
@@ -479,4 +547,24 @@ enum TransactionType {
 enum MysteryBoxStatus {
   UNCLAIMED
   CLAIMED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum PaymentMethod {
+  STRIPE
+  RAZORPAY
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
