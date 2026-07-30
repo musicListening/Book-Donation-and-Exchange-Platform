@@ -28,38 +28,34 @@ const UserDashboard = () => {
     // Fetch fresh user data and level config
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token');
         try {
           await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
             method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: storedUser.id })
           });
         } catch (autoErr) {}
 
-        const [freshUsers, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          }).then(r => r.ok ? r.json() : []),
+        const token = localStorage.getItem('token');
+        const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+        const [freshUser, boxes, config] = await Promise.all([
+          fetch(`${API_BASE}/users/me`, { headers: authHeaders }).then(r => r.ok ? r.json() : null),
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
-          systemConfigAPI.getAll()
+          systemConfigAPI.getAll().catch(() => ({}))
         ]);
 
-        if (config.LEVEL_THRESHOLDS) {
+        if (config && config.LEVEL_THRESHOLDS) {
           try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
         }
-        if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+        if (config && config.MYSTERY_BOX_LEVEL_CONFIG) {
           try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
         }
-        if (config.MYSTERY_BOX_POINTS_COST) {
+        if (config && config.MYSTERY_BOX_POINTS_COST) {
           setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
         }
 
-        const freshUser = Array.isArray(freshUsers) ? freshUsers.find(u => u.id === storedUser.id) : null;
-        if (freshUser) {
+        if (freshUser && freshUser.id) {
           setUser(freshUser);
           localStorage.setItem('user', JSON.stringify(freshUser));
           localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
@@ -147,10 +143,13 @@ const UserDashboard = () => {
     if (!user) return alert('Please log in first.');
     setReviewSaving(true);
     try {
+      const reviewToken = localStorage.getItem('token');
+      const reviewHeaders = reviewToken ? { 'Authorization': `Bearer ${reviewToken}` } : {};
       const res = await fetch(`${API_BASE}/reviews`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
+        headers: {
+          'Content-Type': 'application/json',
+          ...reviewHeaders
         },
         body: JSON.stringify({ userId: user.id, rating: userReview.rating, comment: userReview.comment })
       });
@@ -276,9 +275,9 @@ const UserDashboard = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} />
 
-      <main className="user-dashboard-main" style={styles.mainContent}>
+      <main style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
-          <div className="welcome-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
               <p>Here's what's happening with your library today.</p>
@@ -314,7 +313,7 @@ const UserDashboard = () => {
 
         <div style={styles.dashboardGrid}>
           <div>
-            <div className="points-card" style={styles.pointsCard}>
+            <div style={styles.pointsCard}>
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
@@ -332,18 +331,18 @@ const UserDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="actions-grid" style={styles.actionsGrid}>
+            <div style={styles.actionsGrid}>
               <Link to="/donate" style={styles.actionBtn}>
                 <i className="fa-solid fa-hand-holding-heart" style={{ ...styles.actionIcon, color: '#2A9D8F' }}></i>
                 <span>Donate Books</span>
               </Link>
               <Link to="/marketplace" style={styles.actionBtn}>
                 <i className="fa-solid fa-store" style={{ ...styles.actionIcon, color: '#E76F51' }}></i>
-                <span>Explore Marketplace</span>
+                <span>Browse Books</span>
               </Link>
-              <Link to="/mystery-boxes" style={styles.actionBtn}>
-                <i className="fa-solid fa-box-open" style={{ ...styles.actionIcon, color: '#9B59B6' }}></i>
-                <span>Mystery Boxes</span>
+              <Link to="/orders" style={styles.actionBtn}>
+                <i className="fa-solid fa-box-open" style={styles.actionIcon}></i>
+                <span>My Orders</span>
               </Link>
               <Link to="/profile" style={styles.actionBtn}>
                 <i className="fa-solid fa-user" style={{ ...styles.actionIcon, color: '#457B9D' }}></i>

@@ -3,36 +3,52 @@ import '../../styles/delivery.css';
 import { API_BASE } from '../../services/api';
 
 const OrderHistoryPage = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
 
+  const getUserId = () => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (u.id || u.userId || u._id) return u.id || u.userId || u._id;
+      const ss = JSON.parse(localStorage.getItem('ss_current_user') || '{}');
+      return ss.id || ss.userId || ss._id;
+    } catch (e) {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user.id) {
+      const userId = getUserId();
+      if (!userId) {
         setError('User not logged in.');
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/orders/driver/${user.id}`);
-        if (!res.ok) throw new Error('Failed to fetch order history.');
+        const token = localStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/orders/driver/${userId}`, { headers });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to fetch order history.');
+        }
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : (data.orders || []));
         setError('');
       } catch (err) {
-        console.error(err);
-        setError(err.message);
+        console.error('Error fetching order history:', err);
+        setError(err.message || 'Failed to fetch order history.');
       } finally {
         setLoading(false);
       }
     };
     fetchOrders();
-  }, [user.id]);
+  }, []);
 
   // Filter for completed/cancelled
   const historyOrders = orders.filter(
@@ -67,6 +83,12 @@ const OrderHistoryPage = () => {
       + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatOrderId = (id) => {
+    if (!id) return '#SS-00000000';
+    if (id.startsWith('ORD-')) return `#SS-${id.toUpperCase()}`;
+    return `#SS-${id.slice(0, 8).toUpperCase()}`;
+  };
+
   return (
     <>
       <div className="page-header">
@@ -77,31 +99,41 @@ const OrderHistoryPage = () => {
       {/* Stats */}
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="bg-icon material-symbols-outlined">inventory_2</span>
-          <div className="stat-label">Total Deliveries</div>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 20, top: 16, opacity: 0.15, color: '#1A3C34' }}>
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/>
+            <path d="M12 22V12"/>
+          </svg>
+          <div className="stat-label">TOTAL DELIVERIES</div>
           <div className="stat-value">{loading ? '...' : completedCount}</div>
           <div className="stat-trend">
-            <span className="material-symbols-outlined">trending_up</span>
+            <i className="fa-solid fa-arrow-trend-up" style={{ marginRight: 4 }}></i>
             From order history
           </div>
         </div>
+
         <div className="stat-card">
-          <span className="bg-icon material-symbols-outlined">payments</span>
-          <div className="stat-label">Total Earnings</div>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 20, top: 16, opacity: 0.15, color: '#1A3C34' }}>
+            <rect width="20" height="12" x="2" y="6" rx="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M6 12h.01M18 12h.01"/>
+          </svg>
+          <div className="stat-label">TOTAL EARNINGS</div>
           <div className="stat-value">{loading ? '...' : `Rs. ${totalEarningsLkr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</div>
           <div className="stat-trend">
-            <span className="material-symbols-outlined">auto_graph</span>
+            <i className="fa-solid fa-chart-line" style={{ marginRight: 4 }}></i>
             Based on order data
           </div>
         </div>
+
         <div className="stat-card">
-          <span className="bg-icon material-symbols-outlined">star</span>
-          <div className="stat-label">Total Orders</div>
-          <div className="flex items-baseline gap-2">
-            <div className="stat-value" style={{ fontSize: '32px', display: 'inline' }}>{loading ? '...' : historyOrders.length}</div>
-          </div>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 20, top: 16, opacity: 0.15, color: '#1A3C34' }}>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <div className="stat-label">TOTAL ORDERS</div>
+          <div className="stat-value">{loading ? '...' : historyOrders.length}</div>
           <div className="stat-trend">
-            <span className="material-symbols-outlined">format_list_numbered</span>
+            <i className="fa-solid fa-list-check" style={{ marginRight: 4 }}></i>
             Completed & Cancelled
           </div>
         </div>
@@ -112,7 +144,7 @@ const OrderHistoryPage = () => {
         <div className="filter-group">
           <label>Search Order ID or Address</label>
           <div className="input-icon">
-            <span className="material-symbols-outlined">search</span>
+            <i className="fa-solid fa-magnifying-glass" style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}></i>
             <input
               type="text"
               placeholder="e.g. #SS-8291"
@@ -155,7 +187,7 @@ const OrderHistoryPage = () => {
               <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order.id}>
-                    <td><span className="order-id">#SS-{order.id.slice(0, 8).toUpperCase()}</span></td>
+                    <td><span className="order-id">{formatOrderId(order.id)}</span></td>
                     <td>{formatDate(order.deliveredAt || order.createdAt)}</td>
                     <td>{order.user?.name || 'N/A'}</td>
                     <td>{order.shippingAddress || 'N/A'}</td>

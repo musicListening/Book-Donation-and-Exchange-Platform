@@ -48,11 +48,19 @@ model User {
   SystemConfig                                    SystemConfig[]
   Task                                            Task[]
 
+<<<<<<< HEAD
   @@index([createdAt])
   @@index([isActive])
   @@index([level, points])
   @@index([role])
   @@index([role, isActive])
+=======
+  @@index([role])
+  @@index([isActive])
+  @@index([role, isActive])
+  @@index([level, points])
+  @@index([createdAt])
+>>>>>>> 3a26a65597e8de78aa289fdadaca5ec69b509319
 }
 
 model DeletedUser {
@@ -102,10 +110,17 @@ model DonationRequest {
   Notification         Notification[]
   PointTransaction     PointTransaction[]
 
+<<<<<<< HEAD
   @@index([createdAt])
   @@index([status])
   @@index([userId, createdAt])
   @@index([userId])
+=======
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+>>>>>>> 3a26a65597e8de78aa289fdadaca5ec69b509319
 }
 
 model BookCollection {
@@ -128,9 +143,15 @@ model BookCollection {
   orderItems       OrderItem[]
 
   @@index([category])
+<<<<<<< HEAD
   @@index([createdAt])
   @@index([stock])
   @@index([type])
+=======
+  @@index([type])
+  @@index([stock])
+  @@index([createdAt])
+>>>>>>> 3a26a65597e8de78aa289fdadaca5ec69b509319
 }
 
 model BookItem {
@@ -205,12 +226,21 @@ model Order {
   Payment                   Payment[]
   PointTransaction          PointTransaction[]
 
+<<<<<<< HEAD
   @@index([createdAt])
   @@index([driverId])
   @@index([status, createdAt])
   @@index([status])
   @@index([userId, createdAt])
   @@index([userId])
+=======
+  @@index([userId])
+  @@index([status])
+  @@index([driverId])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+>>>>>>> 3a26a65597e8de78aa289fdadaca5ec69b509319
 }
 
 model OrderItem {
@@ -228,10 +258,17 @@ model OrderItem {
   craftListing   CraftListing?   @relation(fields: [craftListingId], references: [id])
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+<<<<<<< HEAD
   @@index([bookItemId])
   @@index([collectionId])
   @@index([craftListingId])
   @@index([orderId])
+=======
+  @@index([orderId])
+  @@index([collectionId])
+  @@index([bookItemId])
+  @@index([craftListingId])
+>>>>>>> 3a26a65597e8de78aa289fdadaca5ec69b509319
 }
 
 model DeliveryUpdate {
