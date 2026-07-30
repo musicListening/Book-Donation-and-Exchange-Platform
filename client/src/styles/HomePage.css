@@ -554,6 +554,7 @@ h1, h2, h3 {
 
 .stats-grid {
     max-width: 1440px;
+    width: 100%;
     margin: 0 auto;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
