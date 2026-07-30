@@ -4,15 +4,29 @@ import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import '../../styles/HomePage.css';
 
-// Gold / silver / bronze treatment for the three podium places.
-const MEDALS = [
-  { emoji: '🥇', background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', color: '#7A5C10', glow: '0 0 20px rgba(233,196,106,0.5)' },
-  { emoji: '🥈', background: 'linear-gradient(135deg, #C0C0C0, #E8E8E8)', color: '#666', glow: 'none' },
-  { emoji: '🥉', background: 'linear-gradient(135deg, #CD7F32, #E0A165)', color: 'white', glow: 'none' },
-];
+// Podium styling for the top three donors
+const MEDALS = {
+  1: { color: '#E9C46A', gradient: 'linear-gradient(135deg, #E9C46A, #F2D98A)', glow: 'rgba(233,196,106,0.30)' },
+  2: { color: '#C0C0C0', gradient: 'linear-gradient(135deg, #B8B8B8, #E8E8E8)', glow: 'rgba(184,184,184,0.30)' },
+  3: { color: '#CD7F32', gradient: 'linear-gradient(135deg, #CD7F32, #E3A76B)', glow: 'rgba(205,127,50,0.30)' },
+};
 
-const avatarColor = (rank) => `hsl(${rank * 47}, 65%, 48%)`;
-const initialOf = (name) => (name || 'U').trim().charAt(0).toUpperCase();
+const PODIUM_ORDER = { 1: 2, 2: 1, 3: 3 };
+
+const avatarColor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360}, 62%, 46%)`;
+};
+
+const Avatar = ({ donor, style }) =>
+  donor.profileImage ? (
+    <img src={donor.profileImage} alt={donor.name} style={style} />
+  ) : (
+    <div style={{ ...style, background: avatarColor(donor.name) }}>
+      {donor.name?.charAt(0)?.toUpperCase() || 'U'}
+    </div>
+  );
 
 const Home = () => {
   const pageRef = useRef(null);
@@ -22,7 +36,8 @@ const Home = () => {
   const [stats, setStats] = useState({ booksDonated: 0, activeMembers: 0, pointsEarned: 0 });
   const [statsVisible, setStatsVisible] = useState(false);
   const [topReviews, setTopReviews] = useState([]);
-  const [topDonors, setTopDonors] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [boardLoading, setBoardLoading] = useState(true);
   const statsRef = useRef(null);
 
   // ── Animated counter hook ──
@@ -68,11 +83,6 @@ const Home = () => {
       .then(res => res.json())
       .then(data => setTopReviews(data))
       .catch(() => {});
-
-    fetch(`${API_URL}/stats/leaderboard?limit=10`)
-      .then(res => res.json())
-      .then(data => setTopDonors(Array.isArray(data) ? data : []))
-      .catch(() => {});
   }, []);
 
   // ── IntersectionObserver to trigger counter animation ──
@@ -92,12 +102,6 @@ const Home = () => {
 
   // navigation helper
   const navTo = useCallback((path) => navigate(path), [navigate]);
-
-  // Podium reads 2nd — 1st — 3rd so the winner sits in the middle; with fewer
-  // than three donors we just show whoever exists, in order.
-  const podium = topDonors.slice(0, 3);
-  const podiumOrder = podium.length === 3 ? [podium[1], podium[0], podium[2]] : podium;
-  const runnersUp = topDonors.slice(3);
 
   // Auth modal state
   const [authOpen, setAuthOpen] = useState(false);
@@ -159,7 +163,7 @@ const Home = () => {
     revealEls.forEach(el => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [topDonors, topReviews]);
+  }, [leaderboard, topReviews]);
 
   const styles = {
     // Header - FIXED
@@ -378,8 +382,8 @@ const Home = () => {
     stepIcon: { width: 80, height: 80, background: 'linear-gradient(135deg, #E9C46A, #F2D98A)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 30, color: '#1E4D4B', position: 'relative', boxShadow: '0 8px 24px rgba(233,196,106,0.35)' },
     stepNumber: { position: 'absolute', top: -8, right: -8, width: 28, height: 28, background: '#E76F51', color: 'white', borderRadius: '50%', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(231,111,81,0.4)' },
     
-    statsBar: { background: 'linear-gradient(135deg, #1E4D4B 0%, #163836 50%, #0f2624 100%)', padding: '60px 80px' },
-    statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' },
+    statsBar: { background: 'linear-gradient(135deg, #1E4D4B 0%, #163836 50%, #0f2624 100%)', padding: '60px 80px 60px 300px' },
+    statsGrid: { maxWidth: 1440, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'right' },
     statNumber: { fontSize: 42, fontWeight: 800, display: 'block', marginBottom: 4, color: 'white' },
     statLabel: { fontSize: 16, opacity: 0.9, color: 'white' },
     
@@ -597,15 +601,15 @@ const Home = () => {
       {/* ============ STATS BAR ============ */}
       <section className="stats-bar" style={styles.statsBar}>
         <div ref={statsRef} className="reveal-stagger stats-grid" style={styles.statsGrid}>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>📦 {formatNumber(animatedBooks)}+</span>
             <span style={styles.statLabel}>Books Donated</span>
           </div>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>👥 {formatNumber(animatedMembers)}+</span>
             <span style={styles.statLabel}>Active Members</span>
           </div>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'right' }}>
             <span className="stat-glow" style={styles.statNumber}>🪙 {formatNumber(animatedPoints)}+</span>
             <span style={styles.statLabel}>Points Earned</span>
           </div>
@@ -773,87 +777,6 @@ const Home = () => {
             </div>
           )}
         </div>
-      </section>
-
-      {/* ============ LEADERBOARD ============ */}
-      <section style={styles.leaderboard}>
-        <h2 className="reveal" style={styles.sectionTitle}>Top Book Donors</h2>
-        <p className="reveal" style={styles.sectionSubtitle}>The readers giving the most books back to the community.</p>
-
-        {topDonors.length > 0 ? (
-          <>
-            {/* Top three on a podium: #2 left, #1 raised in the middle, #3 right */}
-            <div
-              className="reveal-stagger"
-              style={{
-                ...styles.podiumGrid,
-                gridTemplateColumns: `repeat(${podiumOrder.length}, 1fr)`,
-                maxWidth: podiumOrder.length < 3 ? 760 : undefined,
-                margin: podiumOrder.length < 3 ? '48px auto 0' : undefined,
-              }}
-            >
-              {podiumOrder.map((donor) => {
-                const medal = MEDALS[donor.rank - 1];
-                return (
-                  <div
-                    key={donor.id}
-                    className="level-hover"
-                    style={donor.rank === 1 ? { ...styles.podiumCard, ...styles.podiumCardFirst } : styles.podiumCard}
-                  >
-                    <div style={{ ...styles.podiumMedal, background: medal.background, color: medal.color, boxShadow: medal.glow }}>
-                      {medal.emoji}
-                    </div>
-                    {donor.profileImage ? (
-                      <img src={donor.profileImage} alt="" style={styles.podiumAvatar} />
-                    ) : (
-                      <div style={{ ...styles.podiumAvatar, background: avatarColor(donor.rank) }}>
-                        {initialOf(donor.name)}
-                      </div>
-                    )}
-                    <h3 style={styles.podiumName}>{donor.name || 'Anonymous Donor'}</h3>
-                    <p style={styles.podiumTier}>{donor.levelName}</p>
-                    <div style={styles.podiumCount}>{donor.booksDonated}</div>
-                    <div style={styles.podiumCountLabel}>
-                      {donor.booksDonated === 1 ? 'Book Donated' : 'Books Donated'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Everyone else, ranked */}
-            {runnersUp.length > 0 && (
-              <div className="reveal-stagger" style={styles.boardList}>
-                {runnersUp.map((donor) => (
-                  <div key={donor.id} className="card-hover-lift" style={styles.boardRow}>
-                    <span style={styles.boardRank}>#{donor.rank}</span>
-                    {donor.profileImage ? (
-                      <img src={donor.profileImage} alt="" style={styles.boardAvatar} />
-                    ) : (
-                      <div style={{ ...styles.boardAvatar, background: avatarColor(donor.rank) }}>
-                        {initialOf(donor.name)}
-                      </div>
-                    )}
-                    <div>
-                      <h4 style={styles.boardName}>{donor.name || 'Anonymous Donor'}</h4>
-                      <span style={styles.boardTier}>{donor.levelName}</span>
-                    </div>
-                    <span style={styles.boardCount}>
-                      {donor.booksDonated}
-                      <span style={styles.boardCountLabel}>
-                        {donor.booksDonated === 1 ? 'book' : 'books'}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ textAlign: 'center', width: '100%', color: '#6C757D', marginTop: 48 }}>
-            No donations yet. Donate a book and claim the top spot!
-          </div>
-        )}
       </section>
 
       {/* ============ CTA BANNER ============ */}
