@@ -360,47 +360,45 @@ const Profile = () => {
               <p style={{ margin: 0 }}>No donations found.</p>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table style={styles.historyTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Books Count</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Points Earned</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {donations.map((donation) => {
-                    let statusStyle = { color: '#E9C46A', fontWeight: 700 };
-                    if (donation.status === 'VERIFIED') statusStyle = styles.successText;
-                    if (donation.status === 'REJECTED') statusStyle = styles.errorText;
+            <table style={styles.historyTable}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>ID</th>
+                  <th style={styles.th}>Date</th>
+                  <th style={styles.th}>Books Count</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Points Earned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {donations.map((donation) => {
+                  let statusStyle = { color: '#E9C46A', fontWeight: 700 };
+                  if (donation.status === 'VERIFIED') statusStyle = styles.successText;
+                  if (donation.status === 'REJECTED') statusStyle = styles.errorText;
 
-                    return (
-                      <tr key={donation.id}>
-                        <td style={styles.td}>{donation.id.slice(0, 8).toUpperCase()}</td>
-                        <td style={styles.td}>
-                          {new Date(donation.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </td>
-                        <td style={styles.td}>
-                          {donation.verifiedCount > 0 ? donation.verifiedCount : donation.requestedCount} books
-                          {donation.category && <span style={{ fontSize: 12, color: '#888', marginLeft: 6 }}>({donation.category})</span>}
-                        </td>
-                        <td style={styles.td}>
-                          <span style={statusStyle}>
-                            {donation.status.charAt(0).toUpperCase() + donation.status.slice(1).toLowerCase()}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          {donation.pointsAwarded > 0 ? `+${donation.pointsAwarded}` : '0'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <tr key={donation.id}>
+                      <td style={styles.td}>{donation.id.slice(0, 8).toUpperCase()}</td>
+                      <td style={styles.td}>
+                        {new Date(donation.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td style={styles.td}>
+                        {donation.verifiedCount > 0 ? donation.verifiedCount : donation.requestedCount} books
+                        {donation.category && <span style={{ fontSize: 12, color: '#888', marginLeft: 6 }}>({donation.category})</span>}
+                      </td>
+                      <td style={styles.td}>
+                        <span style={statusStyle}>
+                          {donation.status.charAt(0).toUpperCase() + donation.status.slice(1).toLowerCase()}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        {donation.pointsAwarded > 0 ? `+${donation.pointsAwarded}` : '0'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       );
@@ -413,35 +411,33 @@ const Profile = () => {
               <p style={{ margin: 0 }}>No points transactions found.</p>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table style={styles.historyTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Description</th>
-                    <th style={styles.th}>Type</th>
-                    <th style={styles.th}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((tx) => {
-                    const isEarned = tx.amount > 0;
-                    return (
-                      <tr key={tx.id}>
-                        <td style={styles.td}>
-                          {new Date(tx.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </td>
-                        <td style={styles.td}>{tx.description || tx.type}</td>
-                        <td style={styles.td}>{isEarned ? 'Earned' : 'Spent'}</td>
-                        <td style={{ ...styles.td, ...(isEarned ? styles.successText : styles.errorText) }}>
-                          {isEarned ? `+${tx.amount}` : tx.amount}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <table style={styles.historyTable}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Date</th>
+                  <th style={styles.th}>Description</th>
+                  <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => {
+                  const isEarned = tx.amount > 0;
+                  return (
+                    <tr key={tx.id}>
+                      <td style={styles.td}>
+                        {new Date(tx.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td style={styles.td}>{tx.description || tx.type}</td>
+                      <td style={styles.td}>{isEarned ? 'Earned' : 'Spent'}</td>
+                      <td style={{ ...styles.td, ...(isEarned ? styles.successText : styles.errorText) }}>
+                        {isEarned ? `+${tx.amount}` : tx.amount}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       );
