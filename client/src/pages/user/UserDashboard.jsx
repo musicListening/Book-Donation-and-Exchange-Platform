@@ -270,9 +270,9 @@ const UserDashboard = () => {
     <div style={styles.body}>
       <Navbar variant="user" user={user} />
 
-      <main style={styles.mainContent}>
+      <main className="user-dashboard-main" style={styles.mainContent}>
         <div style={styles.welcomeHeader}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="welcome-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h1>Welcome back, {user.name?.split(' ')[0]}!</h1>
               <p>Here's what's happening with your library today.</p>
@@ -306,9 +306,9 @@ const UserDashboard = () => {
           </div>
         )}
 
-        <div style={styles.dashboardGrid}>
+        <div className="dashboard-grid" style={styles.dashboardGrid}>
           <div>
-            <div style={styles.pointsCard}>
+            <div className="points-card" style={styles.pointsCard}>
               <div>
                 <h3 style={{ fontSize: 16, opacity: 0.8, color: 'white' }}>Your Balance</h3>
                 <div style={styles.pointsValue}>{user.points}</div>
@@ -326,7 +326,7 @@ const UserDashboard = () => {
                 </div>
               </div>
             </div>
-            <div style={styles.actionsGrid}>
+            <div className="actions-grid" style={styles.actionsGrid}>
               <Link to="/donate" style={styles.actionBtn}>
                 <i className="fa-solid fa-hand-holding-heart" style={{ ...styles.actionIcon, color: '#2A9D8F' }}></i>
                 <span>Donate Books</span>
