@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API_BASE } from '../../services/api';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState({ name: 'User', points: 0 });
   const [cartCount, setCartCount] = useState(0);
-
-  const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
 
   const getIconAndBg = (type) => {
     const t = type || '';

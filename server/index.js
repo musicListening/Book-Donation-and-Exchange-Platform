@@ -191,7 +191,41 @@ app.put('/api/users/me/profile', apiLimiter, authenticate, (req, res, next) => {
   }
 });
 
+// GET /api/users/:id/transactions — returns own point transactions, or all if admin
+app.get('/api/users/:id/transactions', apiLimiter, authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.auth.userId !== id && req.auth.role !== 'PLATFORM_ADMIN') {
+      return res.status(403).json({ error: 'Insufficient permissions.' });
+    }
+    const transactions = await prisma.pointTransaction.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(transactions);
+  } catch (error) {
+    console.error('Error fetching point transactions:', error);
+    res.status(500).json({ error: 'Failed to fetch point transactions' });
+  }
+});
+
 app.use('/api/users', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), userRoutes);
+
+// GET /api/config — public config readable by any authenticated user (levels, mystery box costs etc.)
+app.get('/api/config', apiLimiter, authenticate, async (req, res) => {
+  try {
+    const configs = await prisma.systemConfig.findMany();
+    const map = {};
+    for (const c of configs) {
+      map[c.key] = c.value;
+    }
+    res.json(map);
+  } catch (error) {
+    console.error('Public config fetch error:', error);
+    res.status(500).json({ error: 'Failed to load configuration' });
+  }
+});
+
 app.get('/api/admin/config', apiLimiter, authenticate, requireRole('PLATFORM_ADMIN'), async (req, res) => {
   try {
     const { withRetry } = require('./db');

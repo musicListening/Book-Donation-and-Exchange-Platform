@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import { mysteryBoxAPI, systemConfigAPI } from '../../services/api';
-
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+import { mysteryBoxAPI, systemConfigAPI, API_BASE } from '../../services/api';
 
 const MysteryBoxes = () => {
   const [user, setUser] = useState(null);

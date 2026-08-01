@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import { systemConfigAPI, mysteryBoxAPI } from '../../services/api';
-
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
+import { systemConfigAPI, mysteryBoxAPI, API_BASE } from '../../services/api';
 
 const UserDashboard = () => {
   const [user, setUser] = useState(null);
@@ -16,6 +14,14 @@ const UserDashboard = () => {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [claimError, setClaimError] = useState(null);
   const navigate = useNavigate();
+
+  const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('ss_current_user');
+    localStorage.removeItem('token');
+    // Logging out returns you to the public home page, not the login form
+    navigate('/');
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -39,8 +45,21 @@ const UserDashboard = () => {
         const token = localStorage.getItem('token');
         const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-        const [freshUser, boxes, config] = await Promise.all([
-          fetch(`${API_BASE}/users/me`, { headers: authHeaders }).then(r => r.ok ? r.json() : null),
+        let freshUser = null;
+        try {
+          const userRes = await fetch(`${API_BASE}/users/me`, { headers: authHeaders });
+          if (userRes.status === 401 || userRes.status === 404) {
+            logout();
+            return;
+          }
+          if (userRes.ok) {
+            freshUser = await userRes.json();
+          }
+        } catch (e) {
+          console.error("Error fetching user", e);
+        }
+
+        const [boxes, config] = await Promise.all([
           mysteryBoxAPI.getByUser(storedUser.id).catch(() => []),
           systemConfigAPI.getAll().catch(() => ({}))
         ]);
@@ -85,15 +104,6 @@ const UserDashboard = () => {
     };
     fetchData();
   }, [navigate]);
-
-  const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('ss_current_user');
-    localStorage.removeItem('token');
-    // Logging out returns you to the public home page, not the login form
-    navigate('/');
-  };
-
   const getPointsCostForLevel = (level) => {
     if (level === 0) return defaultPointsCost;
     const config = mysteryBoxConfigs.find(c => c.level === level);

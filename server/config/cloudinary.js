@@ -17,6 +17,12 @@ const uploadProfile = multer({
 });
 
 function uploadToCloudinary(file) {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.log("Cloudinary not configured. Falling back to Base64 Data URI.");
+    return Promise.resolve({
+      secure_url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+    });
+  }
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
@@ -34,6 +40,12 @@ function uploadToCloudinary(file) {
 }
 
 function uploadToCloudinaryMultiple(files) {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.log("Cloudinary not configured. Falling back to Base64 Data URIs.");
+    return Promise.resolve(
+      files.map(file => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`)
+    );
+  }
   return Promise.all(
     files.map((file) => {
       return new Promise((resolve, reject) => {

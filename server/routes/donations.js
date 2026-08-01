@@ -86,6 +86,53 @@ router.get('/points-preview', async (req, res) => {
     }
 });
 
+// ===== GET Donations by User =====
+router.get('/user/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const donations = await prisma.donationRequest.findMany({
+            where: { userId },
+            include: { books: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(donations);
+    } catch (error) {
+        console.error('Error fetching user donations:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== GET Donation Stats =====
+router.get('/stats', async (req, res) => {
+    try {
+        const totalDonations = await prisma.donationRequest.count();
+        const pendingDonations = await prisma.donationRequest.count({ where: { status: 'PENDING' } });
+        const completedDonations = await prisma.donationRequest.count({ where: { status: 'COMPLETED' } });
+        
+        const totalBooksResult = await prisma.donationRequest.aggregate({
+            _sum: { verifiedCount: true },
+            where: { status: 'COMPLETED' }
+        });
+        
+        const recentDonations = await prisma.donationRequest.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: { user: { select: { name: true } } }
+        });
+
+        res.json({
+            totalDonations,
+            pendingDonations,
+            completedDonations,
+            totalBooksDonated: totalBooksResult._sum.verifiedCount || 0,
+            recentDonations
+        });
+    } catch (error) {
+        console.error('Error fetching donation stats:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== GET Single Donation =====
 router.get('/:id', async (req, res) => {
     try {

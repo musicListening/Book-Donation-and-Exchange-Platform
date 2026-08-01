@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { API_BASE } from '../../services/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -20,7 +21,6 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '/api' : 'https://book-donation-and-exchange-platform.onrender.com/api');
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

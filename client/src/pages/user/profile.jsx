@@ -51,107 +51,115 @@ const Profile = () => {
 
     // Fetch level config, mystery boxes, and mystery box configurations
     const fetchConfigAndBoxes = async () => {
+      // Step 1: Fetch fresh user (most important)
+      let activeUser = storedUser;
       try {
-        const config = await systemConfigAPI.getAll();
-        if (config.LEVEL_THRESHOLDS) {
-          try {
-            setLevels(JSON.parse(config.LEVEL_THRESHOLDS));
-          } catch {}
-        }
-        if (config.MYSTERY_BOX_LEVEL_CONFIG) {
-          try {
-            setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG));
-          } catch {}
-        }
-        if (config.MYSTERY_BOX_POINTS_COST) {
-          setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
-        }
-
-        // Try to get fresh user data and sync with localStorage
-        let activeUser = storedUser;
-        try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`${API_BASE}/users`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          const users = await res.json();
-          const freshUser = users.find(u => u.id === storedUser.id);
-          if (freshUser) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/users/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const freshUser = await res.json();
+          if (freshUser && freshUser.id) {
             activeUser = freshUser;
             setUser(freshUser);
             localStorage.setItem('user', JSON.stringify(freshUser));
             localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
           }
-        } catch (err) {
-          console.error('Error fetching fresh user data:', err);
+        } else if (res.status === 401 || res.status === 404) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('ss_current_user');
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
         }
+      } catch (err) {
+        console.error('Error fetching fresh user data:', err);
+      }
 
-        if (activeUser && activeUser.id) {
-          // Silently auto-assign any mystery boxes the user is entitled to based on their level
-          try {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ userId: activeUser.id })
-            });
-          } catch (autoErr) {
-            console.error('Error auto-assigning mystery boxes:', autoErr);
+      // Step 2: Fetch system config (non-blocking — use public /config endpoint)
+      try {
+        const token = localStorage.getItem('token');
+        const configRes = await fetch(`${API_BASE}/config`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (configRes.ok) {
+          const config = await configRes.json();
+          if (config.LEVEL_THRESHOLDS) {
+            try { setLevels(JSON.parse(config.LEVEL_THRESHOLDS)); } catch {}
           }
-
-          // Fetch user mystery boxes (now includes any newly auto-assigned ones)
-          try {
-            const boxes = await mysteryBoxAPI.getByUser(activeUser.id);
-            const seen = new Set();
-            const uniqueBoxes = (boxes || []).filter(b => {
-              if (seen.has(b.id)) return false;
-              seen.add(b.id);
-              return true;
-            });
-            setMysteryBoxes(uniqueBoxes);
-          } catch (boxErr) {
-            console.error('Error fetching mystery boxes:', boxErr);
+          if (config.MYSTERY_BOX_LEVEL_CONFIG) {
+            try { setMysteryBoxConfigs(JSON.parse(config.MYSTERY_BOX_LEVEL_CONFIG)); } catch {}
           }
-
-          // Fetch user points transactions
-          try {
-            const token = localStorage.getItem('token');
-            const txRes = await fetch(`${API_BASE}/users/${activeUser.id}/transactions`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            if (txRes.ok) {
-              const txData = await txRes.json();
-              setTransactions(txData);
-            }
-          } catch (txErr) {
-            console.error('Error fetching transactions:', txErr);
-          }
-
-          // Fetch user donation requests
-          try {
-            const token = localStorage.getItem('token');
-            const donRes = await fetch(`${API_BASE}/donations/user/${activeUser.id}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            if (donRes.ok) {
-              const donData = await donRes.json();
-              setDonations(donData);
-            }
-          } catch (donErr) {
-            console.error('Error fetching donations:', donErr);
+          if (config.MYSTERY_BOX_POINTS_COST) {
+            setDefaultPointsCost(parseInt(config.MYSTERY_BOX_POINTS_COST) || 200);
           }
         }
       } catch (err) {
-        console.error('Error fetching configuration or boxes:', err);
+        console.error('Error fetching system config:', err);
+      }
+
+      if (activeUser && activeUser.id) {
+        // Step 3: Silently auto-assign mystery boxes
+        try {
+          const token = localStorage.getItem('token');
+          await fetch(`${API_BASE}/mystery-boxes/auto-assign`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId: activeUser.id })
+          });
+        } catch (autoErr) {
+          console.error('Error auto-assigning mystery boxes:', autoErr);
+        }
+
+        // Step 4: Fetch mystery boxes (independent)
+        try {
+          const boxes = await mysteryBoxAPI.getByUser(activeUser.id);
+          const seen = new Set();
+          const uniqueBoxes = (boxes || []).filter(b => {
+            if (seen.has(b.id)) return false;
+            seen.add(b.id);
+            return true;
+          });
+          setMysteryBoxes(uniqueBoxes);
+        } catch (boxErr) {
+          console.error('Error fetching mystery boxes:', boxErr);
+        }
+
+        // Step 5: Fetch point transactions (independent)
+        try {
+          const token = localStorage.getItem('token');
+          const txRes = await fetch(`${API_BASE}/users/${activeUser.id}/transactions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (txRes.ok) {
+            const txData = await txRes.json();
+            setTransactions(txData);
+          } else {
+            console.warn('Transactions fetch returned', txRes.status);
+          }
+        } catch (txErr) {
+          console.error('Error fetching transactions:', txErr);
+        }
+
+        // Step 6: Fetch donations (independent)
+        try {
+          const token = localStorage.getItem('token');
+          const donRes = await fetch(`${API_BASE}/donations/user/${activeUser.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (donRes.ok) {
+            const donData = await donRes.json();
+            setDonations(donData);
+          } else {
+            console.warn('Donations fetch returned', donRes.status);
+          }
+        } catch (donErr) {
+          console.error('Error fetching donations:', donErr);
+        }
       }
     };
     fetchConfigAndBoxes();
@@ -179,17 +187,23 @@ const Profile = () => {
       // Fetch fresh user data to reflect point deduction
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/users`, {
+        const res = await fetch(`${API_BASE}/users/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        const users = await res.json();
-        const freshUser = users.find(u => u.id === user.id);
-        if (freshUser) {
-          setUser(freshUser);
-          localStorage.setItem('user', JSON.stringify(freshUser));
-          localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
+        if (res.ok) {
+          const freshUser = await res.json();
+          if (freshUser && freshUser.id) {
+            setUser(freshUser);
+            localStorage.setItem('user', JSON.stringify(freshUser));
+            localStorage.setItem('ss_current_user', JSON.stringify(freshUser));
+          } else {
+            const updatedUser = { ...user, points: Math.max(0, (user.points || 0) - cost) };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            localStorage.setItem('ss_current_user', JSON.stringify(updatedUser));
+          }
         } else {
           const updatedUser = { ...user, points: Math.max(0, (user.points || 0) - cost) };
           setUser(updatedUser);
